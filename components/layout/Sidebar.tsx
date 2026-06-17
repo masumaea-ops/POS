@@ -1,9 +1,10 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import ThemeToggle from './ThemeToggle';
+import { useSystemSettings } from '../../contexts/SettingsContext';
 import { 
     GridIcon, ShoppingCartIcon, PackageIcon, ShoppingBagIcon, 
-    TruckIcon, UsersGroupIcon, BarChartIcon, BookOpenIcon, SettingsIcon, LogOutIcon 
+    TruckIcon, UsersGroupIcon, BarChartIcon, BookOpenIcon, SettingsIcon, LogOutIcon, CpuIcon 
 } from '../shared/Icons';
 
 const navigation = [
@@ -15,13 +16,19 @@ const navigation = [
   { name: 'Contacts', href: '/contacts', icon: UsersGroupIcon },
   { name: 'Reports', href: '/reports', icon: BarChartIcon },
   { name: 'Accounting', href: '/accounting', icon: BookOpenIcon },
+  { name: 'API Connectors', href: '/integrations', icon: CpuIcon },
 ];
 
 const Sidebar: React.FC<{ onLogout: () => void }> = ({ onLogout }) => {
+  const { settings } = useSystemSettings();
+  
   return (
     <aside className="w-64 flex flex-col bg-white dark:bg-gray-800 border-r border-surface-2 dark:border-gray-700">
-      <div className="h-16 flex items-center justify-center border-b border-surface-2 dark:border-gray-700 shrink-0">
-        <h1 className="text-xl font-bold text-ink dark:text-gray-50">Masuma<span className="text-brand-orange">POS</span></h1>
+      <div className="h-16 flex items-center justify-center border-b border-surface-2 dark:border-gray-700 shrink-0 select-none">
+        <h1 className="text-xl font-black text-ink dark:text-gray-50 flex items-center">
+          {settings.corpShortName || 'Masuma'}
+          <span className="text-brand-orange ml-0.5">POS</span>
+        </h1>
       </div>
       <nav className="flex-1 overflow-y-auto p-4">
         <ul>

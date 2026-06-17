@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import PageHeader from '../components/shared/PageHeader';
+import { useSystemSettings } from '../contexts/SettingsContext';
 import { 
   BookOpenIcon, 
   FileTextIcon, 
@@ -46,6 +47,7 @@ interface BankStatementLine {
 }
 
 const Accounting: React.FC = () => {
+  const { settings, formatPrice } = useSystemSettings();
   // 1. Core State: Chart of Accounts
   const [accounts, setAccounts] = useState<Account[]>([
     { id: '1010', name: 'Bank Current Account (CBA)', type: 'Asset', category: 'Cash & Equiv', balance: 3450000 },
@@ -334,7 +336,7 @@ const Accounting: React.FC = () => {
       return copy;
     });
 
-    alert(`💰 MATCH CONCLUDED:\nAuto ledger adjusted.\nBank Statement ref matched with invoice.\nDebit: Bank Cash KES ${amount.toLocaleString()}\nCredit: Accounts Receivable KES ${amount.toLocaleString()}`);
+    alert(`💰 MATCH CONCLUDED:\nAuto ledger adjusted.\nBank Statement ref matched with invoice.\nDebit: Bank Cash ${settings.currency} ${amount.toLocaleString()}\nCredit: Accounts Receivable ${settings.currency} ${amount.toLocaleString()}`);
   };
 
   return (
@@ -352,7 +354,7 @@ const Accounting: React.FC = () => {
           <span className="text-[10px] tracking-widest uppercase font-black text-slate-400">Ledger Assets (Debit Basis)</span>
           <div className="flex items-baseline mt-1.5 gap-1 font-mono">
             <span className="text-2xl font-black text-slate-900 dark:text-white">{(coaCalculations.assets / 1000).toLocaleString(undefined, {maximumFractionDigits:1})}k</span>
-            <span className="text-xs text-slate-500">KES</span>
+            <span className="text-xs text-slate-500">{settings.currency}</span>
           </div>
           <span className="text-[10px] text-slate-450 font-sans mt-2">Cash + Receivables + Stock</span>
         </div>
@@ -362,7 +364,7 @@ const Accounting: React.FC = () => {
           <span className="text-[10px] tracking-widest uppercase font-black text-slate-400">Total Obligations</span>
           <div className="flex items-baseline mt-1.5 gap-1 font-mono">
             <span className="text-2xl font-black text-amber-600 dark:text-amber-400">{(coaCalculations.liabilities / 1000).toLocaleString(undefined, {maximumFractionDigits:1})}k</span>
-            <span className="text-xs text-slate-500">KES</span>
+            <span className="text-xs text-slate-500">{settings.currency}</span>
           </div>
           <span className="text-[10px] text-slate-450 font-sans mt-2">Trade Payables + eTIMS Taxes</span>
         </div>
@@ -372,7 +374,7 @@ const Accounting: React.FC = () => {
           <span className="text-[10px] tracking-widest uppercase font-black text-slate-400">Owners Capital & Reserves</span>
           <div className="flex items-baseline mt-1.5 gap-1 font-mono">
             <span className="text-2xl font-black text-slate-900 dark:text-white">{(coaCalculations.equity / 1000).toLocaleString(undefined, {maximumFractionDigits:1})}k</span>
-            <span className="text-xs text-slate-500">KES</span>
+            <span className="text-xs text-slate-500">{settings.currency}</span>
           </div>
           <span className="text-[10px] text-zinc-400 font-sans mt-2">Paid-up equity + retained cash</span>
         </div>
@@ -382,7 +384,7 @@ const Accounting: React.FC = () => {
           <span className="text-[10px] tracking-widest uppercase font-black text-slate-400">YTD Business Net Profit</span>
           <div className="flex items-baseline mt-1.5 gap-1 font-mono">
             <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{(coaCalculations.netIncome / 1000).toLocaleString(undefined, {maximumFractionDigits:1})}k</span>
-            <span className="text-xs text-slate-500">KES</span>
+            <span className="text-xs text-slate-500">{settings.currency}</span>
           </div>
           <span className="text-[10px] text-emerald-500 font-sans font-bold mt-2">📊 Net profit: 38.9% share</span>
         </div>
@@ -480,7 +482,7 @@ const Accounting: React.FC = () => {
                     <div className="flex justify-between items-center text-xs">
                        <span className="font-semibold text-slate-700 dark:text-slate-350">Assets (Trade Inventory, Bank deposits, Receivables)</span>
                        <div className="grid grid-cols-2 text-right w-44 font-mono font-bold">
-                          <span className="text-slate-800 dark:text-white">KES {coaCalculations.assets.toLocaleString()}</span>
+                          <span className="text-slate-800 dark:text-white">{formatPrice(coaCalculations.assets)}</span>
                           <span className="text-slate-300">-</span>
                        </div>
                     </div>
@@ -489,7 +491,7 @@ const Accounting: React.FC = () => {
                        <span className="font-semibold text-slate-700 dark:text-slate-350">Liabilities (Merchant Payables, KRA Taxes, Provisions)</span>
                        <div className="grid grid-cols-2 text-right w-44 font-mono font-semibold text-slate-500">
                           <span className="text-slate-300">-</span>
-                          <span className="text-slate-850 dark:text-slate-100">KES {coaCalculations.liabilities.toLocaleString()}</span>
+                          <span className="text-slate-850 dark:text-slate-100">{formatPrice(coaCalculations.liabilities)}</span>
                        </div>
                     </div>
                     {/* Equity CR */}
@@ -497,7 +499,7 @@ const Accounting: React.FC = () => {
                        <span className="font-semibold text-slate-700 dark:text-slate-350">Corporate Equity & Share Reserve Accounts</span>
                        <div className="grid grid-cols-2 text-right w-44 font-mono font-semibold text-slate-500">
                           <span className="text-slate-300">-</span>
-                          <span className="text-slate-850 dark:text-slate-100 font-bold">KES {coaCalculations.equity.toLocaleString()}</span>
+                          <span className="text-slate-850 dark:text-slate-100 font-bold">{formatPrice(coaCalculations.equity)}</span>
                        </div>
                     </div>
                     {/* Revenue CR */}
@@ -505,14 +507,14 @@ const Accounting: React.FC = () => {
                        <span className="font-semibold text-slate-700 dark:text-slate-350">B2B Trade Wholesale & Retail Revenue Streams</span>
                        <div className="grid grid-cols-2 text-right w-44 font-mono font-semibold text-slate-500">
                           <span className="text-slate-300">-</span>
-                          <span className="text-slate-850 dark:text-slate-100">KES {coaCalculations.revenues.toLocaleString()}</span>
+                          <span className="text-slate-850 dark:text-slate-100">{formatPrice(coaCalculations.revenues)}</span>
                        </div>
                     </div>
                     {/* Expenses DR */}
                     <div className="flex justify-between items-center text-xs">
                        <span className="font-semibold text-slate-700 dark:text-slate-350">Operating Costs & Cost of Goods Sold (COGS)</span>
                        <div className="grid grid-cols-2 text-right w-44 font-mono font-semibold text-slate-500">
-                          <span className="text-slate-850 dark:text-slate-100">KES {coaCalculations.expenses.toLocaleString()}</span>
+                          <span className="text-slate-850 dark:text-slate-100">{formatPrice(coaCalculations.expenses)}</span>
                           <span className="text-slate-300">-</span>
                        </div>
                     </div>
@@ -646,7 +648,7 @@ const Accounting: React.FC = () => {
                              </td>
                              <td className="p-3 font-sans text-slate-500">{acc.category}</td>
                              <td className="p-3 text-right font-black text-slate-950 dark:text-white">
-                                KES {acc.balance.toLocaleString(undefined, {minimumFractionDigits: 2})}
+                                {formatPrice(acc.balance)}
                              </td>
                           </tr>
                        ))}
@@ -722,7 +724,7 @@ const Accounting: React.FC = () => {
 
                                 {/* Debits */}
                                 <div className="col-span-3">
-                                   <label className="text-[10px] font-bold text-slate-450">Debit (DR) KES</label>
+                                   <label className="text-[10px] font-bold text-slate-450">Debit (DR) {settings.currency}</label>
                                    <input 
                                       type="number"
                                       min={0}
@@ -735,7 +737,7 @@ const Accounting: React.FC = () => {
 
                                 {/* Credits */}
                                 <div className="col-span-3">
-                                   <label className="text-[10px] font-bold text-slate-450">Credit (CR) KES</label>
+                                   <label className="text-[10px] font-bold text-slate-450">Credit (CR) {settings.currency}</label>
                                    <input 
                                       type="number"
                                       min={0}
@@ -767,11 +769,11 @@ const Accounting: React.FC = () => {
                      <div className="flex gap-4 font-mono font-bold text-xs">
                          <div>
                             <span className="text-slate-400">Debits:</span> 
-                            <span className="text-slate-900 dark:text-zinc-50 ml-1">KES {journalJVBalance.debits.toLocaleString()}</span>
+                            <span className="text-slate-900 dark:text-zinc-50 ml-1">{formatPrice(journalJVBalance.debits)}</span>
                          </div>
                          <div>
                             <span className="text-slate-400">Credits:</span> 
-                            <span className="text-slate-900 dark:text-zinc-50 ml-1">KES {journalJVBalance.credits.toLocaleString()}</span>
+                            <span className="text-slate-900 dark:text-zinc-50 ml-1">{formatPrice(journalJVBalance.credits)}</span>
                          </div>
                      </div>
 
@@ -782,7 +784,7 @@ const Accounting: React.FC = () => {
                            </span>
                         ) : (
                            <span className="bg-rose-100 text-rose-805 font-bold px-2.5 py-1 rounded text-[10px] animate-pulse">
-                              ⚠️ UNBALANCED BY KES {Math.abs(journalJVBalance.difference).toLocaleString()}
+                              ⚠️ UNBALANCED BY {formatPrice(Math.abs(journalJVBalance.difference))}
                            </span>
                         )}
 
@@ -830,7 +832,7 @@ const Accounting: React.FC = () => {
                                 </div>
 
                                 <div className="text-right">
-                                   <p className="font-mono font-black text-sm text-slate-950 dark:text-white">KES {statement.amount.toLocaleString()}</p>
+                                   <p className="font-mono font-black text-sm text-slate-950 dark:text-white">{formatPrice(statement.amount)}</p>
                                    {statement.matched ? (
                                       <span className="text-[10px] font-bold text-teal-600">Matched Checked</span>
                                    ) : (
@@ -868,7 +870,7 @@ const Accounting: React.FC = () => {
                      <div className="pt-4 mt-4 border-t border-slate-205 dark:border-slate-805">
                          <span className="text-[10px] font-mono block text-slate-400">Total Unreconciled pipeline</span>
                          <span className="text-xl font-bold font-mono text-brand-orange">
-                            KES {bankStatement.filter(s => !s.matched).reduce((acc, s) => acc + s.amount, 0).toLocaleString()}
+                            {formatPrice(bankStatement.filter(s => !s.matched).reduce((acc, s) => acc + s.amount, 0))}
                          </span>
                      </div>
                  </div>
@@ -896,11 +898,11 @@ const Accounting: React.FC = () => {
                  </div>
                  <div className="p-4 bg-slate-50 dark:bg-slate-900 border rounded-xl divide-y">
                      <span className="text-[10px] font-bold text-slate-450 uppercase block pb-1">Tax Audit Rate Target</span>
-                     <p className="pt-2 font-black text-slate-900 dark:text-white">KES Standard 16% VAT Rate</p>
+                     <p className="pt-2 font-black text-slate-900 dark:text-white">{settings.currency} Standard {settings.vatRate}% VAT Rate</p>
                  </div>
                  <div className="p-4 bg-slate-50 dark:bg-slate-900 border rounded-xl divide-y">
                      <span className="text-[10px] font-bold text-slate-450 uppercase block pb-1">Tax liability logged</span>
-                     <p className="pt-2 font-black text-slate-900 dark:text-white">KES {coaCalculations.liabilities.toLocaleString()}</p>
+                     <p className="pt-2 font-black text-slate-900 dark:text-white">{formatPrice(coaCalculations.liabilities)}</p>
                  </div>
               </div>
 
@@ -945,7 +947,7 @@ const Accounting: React.FC = () => {
                          </div>
                          <div className="flex justify-between items-center pt-2 border-t">
                              <span className="text-slate-450 font-bold uppercase text-[9px]">Net balance valuation:</span>
-                             <span className="font-black font-mono text-sm text-slate-950 dark:text-white">KES {selectedAccountForAudit.balance.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                             <span className="font-black font-mono text-sm text-slate-950 dark:text-white">{formatPrice(selectedAccountForAudit.balance)}</span>
                          </div>
                      </div>
 
@@ -968,10 +970,10 @@ const Accounting: React.FC = () => {
                                          <td className="p-2 font-sans font-medium">{post.description}</td>
                                          <td className="p-2 font-mono font-bold text-slate-600">{post.ref}</td>
                                          <td className="p-2 text-right text-emerald-600 font-bold">
-                                             {post.debit > 0 ? `KES ${post.debit.toLocaleString()}` : '-'}
+                                             {post.debit > 0 ? formatPrice(post.debit) : '-'}
                                          </td>
                                          <td className="p-2 text-right text-slate-600">
-                                             {post.credit > 0 ? `KES ${post.credit.toLocaleString()}` : '-'}
+                                             {post.credit > 0 ? formatPrice(post.credit) : '-'}
                                          </td>
                                      </tr>
                                  )) || (
@@ -1059,7 +1061,7 @@ const Accounting: React.FC = () => {
                          </div>
                      </div>
                      <div>
-                         <label className="font-bold text-slate-600 dark:text-slate-350">Inception Opening Valuation (Balance KES)</label>
+                         <label className="font-bold text-slate-600 dark:text-slate-350">Inception Opening Valuation (Balance {settings.currency})</label>
                          <input 
                             type="number"
                             placeholder="0"

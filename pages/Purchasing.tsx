@@ -4,8 +4,10 @@ import Table from '../components/shared/Table';
 import { MOCK_PURCHASE_ORDERS, MOCK_SUPPLIERS, MOCK_PRODUCTS } from '../data/mockData';
 import type { PurchaseOrder, Supplier, Product } from '../types';
 import { XIcon } from '../components/shared/Icons';
+import { useSystemSettings } from '../contexts/SettingsContext';
 
 const Purchasing: React.FC = () => {
+    const { settings, formatPrice } = useSystemSettings();
     const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>(MOCK_PURCHASE_ORDERS);
     const [selectedPO, setSelectedPO] = useState<PurchaseOrder | null>(null);
     
@@ -119,7 +121,7 @@ const Purchasing: React.FC = () => {
           header: 'Contract Total Value', 
           accessor: (item: PurchaseOrder) => (
              <span className="font-mono font-black text-slate-900 dark:text-slate-50">
-               KES {item.total.toLocaleString(undefined, {minimumFractionDigits: 2})}
+               {formatPrice(item.total)}
              </span>
           ) 
         },
@@ -206,15 +208,15 @@ const Purchasing: React.FC = () => {
                                          <tr key={idx} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 text-slate-800 dark:text-slate-100 font-mono">
                                              <td className="p-2.5 font-sans font-medium">{item.productName}</td>
                                              <td className="p-2.5 text-right">{item.quantity}</td>
-                                             <td className="p-2.5 text-right">KES {item.cost.toLocaleString()}</td>
-                                             <td className="p-2.5 text-right font-bold">KES {(item.cost * item.quantity).toLocaleString()}</td>
+                                             <td className="p-2.5 text-right">{formatPrice(item.cost)}</td>
+                                             <td className="p-2.5 text-right font-bold">{formatPrice(item.cost * item.quantity)}</td>
                                          </tr>
                                      ))}
                                  </tbody>
                              </table>
                              <div className="p-3 bg-slate-50 dark:bg-slate-900/30 flex justify-between font-bold text-slate-900 dark:text-white border-t border-slate-200 dark:border-slate-700 text-sm">
                                  <span>Contract Core Total</span>
-                                 <span>KES {selectedPO.total.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                                 <span>{formatPrice(selectedPO.total)}</span>
                              </div>
                          </div>
                     </div>
@@ -313,7 +315,7 @@ const Purchasing: React.FC = () => {
                                          />
                                      </div>
                                      <div className="col-span-3">
-                                         <label className="text-[10px] font-bold text-slate-400">Trade Cost KES</label>
+                                         <label className="text-[10px] font-bold text-slate-400">Trade Cost ({settings.currency})</label>
                                          <p className="p-1 font-mono text-[11px] font-bold mt-1 text-slate-800 dark:text-slate-300">
                                             {line.cost.toLocaleString()}
                                          </p>
@@ -336,7 +338,7 @@ const Purchasing: React.FC = () => {
                          <div className="p-3 bg-brand-orange/5 rounded-lg border border-brand-orange/10 flex justify-between font-bold text-sm">
                              <span className="text-slate-600 dark:text-slate-400">Est. Total Order Value (Trade Price)</span>
                              <span className="text-brand-orange font-black">
-                               KES {poLines.reduce((acc, line) => acc + (line.cost * line.quantity), 0).toLocaleString()}
+                               {formatPrice(poLines.reduce((acc, line) => acc + (line.cost * line.quantity), 0))}
                              </span>
                          </div>
 

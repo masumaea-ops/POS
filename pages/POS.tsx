@@ -4,12 +4,14 @@ import type { Product, CartItem, Customer } from '../types';
 import ProductGrid from '../components/pos/ProductGrid';
 import Cart from '../components/pos/Cart';
 import { SearchIcon, UsersIcon } from '../components/shared/Icons';
+import { BarcodeScannerModal } from '../components/pos/BarcodeScannerModal';
 
 const POS: React.FC = () => {
     const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS);
     const [cart, setCart] = useState<CartItem[]>([]);
     const [customer, setCustomer] = useState<Customer>(MOCK_CUSTOMERS[0]);
     const [searchTerm, setSearchTerm] = useState('');
+    const [showScannerModal, setShowScannerModal] = useState(false);
     
     // Barcode scanner simulator states
     const [scannerInput, setScannerInput] = useState('');
@@ -165,17 +167,27 @@ const POS: React.FC = () => {
                 <header className="bg-white dark:bg-gray-800 p-4 border-b border-surface-2 dark:border-gray-700 shrink-0 flex flex-col md:flex-row md:items-center justify-between gap-4">
                     
                     {/* Catalog Query */}
-                    <div className="relative flex-1 max-w-xl">
-                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-450">
-                            <SearchIcon className="w-5 h-5" />
-                        </span>
-                        <input
-                            type="text"
-                            placeholder="Enter product brand, native SKU, or OEM Part Number..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 border border-slate-200 dark:border-gray-650 bg-slate-50 dark:bg-gray-700 text-slate-800 dark:text-gray-50 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange text-sm"
-                        />
+                    <div className="relative flex-1 flex gap-2 max-w-xl">
+                        <div className="relative flex-1">
+                            <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-450">
+                                <SearchIcon className="w-5 h-5" />
+                            </span>
+                            <input
+                                type="text"
+                                placeholder="Enter product brand, native SKU, or OEM Part Number..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2 border border-slate-200 dark:border-gray-650 bg-slate-50 dark:bg-gray-700 text-slate-800 dark:text-gray-50 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-orange text-sm font-medium"
+                            />
+                        </div>
+                        <button
+                            onClick={() => setShowScannerModal(true)}
+                            className="px-3.5 py-2 bg-brand-orange hover:bg-brand-orange/95 text-white font-extrabold text-[11px] uppercase tracking-wider rounded-lg flex items-center gap-1.5 transition-all outline-none focus:ring-2 focus:ring-amber-500 shrink-0 select-none active:scale-[0.98] shadow-md shadow-brand-orange/10"
+                            title="Open digital barcode camera scanner and virtual label sheet"
+                        >
+                            <span>🏷️</span>
+                            <span>Scan Code</span>
+                        </button>
                     </div>
 
                     {/* Scanning simulator panel */}
@@ -232,9 +244,10 @@ const POS: React.FC = () => {
                 </header>
 
                 {/* Sub-HUD: Interactive Instruction to scanning */}
-                <div className="bg-slate-900 text-slate-400 text-[11px] px-4 py-1.5 font-mono flex items-center justify-between border-b border-slate-800">
-                  <span className="text-amber-500 font-bold">⚡ BARCODE SCAN STATION ACTIVE:</span>
-                  <span>Type SKU/OEM directly anywhere to test global listeners, or use simulator above. Try: <span className="text-bold text-slate-100 hover:underline cursor-pointer" onClick={() => processScannedCode('04465-0K150')}>04465-0K150</span></span>
+                <div className="bg-slate-900 text-slate-450 text-[10px] sm:text-[11px] px-4 py-1.5 font-mono flex items-center justify-between border-b border-slate-800 shrink-0 select-none">
+                  <span className="text-brand-orange font-bold uppercase">⚡ BARCODE SCAN STATION ACTIVE:</span>
+                  <span className="hidden md:inline">Type SKU/OEM code directly anywhere, or click <strong className="text-zinc-100 hover:text-brand-orange underline cursor-pointer" onClick={() => setShowScannerModal(true)}>Scan Code</strong> for camera scanner & simulated labels.</span>
+                  <span className="md:hidden">Click <strong className="text-zinc-100 underline" onClick={() => setShowScannerModal(true)}>Scan Code</strong> for scanner deck.</span>
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-4 md:p-6">
@@ -252,6 +265,15 @@ const POS: React.FC = () => {
                     customer={customer}
                 />
             </div>
+
+            {/* BARCODE CAMERA & SIMULATOR CONSOLE MODAL */}
+            {showScannerModal && (
+                <BarcodeScannerModal 
+                    products={products}
+                    onScanMatch={(product) => handleAddToCart(product)}
+                    onClose={() => setShowScannerModal(false)}
+                />
+            )}
         </div>
     );
 };

@@ -5,8 +5,10 @@ import Table from '../components/shared/Table';
 import { MOCK_SALE_ORDERS, MOCK_CUSTOMERS, MOCK_PRODUCTS } from '../data/mockData';
 import type { SaleOrder, Customer, Product } from '../types';
 import { XIcon } from '../components/shared/Icons';
+import { useSystemSettings } from '../contexts/SettingsContext';
 
 const Sales: React.FC = () => {
+  const { settings, formatPrice } = useSystemSettings();
   const tabs = ["Quotes", "Orders", "Invoices", "Returns"];
   const [salesOrders, setSalesOrders] = useState<SaleOrder[]>(MOCK_SALE_ORDERS);
   const [selectedOrder, setSelectedOrder] = useState<SaleOrder | null>(null);
@@ -41,8 +43,8 @@ const Sales: React.FC = () => {
         return order;
     }));
     
-    // East Africa KES Tax compliance Alert
-    alert(`⚡ PRO-FORMA CONVERTED SUCCESSFULLY:\nStatus modified to "Invoiced".\nSynchronized with KRA eTIMS instance.\nSecurity fiscal hash generated: eTIMS-9${Math.floor(100000 + Math.random()*900000)}-EAF.`);
+    // Tax compliance Alert using localized configs
+    alert(`⚡ PRO-FORMA CONVERTED SUCCESSFULLY:\nStatus modified to "Invoiced".\nSynchronized with local tax eTIMS compliance node.\nDevice FSC Serial: ${settings.deviceSerial}\nEntity Base: ${settings.corpName}`);
   };
 
   const addQuoteLine = () => {
@@ -128,17 +130,17 @@ const Sales: React.FC = () => {
     { header: 'Billing Date', accessor: (item: SaleOrder) => <span className="font-mono text-xs">{item.date}</span> },
     { header: 'Trading State', accessor: (item: SaleOrder) => getStatusBadge(item.status) },
     { 
-      header: 'Gross Total (16% VAT Inc.)', 
+      header: `Gross Total (${settings.vatRate}% VAT Inc.)`, 
       accessor: (item: SaleOrder) => (
-        <span className="font-mono font-bold text-slate-900 dark:text-gray-50">
-           KES {item.total.toLocaleString(undefined, {minimumFractionDigits: 2})}
+        <span className="font-mono font-bold text-slate-900 dark:text-gray-50 text-right block pr-4">
+           {formatPrice(item.total)}
         </span>
       )
     },
     {
       header: 'Interactive Control',
       accessor: (item: SaleOrder) => (
-        <div className="flex gap-2">
+        <div className="flex gap-2 justify-center">
            <button 
              onClick={() => setSelectedOrder(item)}
              className="px-2.5 py-1 text-xs bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-200 rounded font-bold"
@@ -169,7 +171,7 @@ const Sales: React.FC = () => {
   };
 
   return (
-    <div className="flex flex-col bg-slate-50 dark:bg-slate-900 min-h-full pb-12">
+    <div className="flex flex-col bg-slate-50 dark:bg-slate-900 min-h-full pb-12 text-slate-900 dark:text-slate-50">
       <PageHeader
         title="Quotation & Pro-forma Ledger"
         primaryAction={{ label: "Prepare Pro-forma Quote", onClick: () => setIsCreateOpen(true) }}
@@ -185,39 +187,43 @@ const Sales: React.FC = () => {
       {/* INSPECT DETAIL MODAL DRAWER */}
       {selectedOrder && (
          <div className="fixed inset-0 bg-black/55 backdrop-blur-xs flex justify-end z-50 animate-fade-in">
-             <div className="w-full max-w-lg bg-white dark:bg-slate-800 h-full p-6 shadow-2xl flex flex-col justify-between overflow-y-auto animate-slide-left">
+             <div className="w-full max-w-lg bg-white dark:bg-slate-800 h-full p-6 shadow-2xl flex flex-col justify-between overflow-y-auto animate-slide-left text-xs">
                  <div>
                      <div className="flex justify-between items-center border-b border-slate-100 dark:border-slate-700 pb-4 mb-5">
-                         <div>
-                             <span className="text-[10px] uppercase font-mono tracking-wider text-slate-400">East Africa Pro-forma Ledger</span>
-                             <h3 className="text-xl font-black text-slate-900 dark:text-white font-mono mt-0.5">{selectedOrder.id}</h3>
-                         </div>
-                         <button onClick={() => setSelectedOrder(null)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full text-slate-500">
-                             <XIcon className="w-5 h-5"/>
-                         </button>
+                          <div>
+                              <span className="text-[10px] uppercase font-mono tracking-wider text-slate-400">{settings.corpShortName} Pro-forma Ledger</span>
+                              <h3 className="text-xl font-black text-slate-900 dark:text-white font-mono mt-0.5">{selectedOrder.id}</h3>
+                          </div>
+                          <button onClick={() => setSelectedOrder(null)} className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-full text-slate-500">
+                              <XIcon className="w-5 h-5"/>
+                          </button>
                      </div>
 
                      <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-150 dark:border-slate-750 text-xs space-y-2 mb-6">
-                         <div className="flex justify-between">
-                             <span className="text-slate-450 uppercase font-bold text-[10px]">Distributor Name:</span>
-                             <span className="font-bold text-slate-850 dark:text-zinc-100">{selectedOrder.customer.name}</span>
-                         </div>
-                         <div className="flex justify-between">
-                             <span className="text-slate-450 uppercase font-bold text-[10px]">Client Tier Type:</span>
-                             <span className="font-mono text-brand-orange font-bold uppercase">{selectedOrder.customer.tier}</span>
-                         </div>
-                         <div className="flex justify-between">
-                             <span className="text-slate-450 uppercase font-bold text-[10px]">Issue Date:</span>
-                             <span className="font-mono text-slate-800 dark:text-slate-200">{selectedOrder.date}</span>
-                         </div>
-                         <div className="flex justify-between items-center pt-2 border-t border-slate-200 dark:border-slate-750">
-                             <span className="text-slate-450 uppercase font-bold text-[10px]">Status:</span>
-                             {getStatusBadge(selectedOrder.status)}
-                         </div>
+                          <div className="flex justify-between">
+                              <span className="text-slate-450 uppercase font-bold text-[10px]">Client / Merchant:</span>
+                              <span className="font-bold text-slate-850 dark:text-zinc-100">{selectedOrder.customer.name}</span>
+                          </div>
+                          <div className="flex justify-between">
+                              <span className="text-slate-450 uppercase font-bold text-[10px]">Address & Contact:</span>
+                              <span className="font-medium text-slate-700 dark:text-slate-300 font-sans">{selectedOrder.customer.email || 'billing@client.co.ke'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                              <span className="text-slate-450 uppercase font-bold text-[10px]">Client Tier Type:</span>
+                              <span className="font-mono text-brand-orange font-bold uppercase">{selectedOrder.customer.tier}</span>
+                          </div>
+                          <div className="flex justify-between">
+                              <span className="text-slate-450 uppercase font-bold text-[10px]">Issue Date:</span>
+                              <span className="font-mono text-slate-800 dark:text-slate-200">{selectedOrder.date}</span>
+                          </div>
+                          <div className="flex justify-between items-center pt-2 border-t border-slate-200 dark:border-slate-750">
+                              <span className="text-slate-450 uppercase font-bold text-[10px]">Status:</span>
+                              {getStatusBadge(selectedOrder.status)}
+                          </div>
                      </div>
 
-                     <h4 className="text-xs uppercase font-bold tracking-wider text-slate-500 mb-3">Itemized Components (16% VAT Included)</h4>
-                     <div className="border border-slate-200 dark:border-slate-705 rounded-xl overflow-hidden text-xs">
+                     <h4 className="text-xs uppercase font-bold tracking-wider text-slate-500 mb-3 block">Itemized Components ({settings.vatRate}% VAT Included)</h4>
+                     <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden text-xs">
                           <table className="w-full text-left">
                               <thead className="bg-slate-50 dark:bg-slate-750 text-slate-600 dark:text-slate-300 font-bold">
                                   <tr>
@@ -232,15 +238,15 @@ const Sales: React.FC = () => {
                                        <tr key={id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 text-slate-800 dark:text-zinc-100 font-mono">
                                            <td className="p-3 font-sans font-semibold">{item.productName}</td>
                                            <td className="p-3 text-center">{item.quantity}</td>
-                                           <td className="p-3 text-right">KES {item.price.toLocaleString()}</td>
-                                           <td className="p-3 text-right font-bold">KES {(item.price * item.quantity).toLocaleString()}</td>
+                                           <td className="p-3 text-right">{formatPrice(item.price)}</td>
+                                           <td className="p-3 text-right font-bold">{formatPrice(item.price * item.quantity)}</td>
                                        </tr>
                                    ))}
                               </tbody>
                           </table>
-                          <div className="p-4 bg-slate-55 dark:bg-slate-900/40 border-t border-slate-200 dark:border-slate-700 flex justify-between font-bold text-sm text-slate-900 dark:text-white">
-                             <span>Final Valuation Invoice Total</span>
-                             <span>KES {selectedOrder.total.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                          <div className="p-4 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 flex justify-between font-bold text-sm text-slate-900 dark:text-white">
+                             <span>Grand Total Valuation</span>
+                             <span>{formatPrice(selectedOrder.total)}</span>
                           </div>
                      </div>
                  </div>
@@ -252,12 +258,12 @@ const Sales: React.FC = () => {
                           onClick={() => handleConvertToInvoice(selectedOrder.id)}
                           className="w-full py-3 bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all font-mono"
                         >
-                          Convert to Legal VAT Invoice & Push eTIMS
+                          Convert to Official VAT Invoice
                         </button>
                      )}
                      <button 
                        onClick={() => setSelectedOrder(null)}
-                       className="w-full py-2.5 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-zinc-200 text-xs font-bold rounded-xl transition-all"
+                       className="w-full py-2.5 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-zinc-200 text-xs font-bold rounded-xl transition-all focus:outline-none"
                      >
                        Dismiss View
                      </button>
@@ -269,7 +275,7 @@ const Sales: React.FC = () => {
       {/* CREATE PROFORMA QUOTE MODAL */}
       {isCreateOpen && (
          <div className="fixed inset-0 bg-black/55 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-fade-in text-xs">
-             <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-xl w-full border border-slate-250 dark:border-slate-700 shadow-2xl overflow-hidden">
+             <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-xl w-full border border-slate-200 dark:border-slate-700 shadow-2xl overflow-hidden">
                  <div className="flex justify-between items-center p-5 border-b border-slate-100 dark:border-slate-700">
                     <h3 className="text-lg font-black text-slate-900 dark:text-white">📝 Prepare B2B Sales Pro-forma Quote</h3>
                     <button onClick={() => setIsCreateOpen(false)} className="text-slate-400 hover:text-slate-600">
@@ -287,7 +293,7 @@ const Sales: React.FC = () => {
                                 const c = MOCK_CUSTOMERS.find(cust => cust.id === parseInt(e.target.value, 10));
                                 if (c) setTargetCustomer(c);
                               }}
-                              className="w-full mt-1.5 p-2 bg-slate-50 dark:bg-slate-700 border rounded font-bold text-slate-800 dark:text-slate-100 focus:outline-none"
+                              className="w-full mt-1.5 p-2 bg-slate-50 dark:bg-slate-700 border dark:border-slate-650 rounded font-bold text-slate-800 dark:text-slate-100 focus:outline-none"
                            >
                               {MOCK_CUSTOMERS.map(c => (
                                  <option key={c.id} value={c.id}>{c.name} ({c.tier})</option>
@@ -303,13 +309,13 @@ const Sales: React.FC = () => {
                      </div>
 
                      <div className="flex justify-between items-center pt-2">
-                        <label className="text-slate-550 uppercase font-black tracking-wider text-[10px]">Autoparts Component Lines</label>
+                        <label className="text-slate-550 uppercase font-black tracking-wider text-[10px] text-slate-500">Autoparts Component Lines</label>
                         <button 
                            type="button" 
                            onClick={addQuoteLine}
                            className="px-2.5 py-1 bg-brand-orange/5 text-brand-orange rounded font-bold"
                         >
-                           ➕ Add Part Item Code
+                           Line Part item Code ➕
                         </button>
                      </div>
 
@@ -329,7 +335,7 @@ const Sales: React.FC = () => {
                                     <select 
                                        value={line.product.id}
                                        onChange={(e) => handleProductChange(idx, parseInt(e.target.value, 10))}
-                                       className="w-full mt-1 p-1 bg-white dark:bg-slate-800 border rounded focus:outline-none text-slate-800 dark:text-zinc-150 text-[11px]"
+                                       className="w-full mt-1 p-1 bg-white dark:bg-slate-800 border dark:border-slate-750 rounded focus:outline-none text-slate-800 dark:text-zinc-150 text-[11px]"
                                     >
                                        {MOCK_PRODUCTS.map(p => (
                                           <option key={p.id} value={p.id}>{p.name} [OEM: {p.oemCode}]</option>
@@ -343,13 +349,13 @@ const Sales: React.FC = () => {
                                        min={1}
                                        value={line.quantity || ''}
                                        onChange={(e) => handleQtyChange(idx, parseInt(e.target.value, 10)|0)}
-                                       className="w-full mt-1 p-1 bg-white dark:bg-slate-800 border rounded text-center font-bold text-slate-900 dark:text-white"
+                                       className="w-full mt-1 p-1 bg-white dark:bg-slate-800 border dark:border-slate-700 rounded text-center font-bold text-slate-900 dark:text-white"
                                     />
                                 </div>
                                 <div className="col-span-3 text-right">
                                     <label className="text-[10px] text-slate-450 block font-bold">Line Net Cost</label>
                                     <p className="mt-1 font-mono font-bold text-slate-800 dark:text-slate-350 text-[11px]">
-                                       KES {(actualUnitPrice * line.quantity).toLocaleString()}
+                                       {formatPrice(actualUnitPrice * line.quantity)}
                                     </p>
                                 </div>
                                 <div className="col-span-1 text-center">
@@ -371,7 +377,7 @@ const Sales: React.FC = () => {
                      <div className="p-3.5 bg-brand-orange/5 border border-brand-orange/10 rounded-xl flex justify-between font-bold text-sm">
                         <span className="text-slate-600 dark:text-slate-450">Estimated Net Pro-forma Total</span>
                         <span className="text-brand-orange font-black font-mono">
-                           KES {quoteLines.reduce((acc, line) => {
+                           {formatPrice(quoteLines.reduce((acc, line) => {
                              let actualUnitPrice = line.product.price;
                              if (targetCustomer.tier === 'Wholesale A') {
                                actualUnitPrice = Math.round(line.product.price * 0.85);
@@ -379,7 +385,7 @@ const Sales: React.FC = () => {
                                actualUnitPrice = Math.round(line.product.price * 0.90);
                              }
                              return acc + (actualUnitPrice * line.quantity);
-                           }, 0).toLocaleString()}
+                           }, 0))}
                         </span>
                      </div>
 
@@ -393,7 +399,7 @@ const Sales: React.FC = () => {
                         </button>
                         <button 
                            type="submit"
-                           className="flex-1 py-2.5 font-bold bg-brand-orange hover:bg-brand-orange/95 text-white rounded text-center shadow-md uppercase"
+                           className="flex-1 py-2.5 font-bold bg-brand-orange hover:bg-brand-orange/95 text-white rounded text-center shadow-md uppercase focus:outline-none"
                         >
                            Prepare Quotation Draft
                         </button>

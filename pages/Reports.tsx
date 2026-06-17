@@ -10,6 +10,7 @@ import {
   SearchIcon
 } from '../components/shared/Icons';
 import { MOCK_PRODUCTS, MOCK_CUSTOMERS, MOCK_SUPPLIERS, MOCK_PURCHASE_ORDERS, MOCK_SALE_ORDERS } from '../data/mockData';
+import { useSystemSettings } from '../contexts/SettingsContext';
 
 // Types of reports
 type ReportKey = 'sales' | 'inventory' | 'receivables' | 'vat' | 'suppliers' | 'cashup';
@@ -68,6 +69,7 @@ const INITIAL_CASH_SHIFTS = [
 ];
 
 const Reports: React.FC = () => {
+  const { settings, formatPrice } = useSystemSettings();
   // Current active sub-report key
   const [activeReport, setActiveReport] = useState<ReportKey | null>(null);
 
@@ -87,7 +89,11 @@ const Reports: React.FC = () => {
   const [alertMessage, setAlertMessage] = useState<string | null>(null);
 
   // 3) VAT State: tax country rate
-  const [vatRate, setVatRate] = useState<number>(16); // 16% in Kenya
+  const [vatRate, setVatRate] = useState<number>(settings.vatRate);
+
+  React.useEffect(() => {
+    setVatRate(settings.vatRate);
+  }, [settings.vatRate]);
 
   // 4) Till Balancing State: dynamic form
   const [cashShifts, setCashShifts] = useState(INITIAL_CASH_SHIFTS);
@@ -241,19 +247,23 @@ const Reports: React.FC = () => {
   // SERVICE EXPORTERS (CSV GENERATOR)
   // ----------------------------------------------------------------------
   const exportToCSV = (headers: string[], rows: (string | number)[][], fileName: string) => {
-    const csvContent = "data:text/csv;charset=utf-8,\uFEFF" 
+    const csvContent = "\uFEFF" 
       + [headers.join(","), ...rows.map(e => e.map(val => {
           const stringVal = String(val).replace(/"/g, '""');
-          return stringVal.includes(',') || stringVal.includes('\n') ? `"${stringVal}"` : stringVal;
+          return stringVal.includes(',') || stringVal.includes('\n') || stringVal.includes('"') 
+            ? `"${stringVal}"` 
+            : stringVal;
         }).join(","))].join("\n");
         
-    const encodedUri = encodeURI(csvContent);
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
+    link.setAttribute("href", url);
     link.setAttribute("download", `${fileName}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    URL.revokeObjectURL(url);
     
     // Quick success brief popup
     showBriefNotification("CSV exported successfully and downloading!");
@@ -271,7 +281,7 @@ const Reports: React.FC = () => {
   // ----------------------------------------------------------------------
   const handleOpenDunning = (debtor: any) => {
     setActiveDunningDebtor(debtor);
-    const template = `Dear ${debtor.customerName}, this is a friendly payment reminder from Masuma East Africa. Your account currently has an outstanding overdue balance of KES ${debtor.totalDue.toLocaleString()} (with KES ${((debtor.d61_90 + debtor.d90Over)).toLocaleString()} past 60 days). Please settle promptly to prevent trade credit holds. Thank you.`;
+    const template = `Dear ${debtor.customerName}, this is a friendly payment reminder from Masuma East Africa. Your account currently has an outstanding overdue balance of ${settings.currency} ${debtor.totalDue.toLocaleString()} (with ${settings.currency} ${((debtor.d61_90 + debtor.d90Over)).toLocaleString()} past 60 days). Please settle promptly to prevent trade credit holds. Thank you.`;
     setCustomMessage(template);
   };
 
@@ -320,7 +330,7 @@ const Reports: React.FC = () => {
     setCountCoins(0);
     setReconcileNotes('');
     
-    showBriefNotification(`Shift logged! Computed physical balancing variance: KES ${computedVariance.toLocaleString()}`);
+    showBriefNotification(`Shift logged! Computed physical balancing variance: ${formatPrice(computedVariance)}`);
   };
 
   // Reports config definitions
@@ -386,7 +396,7 @@ const Reports: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-main border-l-4 border-brand-orange">
               <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400">YTD Gross Revenue</h4>
-              <p className="text-2xl font-extrabold mt-1">KES 4,528,600</p>
+              <p className="text-2xl font-extrabold mt-1">{formatPrice(4528600)}</p>
               <div className="text-xs text-success font-semibold mt-2 flex items-center gap-1">
                 <span>↑ 14.8%</span> <span className="text-gray-400 font-normal">compared to last quarter</span>
               </div>
@@ -394,7 +404,7 @@ const Reports: React.FC = () => {
             
             <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-main border-l-4 border-accent">
               <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400">Total Asset Holding Cost</h4>
-              <p className="text-2xl font-extrabold mt-1">KES {inventorySummary.totalCost.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits:2})}</p>
+              <p className="text-2xl font-extrabold mt-1">{formatPrice(inventorySummary.totalCost)}</p>
               <div className="text-xs text-amber-500 font-semibold mt-2 flex items-center gap-1">
                 <span>{inventorySummary.lowStockCount} SKUs Low Stock</span>
               </div>
@@ -402,15 +412,15 @@ const Reports: React.FC = () => {
 
             <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-main border-l-4 border-amber-500">
               <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400">Outstanding Credit (Trade Receivables)</h4>
-              <p className="text-2xl font-extrabold mt-1">KES {receivablesTotals.totalDue.toLocaleString()}</p>
+              <p className="text-2xl font-extrabold mt-1">{formatPrice(receivablesTotals.totalDue)}</p>
               <div className="text-xs text-danger font-semibold mt-2 flex items-center gap-1">
-                <span>KES {(receivablesTotals.d90Over).toLocaleString()} Overdue 90+ Days</span>
+                <span>{formatPrice(receivablesTotals.d90Over)} Overdue 90+ Days</span>
               </div>
             </div>
 
             <div className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-main border-l-4 border-success">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400">Draft VAT Liability (Standard 16%)</h4>
-              <p className="text-2xl font-extrabold mt-1">KES {vatCalculations.netVat.toLocaleString()}</p>
+              <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400">Draft VAT Liability (Standard {settings.vatRate}%)</h4>
+              <p className="text-2xl font-extrabold mt-1">{formatPrice(vatCalculations.netVat)}</p>
               <div className="text-xs text-gray-400 mt-2">
                 <span>Unsubmitted quarterly filing draft</span>
               </div>
@@ -557,22 +567,22 @@ const Reports: React.FC = () => {
                 id="export_csv_btn"
                 onClick={() => {
                   if (activeReport === 'sales') {
-                    const headers = ['SKU', 'Product Name', 'Brand', 'Category', 'Quantity Sold', 'Revenue (KES)', 'Gross Margin (%)', 'Location'];
+                    const headers = ['SKU', 'Product Name', 'Brand', 'Category', 'Quantity Sold', `Revenue (${settings.currency})`, 'Gross Margin (%)', 'Location'];
                     const rows = salesItemsFiltered.map(i => [i.sku, i.name, i.brand, i.category, i.quantity, i.revenue, (i.margin * 100), i.outlet]);
                     exportToCSV(headers, rows, `sales_report_${selectedOutlet.replace(/\s+/g, '_')}_${dateRange}`);
                   }
                   else if (activeReport === 'inventory') {
-                    const headers = ['SKU', 'Product Name', 'Brand', 'Stock Level', 'Cost Per Unit (KES)', 'Total Asset Cost Valuation (KES)', 'Retail Value (KES)', 'Status'];
+                    const headers = ['SKU', 'Product Name', 'Brand', 'Stock Level', `Cost Per Unit (${settings.currency})`, `Total Asset Cost Valuation (${settings.currency})`, `Retail Value (${settings.currency})`, 'Status'];
                     const rows = inventoryItemsValued.map(i => [i.sku, i.name, i.brand, i.stock, i.unitCost.toFixed(2), i.totalCostValue.toFixed(2), i.totalRetailValue.toFixed(2), i.stockStatus]);
                     exportToCSV(headers, rows, `inventory_valuation_${valuationMethod}`);
                   }
                   else if (activeReport === 'receivables') {
-                    const headers = ['Buyer Customer', 'Corporate Entity', 'Current Balance (KES)', '1-30 Days Overdue', '31-60 Days Overdue', '61-90 Days Overdue', '90+ Days Limit'];
+                    const headers = ['Buyer Customer', 'Corporate Entity', `Current Balance (${settings.currency})`, '1-30 Days Overdue', '31-60 Days Overdue', '61-90 Days Overdue', '90+ Days Limit'];
                     const rows = debtorsFiltered.map(i => [i.customerName, i.company, i.totalDue, i.current, i.d1_30, i.d31_60, i.d90Over]);
                     exportToCSV(headers, rows, 'aged_receivables_audit_ledger');
                   }
                   else if (activeReport === 'vat') {
-                    const headers = ['Tax Metric Category', 'Net Excl. Tax Ledger Value (KES)', 'VAT Calculated Value (KES)'];
+                    const headers = ['Tax Metric Category', `Net Excl. Tax Ledger Value (${settings.currency})`, `VAT Calculated Value (${settings.currency})`];
                     const rows = [
                       ['Taxable Gross Sales', vatCalculations.taxableSales, vatCalculations.outputVat],
                       ['Taxable Gross Purchases', vatCalculations.taxablePurchases, vatCalculations.inputVat],
@@ -586,7 +596,7 @@ const Reports: React.FC = () => {
                     exportToCSV(headers, rows, 'suppliers_performance_statistics');
                   }
                   else if (activeReport === 'cashup') {
-                    const headers = ['Shift ID', 'Date Logged', 'Assigned Cashier', 'POS Device Code', 'Cash Declared (KES)', 'Shift Card Total (KES)', 'Shift Mpesa Total (KES)', 'discrepancy/Variance (KES)'];
+                    const headers = ['Shift ID', 'Date Logged', 'Assigned Cashier', 'POS Device Code', `Cash Declared (${settings.currency})`, `Shift Card Total (${settings.currency})`, `Shift Mpesa Total (${settings.currency})`, `discrepancy/Variance (${settings.currency})`];
                     const rows = cashShifts.map(i => [i.id, i.date, i.cashier, i.terminal, i.physicalCash, i.salesCard, i.salesMpesa, i.variance]);
                     exportToCSV(headers, rows, 'cashier_shift_variance_history');
                   }
@@ -623,7 +633,7 @@ const Reports: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div className="p-5 bg-white dark:bg-gray-800 rounded-xl shadow-main flex flex-col">
                   <span className="text-xs font-bold uppercase tracking-wider text-gray-400">Total Filtered Sales</span>
-                  <span className="text-2xl font-extrabold mt-1 text-ink dark:text-white">KES {salesTotals.revenue.toLocaleString()}</span>
+                  <span className="text-2xl font-extrabold mt-1 text-ink dark:text-white">{formatPrice(salesTotals.revenue)}</span>
                   <span className="text-xs font-semibold text-gray-500 mt-1">Based on {selectedOutlet} Selection</span>
                 </div>
                 <div className="p-5 bg-white dark:bg-gray-800 rounded-xl shadow-main flex flex-col">
@@ -633,7 +643,7 @@ const Reports: React.FC = () => {
                 </div>
                 <div className="p-5 bg-white dark:bg-gray-800 rounded-xl shadow-main flex flex-col">
                   <span className="text-xs font-bold uppercase tracking-wider text-gray-400">Estimated Profit</span>
-                  <span className="text-2xl font-extrabold mt-1 text-emerald-600 dark:text-emerald-400">KES {salesTotals.profit.toLocaleString()}</span>
+                  <span className="text-2xl font-extrabold mt-1 text-emerald-600 dark:text-emerald-400">{formatPrice(salesTotals.profit)}</span>
                   <span className="text-xs font-semibold text-gray-400 mt-1">Average Profit Margins</span>
                 </div>
                 <div className="p-5 bg-white dark:bg-gray-800 rounded-xl shadow-main flex flex-col">
@@ -651,7 +661,7 @@ const Reports: React.FC = () => {
                     <p className="text-xs text-gray-400">Interactive live graph calibrated dynamically based on filters.</p>
                   </div>
                   <div className="text-xs font-mono font-bold text-brand-orange bg-brand-orange/10 px-2 py-1 rounded">
-                    Y-Axis: KES Revenue
+                    Y-Axis: {settings.currency} Revenue
                   </div>
                 </div>
 
@@ -665,7 +675,7 @@ const Reports: React.FC = () => {
                         {/* Tooltip on hover */}
                         <div className="absolute bottom-full mb-2 bg-slate-900 text-white text-[10px] py-1 px-2 rounded pointer-events-none opacity-0 group-hover:opacity-100 transition duration-150 z-20 whitespace-nowrap shadow-md">
                           <p className="font-bold">{item.name}</p>
-                          <p className="text-brand-orange">Rev: KES {item.revenue.toLocaleString()}</p>
+                          <p className="text-brand-orange">Rev: {formatPrice(item.revenue)}</p>
                           <p>Qty: {item.quantity} units</p>
                           <p className="text-slate-400">Outlet: {item.outlet}</p>
                         </div>
@@ -717,7 +727,7 @@ const Reports: React.FC = () => {
                           </td>
                           <td className="p-3 text-right font-medium text-gray-500 dark:text-gray-400">{item.outlet}</td>
                           <td className="p-3 text-right font-bold text-ink dark:text-slate-100">{item.quantity}</td>
-                          <td className="p-3 text-right font-bold text-ink dark:text-slate-100">KES {item.revenue.toLocaleString()}</td>
+                          <td className="p-3 text-right font-bold text-ink dark:text-slate-100">{formatPrice(item.revenue)}</td>
                           <td className="p-3 text-right text-success font-semibold">{(item.margin * 100)}%</td>
                         </tr>
                       ))}
@@ -739,17 +749,17 @@ const Reports: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                 <div className="p-4 bg-white dark:bg-gray-800 rounded-xl shadow-main flex flex-col">
                   <span className="text-xs font-bold uppercase tracking-wider text-gray-400">Valuation Cost Basis</span>
-                  <span className="text-[21px] font-extrabold mt-1 text-ink dark:text-white">KES {inventorySummary.totalCost.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits:2})}</span>
+                  <span className="text-[21px] font-extrabold mt-1 text-ink dark:text-white">{formatPrice(inventorySummary.totalCost)}</span>
                   <span className="text-xs font-semibold text-brand-orange mt-1">Rule: {valuationMethod} Costing</span>
                 </div>
                 <div className="p-4 bg-white dark:bg-gray-800 rounded-xl shadow-main flex flex-col">
                   <span className="text-xs font-bold uppercase tracking-wider text-gray-400">Total Asset Retail Price</span>
-                  <span className="text-[21px] font-extrabold mt-1 text-ink dark:text-white">KES {inventorySummary.totalRetail.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                  <span className="text-[21px] font-extrabold mt-1 text-ink dark:text-white">{formatPrice(inventorySummary.totalRetail)}</span>
                   <span className="text-xs font-semibold text-gray-500 mt-1">Potential holding worth</span>
                 </div>
                 <div className="p-4 bg-white dark:bg-gray-800 rounded-xl shadow-main flex flex-col">
                   <span className="text-xs font-bold uppercase tracking-wider text-gray-400">Unrealized Gross Profit</span>
-                  <span className="text-[21px] font-extrabold mt-1 text-emerald-600 dark:text-emerald-400">KES {inventorySummary.potentialProfit.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                  <span className="text-[21px] font-extrabold mt-1 text-emerald-600 dark:text-emerald-400">{formatPrice(inventorySummary.potentialProfit)}</span>
                   <span className="text-xs font-semibold text-gray-400 mt-1">Margin Potential: 34.2%</span>
                 </div>
                 <div className="p-4 bg-white dark:bg-gray-800 rounded-xl shadow-main flex flex-col">
@@ -806,7 +816,7 @@ const Reports: React.FC = () => {
                         <div key={brand} className="space-y-1.5">
                           <div className="flex justify-between items-center text-xs">
                             <span className="font-bold text-gray-750 dark:text-gray-200">{brand} Spare Parts</span>
-                            <span className="font-semibold text-gray-400">KES {groupCost.toLocaleString(undefined, {maximumFractionDigits: 0})} ({percent.toFixed(1)}%)</span>
+                            <span className="font-semibold text-gray-400">{formatPrice(groupCost)} ({percent.toFixed(1)}%)</span>
                           </div>
                           
                           {/* Progress Line */}
@@ -875,9 +885,9 @@ const Reports: React.FC = () => {
                           <td className="p-3 font-semibold text-ink dark:text-white">{item.name}</td>
                           <td className="p-3 text-gray-550 dark:text-gray-350">{item.brand}</td>
                           <td className="p-3 text-right font-bold text-ink dark:text-white">{item.stock}</td>
-                          <td className="p-3 text-right font-semibold">KES {item.unitCost.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                          <td className="p-3 text-right font-bold">KES {item.totalCostValue.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
-                          <td className="p-3 text-right text-slate-550 dark:text-slate-200">KES {item.price.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</td>
+                          <td className="p-3 text-right font-semibold">{formatPrice(item.unitCost)}</td>
+                          <td className="p-3 text-right font-bold">{formatPrice(item.totalCostValue)}</td>
+                          <td className="p-3 text-right text-slate-550 dark:text-slate-200">{formatPrice(item.price)}</td>
                           <td className="p-3 text-right">
                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
                               item.stockStatus === 'Healthy' ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-400' :
@@ -908,39 +918,39 @@ const Reports: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
                 <div className="p-4 bg-white dark:bg-gray-800 rounded-xl shadow-main flex flex-col">
                   <span className="text-xs font-bold uppercase tracking-wider text-gray-400">Receivables Ledger Total</span>
-                  <span className="text-xl font-extrabold mt-1 text-ink dark:text-white">KES {receivablesTotals.totalDue.toLocaleString()}</span>
+                  <span className="text-xl font-extrabold mt-1 text-ink dark:text-white">{formatPrice(receivablesTotals.totalDue)}</span>
                   <span className="text-[10px] text-gray-400 mt-1">Sum of trade debtors balance</span>
                 </div>
                 <div className="p-4 bg-white dark:bg-gray-800 rounded-xl shadow-main flex flex-col">
                   <span className="text-xs font-bold uppercase tracking-wider text-gray-400">Current (Not Overdue)</span>
-                  <span className="text-xl font-extrabold mt-1 text-emerald-600 dark:text-emerald-400">KES {receivablesTotals.current.toLocaleString()}</span>
+                  <span className="text-xl font-extrabold mt-1 text-emerald-600 dark:text-emerald-400">{formatPrice(receivablesTotals.current)}</span>
                   <span className="text-[10px] text-gray-400 mt-1">Within invoice terms</span>
                 </div>
                 <div className="p-4 bg-white dark:bg-gray-800 rounded-xl shadow-main flex flex-col bg-amber-500/5">
                   <span className="text-xs font-bold uppercase tracking-wider text-amber-600">1 - 30 Days Due</span>
-                  <span className="text-xl font-extrabold mt-1 text-amber-600">KES {receivablesTotals.d1_30.toLocaleString()}</span>
+                  <span className="text-xl font-extrabold mt-1 text-amber-600">{formatPrice(receivablesTotals.d1_30)}</span>
                   <span className="text-[10px] text-gray-400 mt-1">Soft reminder sent</span>
                 </div>
                 <div className="p-4 bg-white dark:bg-gray-800 rounded-xl shadow-main flex flex-col">
                   <span className="text-xs font-bold uppercase tracking-wider text-gray-400">31 - 60 Days Due</span>
-                  <span className="text-xl font-extrabold mt-1 text-orange-500">KES {receivablesTotals.d31_60.toLocaleString()}</span>
+                  <span className="text-xl font-extrabold mt-1 text-orange-500">{formatPrice(receivablesTotals.d31_60)}</span>
                   <span className="text-[10px] text-gray-400 mt-1">Pre-dunning call list</span>
                 </div>
                 <div className="p-4 bg-white dark:bg-gray-800 rounded-xl shadow-main flex flex-col">
                   <span className="text-xs font-bold uppercase tracking-wider text-gray-400">61 - 90 Days Due</span>
-                  <span className="text-xl font-extrabold mt-1 text-rose-500">KES {receivablesTotals.d61_90.toLocaleString()}</span>
+                  <span className="text-xl font-extrabold mt-1 text-rose-500">{formatPrice(receivablesTotals.d61_90)}</span>
                   <span className="text-[10px] text-orange-400 mt-1 font-bold">Credit Alert Status!</span>
                 </div>
                 <div className="p-4 bg-white dark:bg-gray-800 rounded-xl shadow-main flex flex-col bg-rose-500/5">
                   <span className="text-xs font-bold uppercase tracking-wider text-rose-600">Over 90 Days Due</span>
-                  <span className="text-xl font-extrabold mt-1 text-rose-600 font-black">KES {receivablesTotals.d90Over.toLocaleString()}</span>
+                  <span className="text-xl font-extrabold mt-1 text-rose-600 font-black">{formatPrice(receivablesTotals.d90Over)}</span>
                   <span className="text-[10px] text-rose-450 font-bold mt-1">Arrears/Hold Trade!</span>
                 </div>
               </div>
 
               {/* Bucket Graph Representation */}
               <div className="p-5 bg-white dark:bg-gray-800 rounded-xl border border-surface-2 dark:border-gray-700 shadow-sm space-y-4">
-                <h4 className="font-bold text-sm">Aging Arrears Bucket distribution (KES)</h4>
+                <h4 className="font-bold text-sm">Aging Arrears Bucket distribution ({settings.currency})</h4>
                 
                 <div className="h-40 flex items-end justify-around border-b border-surface-2 dark:border-gray-700 select-none pt-4">
                   {[
@@ -954,7 +964,7 @@ const Reports: React.FC = () => {
                     const bHeight = (bucket.value / maxVal) * 80; // percent height
                     return (
                       <div key={i} className="flex-1 flex flex-col items-center group relative cursor-pointer">
-                        <span className="text-[10px] text-gray-500 font-mono mb-1">KES {bucket.value.toLocaleString()}</span>
+                        <span className="text-[10px] text-gray-500 font-mono mb-1">{formatPrice(bucket.value)}</span>
                         
                         <div 
                           style={{ height: `${bHeight}%`, minHeight: '6vw' }}
@@ -979,7 +989,7 @@ const Reports: React.FC = () => {
                     <thead className="bg-surface/20 dark:bg-gray-700/20 border-b border-surface-2 dark:border-gray-700">
                       <tr className="text-xs text-slate-500 dark:text-slate-450 uppercase font-bold text-left">
                         <th className="p-3">Customer Entity</th>
-                        <th className="p-3 text-right">Outstanding (KES)</th>
+                        <th className="p-3 text-right">Outstanding ({settings.currency})</th>
                         <th className="p-3 text-right text-emerald-600">Current</th>
                         <th className="p-3 text-right text-amber-500">1 - 30</th>
                         <th className="p-3 text-right text-orange-400">31 - 60</th>
@@ -997,12 +1007,12 @@ const Reports: React.FC = () => {
                               <p className="font-bold text-ink dark:text-white">{debtor.customerName}</p>
                               <p className="text-[10px] text-gray-400">{debtor.company}</p>
                             </td>
-                            <td className="p-3 text-right font-black text-ink dark:text-white">KES {debtor.totalDue.toLocaleString()}</td>
-                            <td className="p-3 text-right font-semibold text-emerald-500">KES {debtor.current.toLocaleString()}</td>
-                            <td className="p-3 text-right text-amber-500">KES {debtor.d1_30.toLocaleString()}</td>
-                            <td className="p-3 text-right text-orange-400">KES {debtor.d31_60.toLocaleString()}</td>
-                            <td className="p-3 text-right text-rose-500 font-bold">KES {debtor.d61_90.toLocaleString()}</td>
-                            <td className="p-3 text-right text-rose-600 font-bold bg-rose-500/5">KES {debtor.d90Over.toLocaleString()}</td>
+                            <td className="p-3 text-right font-black text-ink dark:text-white">{formatPrice(debtor.totalDue)}</td>
+                            <td className="p-3 text-right font-semibold text-emerald-500">{formatPrice(debtor.current)}</td>
+                            <td className="p-3 text-right text-amber-500">{formatPrice(debtor.d1_30)}</td>
+                            <td className="p-3 text-right text-orange-400">{formatPrice(debtor.d31_60)}</td>
+                            <td className="p-3 text-right text-rose-500 font-bold">{formatPrice(debtor.d61_90)}</td>
+                            <td className="p-3 text-right text-rose-600 font-bold bg-rose-500/5">{formatPrice(debtor.d90Over)}</td>
                             <td className="p-3 text-center">
                               <button
                                 id={`remind_btn_${debtor.id}`}
@@ -1037,22 +1047,22 @@ const Reports: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                 <div className="p-5 bg-white dark:bg-gray-800 rounded-xl shadow-main flex flex-col">
                   <span className="text-xs font-bold uppercase tracking-wider text-gray-400">Outward Supplies (Gross Taxable Sales)</span>
-                  <span className="text-2xl font-extrabold mt-1 text-ink dark:text-white">KES {vatCalculations.taxableSales.toLocaleString()}</span>
+                  <span className="text-2xl font-extrabold mt-1 text-ink dark:text-white">{formatPrice(vatCalculations.taxableSales)}</span>
                   <span className="text-xs font-semibold text-gray-500 mt-1">Eligible invoiced supplies</span>
                 </div>
                 <div className="p-5 bg-white dark:bg-gray-800 rounded-xl shadow-main flex flex-col">
                   <span className="text-xs font-bold uppercase tracking-wider text-gray-400">Output VAT Collected ({vatRate}%)</span>
-                  <span className="text-2xl font-extrabold mt-1 text-amber-500">KES {vatCalculations.outputVat.toLocaleString()}</span>
+                  <span className="text-2xl font-extrabold mt-1 text-amber-500">{formatPrice(vatCalculations.outputVat)}</span>
                   <span className="text-xs font-semibold text-gray-400 mt-1">Remittable on gross supplies</span>
                 </div>
                 <div className="p-5 bg-white dark:bg-gray-800 rounded-xl shadow-main flex flex-col">
                   <span className="text-xs font-bold uppercase tracking-wider text-gray-400">Inward Supplies (Gross purchases)</span>
-                  <span className="text-2xl font-extrabold mt-1 text-ink dark:text-white">KES {vatCalculations.taxablePurchases.toLocaleString()}</span>
+                  <span className="text-2xl font-extrabold mt-1 text-ink dark:text-white">{formatPrice(vatCalculations.taxablePurchases)}</span>
                   <span className="text-xs font-semibold text-gray-400 mt-1">Deductible taxable costs</span>
                 </div>
                 <div className="p-5 bg-white dark:bg-gray-800 rounded-xl shadow-main flex flex-col">
                   <span className="text-xs font-bold uppercase tracking-wider text-gray-400">Input VAT Paid (Deductions)</span>
-                  <span className="text-2xl font-extrabold mt-1 text-teal-500">KES {vatCalculations.inputVat.toLocaleString()}</span>
+                  <span className="text-2xl font-extrabold mt-1 text-teal-500">{formatPrice(vatCalculations.inputVat)}</span>
                   <span className="text-xs font-semibold text-teal-400 mt-1">Claimable offset VAT purchases</span>
                 </div>
               </div>
@@ -1089,13 +1099,13 @@ const Reports: React.FC = () => {
                     
                     <div className="h-44 flex items-end justify-center gap-12 select-none border-b border-surface-2 dark:border-gray-700 pb-2">
                       <div className="flex flex-col items-center">
-                        <span className="text-[10px] text-amber-500 font-bold mb-1">KES {vatCalculations.outputVat.toLocaleString()}</span>
+                        <span className="text-[10px] text-amber-500 font-bold mb-1">{formatPrice(vatCalculations.outputVat)}</span>
                         <div style={{ height: '110px' }} className="w-16 bg-amber-400 rounded-t-sm shadow" />
                         <span className="text-xs font-bold text-gray-550 dark:text-gray-350 mt-1 uppercase text-amber-500">Output VAT</span>
                       </div>
                       
                       <div className="flex flex-col items-center">
-                        <span className="text-[10px] text-teal-500 font-bold mb-1">KES {vatCalculations.inputVat.toLocaleString()}</span>
+                        <span className="text-[10px] text-teal-500 font-bold mb-1">{formatPrice(vatCalculations.inputVat)}</span>
                         <div style={{ height: `${(vatCalculations.inputVat / Math.max(vatCalculations.outputVat, 1)) * 110}px` }} className="w-16 bg-teal-400 rounded-t-sm shadow" />
                         <span className="text-xs font-bold text-gray-550 dark:text-gray-350 mt-1 uppercase text-teal-500">Input VAT</span>
                       </div>
@@ -1115,7 +1125,7 @@ const Reports: React.FC = () => {
                   </div>
                   <div className="my-6">
                     <span className="text-xs text-white/70 block uppercase tracking-wider">Net Payable to Authority:</span>
-                    <span className="text-3xl font-extrabold">KES {vatCalculations.netVat.toLocaleString()}</span>
+                    <span className="text-3xl font-extrabold">{formatPrice(vatCalculations.netVat)}</span>
                   </div>
                   <div className="text-xs text-white/90 font-mono flex justify-between items-center bg-white/10 p-2 rounded">
                     <span>Liability Code: VAT-F-328</span>
@@ -1157,9 +1167,9 @@ const Reports: React.FC = () => {
                               <span className="font-bold text-blue-600">OUTWARD: </span> {so.customer.name}
                             </td>
                             <td className="p-3 font-semibold text-amber-550">Output Supplies ({vatRate}%)</td>
-                            <td className="p-3 text-right">KES {netVal.toLocaleString(undefined, { maximumFractionDigits: 1 })}</td>
-                            <td className="p-3 text-right text-amber-550 font-bold">KES {calculatedTax.toLocaleString(undefined, { maximumFractionDigits: 1 })}</td>
-                            <td className="p-3 text-right font-bold text-ink dark:text-white">KES {so.total.toLocaleString()}</td>
+                            <td className="p-3 text-right">{formatPrice(netVal)}</td>
+                            <td className="p-3 text-right text-amber-550 font-bold">{formatPrice(calculatedTax)}</td>
+                            <td className="p-3 text-right font-bold text-ink dark:text-white">{formatPrice(so.total)}</td>
                           </tr>
                         );
                       })}
@@ -1175,9 +1185,9 @@ const Reports: React.FC = () => {
                               <span className="font-bold text-teal-600">INWARD: </span> {po.supplier.name}
                             </td>
                             <td className="p-3 font-semibold text-teal-600">Input Supplies ({vatRate}%)</td>
-                            <td className="p-3 text-right">KES {netVal.toLocaleString(undefined, { maximumFractionDigits: 1 })}</td>
-                            <td className="p-3 text-right text-teal-650 font-bold">KES {calculatedTax.toLocaleString(undefined, { maximumFractionDigits: 1 })}</td>
-                            <td className="p-3 text-right font-bold text-ink dark:text-white">KES {po.total.toLocaleString()}</td>
+                            <td className="p-3 text-right">{formatPrice(netVal)}</td>
+                            <td className="p-3 text-right text-teal-650 font-bold">{formatPrice(calculatedTax)}</td>
+                            <td className="p-3 text-right font-bold text-ink dark:text-white">{formatPrice(po.total)}</td>
                           </tr>
                         );
                       })}
@@ -1286,7 +1296,7 @@ const Reports: React.FC = () => {
                 <div className="p-5 bg-white dark:bg-gray-800 rounded-xl shadow-main flex flex-col justify-between">
                   <div>
                     <span className="text-xs font-bold uppercase tracking-wider text-gray-400">YTD Net Till Variance</span>
-                    <h5 className="text-2xl font-black mt-1 text-rose-500">KES {tillVarianceTotal.toLocaleString()}</h5>
+                    <h5 className="text-2xl font-black mt-1 text-rose-500">{formatPrice(tillVarianceTotal)}</h5>
                   </div>
                   <p className="text-xs text-gray-400 mt-2">Discrepancies accumulated over shifts</p>
                 </div>
@@ -1423,7 +1433,7 @@ const Reports: React.FC = () => {
                           />
                         </div>
                         <div className="space-y-1">
-                          <label className="text-xs font-bold font-mono text-gray-400">Coins Value (KES)</label>
+                          <label className="text-xs font-bold font-mono text-gray-400">Coins Value ({settings.currency})</label>
                           <input 
                             type="number" 
                             placeholder="0"
@@ -1441,16 +1451,16 @@ const Reports: React.FC = () => {
                         <p className="text-xs font-semibold text-gray-400">Dynamic system calculation:</p>
                         <div className="space-y-1 mt-1">
                           <p className="text-xs text-ink dark:text-gray-300">
-                            Expected Cash: <strong className="font-bold">KES {expectedCash.toLocaleString()}</strong> 
-                            &nbsp;|&nbsp; Physical counted Cash: <strong className="font-bold text-brand-orange">KES {calculateCountedCash().toLocaleString()}</strong>
+                            Expected Cash: <strong className="font-bold">{formatPrice(expectedCash)}</strong> 
+                            &nbsp;|&nbsp; Physical counted Cash: <strong className="font-bold text-brand-orange">{formatPrice(calculateCountedCash())}</strong>
                           </p>
                           <p className="text-xs text-ink dark:text-gray-300">
-                            Expected Card: <strong className="font-bold">KES {expectedCard.toLocaleString()}</strong> 
-                            &nbsp;|&nbsp; Physical counted Card: <strong className="font-bold">KES {physicalCard.toLocaleString()}</strong>
+                            Expected Card: <strong className="font-bold">{formatPrice(expectedCard)}</strong> 
+                            &nbsp;|&nbsp; Physical counted Card: <strong className="font-bold text-brand-orange">{formatPrice(physicalCard)}</strong>
                           </p>
                           <p className="text-xs text-ink dark:text-gray-300">
-                            Expected MPesa: <strong className="font-bold">KES {expectedMpesa.toLocaleString()}</strong> 
-                            &nbsp;|&nbsp; Physical MPesa vouchers: <strong className="font-bold">KES {physicalMpesa.toLocaleString()}</strong>
+                            Expected {settings.currency === 'KES' ? 'M-Pesa' : 'Mobile Pay'}: <strong className="font-bold">{formatPrice(expectedMpesa)}</strong> 
+                            &nbsp;|&nbsp; Physical counted {settings.currency === 'KES' ? 'M-Pesa' : 'Mobile Pay'}: <strong className="font-bold text-brand-orange">{formatPrice(physicalMpesa)}</strong>
                           </p>
                         </div>
                       </div>
@@ -1459,7 +1469,7 @@ const Reports: React.FC = () => {
                       <div className="text-right">
                         <span className="text-xs uppercase text-gray-400 tracking-wider">Computed Cash Variance:</span>
                         <p className={`text-2xl font-black ${calculateCountedCash() - expectedCash === 0 ? 'text-success' : 'text-rose-500'}`}>
-                          KES {(calculateCountedCash() - expectedCash).toLocaleString()}
+                          {formatPrice(calculateCountedCash() - expectedCash)}
                         </p>
                         <span className="text-[10px] text-gray-400 block font-semibold">{calculateCountedCash() - expectedCash === 0 ? 'Drawer balances perfectly.' : 'Variance logged to ledger'}</span>
                       </div>
@@ -1524,11 +1534,11 @@ const Reports: React.FC = () => {
                           <td className="p-3 font-semibold">{shift.date}</td>
                           <td className="p-3 font-semibold text-ink dark:text-white">{shift.cashier}</td>
                           <td className="p-3 font-mono">{shift.terminal}</td>
-                          <td className="p-3 text-right">KES {shift.physicalCash.toLocaleString()}</td>
-                          <td className="p-3 text-right">KES {shift.salesCard.toLocaleString()}</td>
-                          <td className="p-3 text-right">KES {shift.salesMpesa.toLocaleString()}</td>
+                          <td className="p-3 text-right">{formatPrice(shift.physicalCash)}</td>
+                          <td className="p-3 text-right">{formatPrice(shift.salesCard)}</td>
+                          <td className="p-3 text-right">{formatPrice(shift.salesMpesa)}</td>
                           <td className={`p-3 text-right font-bold ${shift.variance === 0 ? 'text-success' : 'text-rose-500'}`}>
-                            KES {shift.variance.toLocaleString()}
+                            {formatPrice(shift.variance)}
                           </td>
                           <td className="p-3 text-center">
                             <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
@@ -1583,7 +1593,7 @@ const Reports: React.FC = () => {
                 </div>
                 <div>
                   <span className="text-gray-400 block font-semibold">Total Overdue Arrears:</span>
-                  <span className="font-black text-rose-600 dark:text-rose-400 leading-tight">KES {activeDunningDebtor.totalDue.toLocaleString()}</span>
+                  <span className="font-black text-rose-600 dark:text-rose-400 leading-tight">{formatPrice(activeDunningDebtor.totalDue)}</span>
                 </div>
               </div>
 

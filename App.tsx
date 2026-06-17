@@ -10,6 +10,7 @@ import Contacts from './pages/Contacts';
 import Reports from './pages/Reports';
 import Accounting from './pages/Accounting';
 import Settings from './pages/Settings';
+import Integrations from './pages/Integrations';
 import LoginScreen from './pages/LoginScreen';
 import MfaScreen from './pages/MfaScreen';
 
@@ -71,6 +72,7 @@ const App: React.FC = () => {
             <Route path="/contacts" element={<Contacts />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/accounting" element={<Accounting />} />
+            <Route path="/integrations" element={<Integrations />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/" />} />
           </Routes>

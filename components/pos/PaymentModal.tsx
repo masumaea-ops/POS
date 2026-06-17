@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { XIcon } from '../shared/Icons';
 import type { Customer } from '../../types';
+import { useSystemSettings } from '../../contexts/SettingsContext';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -11,6 +12,8 @@ interface PaymentModalProps {
 }
 
 const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, totalAmount, onPaymentSuccess, customer }) => {
+  const { settings, formatPrice } = useSystemSettings();
+  
   const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'M-Pesa' | 'Card' | 'Bank EFT' | 'Split'>('Cash');
   
   // Normal mode payments
@@ -33,8 +36,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, totalAmoun
   useEffect(() => {
     if (isOpen) {
       setAmountTendered(totalAmount);
-      setCashSplit(Math.round(totalAmount / 2));
-      setMpesaSplit(totalAmount - Math.round(totalAmount / 2));
+      setPaymentMethod('Cash');
       setMpesaRef('');
       setBankRef('');
       setValidationError('');
@@ -42,11 +44,11 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, totalAmoun
     }
   }, [isOpen, totalAmount]);
 
-  if (!isOpen) return null;
+  const actualTendered = paymentMethod === 'Split' 
+    ? (parseFloat(String(cashSplit)) || 0) + (parseFloat(String(mpesaSplit)) || 0)
+    : parseFloat(String(amountTendered)) || 0;
 
-  // Change Calculation logic
-  const actualTendered = paymentMethod === 'Split' ? (cashSplit + mpesaSplit) : amountTendered;
-  const changeDue = (paymentMethod === 'Cash' || paymentMethod === 'Split') && actualTendered >= totalAmount 
+  const changeDue = actualTendered > totalAmount 
     ? actualTendered - totalAmount 
     : 0;
 
@@ -59,12 +61,12 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, totalAmoun
   const handleConfirmAction = () => {
     // Perform validations
     if (paymentMethod === 'M-Pesa' && !validateMpesaRef(mpesaRef.trim())) {
-      setValidationError('🔴 Invalid M-Pesa transaction code. Must be 10 characters (uppercase alphanumeric, e.g., SKF1829CK2)');
+      setValidationError('🔴 Invalid mobile gateway reference code. Must be 10 characters (uppercase alphanumeric, e.g., SKF1829CK2)');
       return;
     }
 
     if (paymentMethod === 'Split' && !validateMpesaRef(mpesaRef.trim())) {
-      setValidationError('🔴 M-Pesa Split require a valid 10-character transaction reference code.');
+      setValidationError('🔴 Split mobile transfer requires a valid 10-character reference code.');
       return;
     }
 
@@ -78,13 +80,13 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, totalAmoun
       return;
     }
 
-    // Success inside ERP: Generate compliant eTIMS tokens
+    // Success inside ERP: Generate compliant tax compliance signatures
     const serial = Math.floor(100000 + Math.random() * 900000);
     const code = Math.floor(1000 + Math.random() * 9000);
     const randomHex = Math.random().toString(36).substring(2, 6).toUpperCase();
     
-    setEtimsSignature(`TSH-KRA-CMS-2026-${serial}-${randomHex}-DE-${code}`);
-    setInvoiceNumber(`INV-KEA-${new Date().getFullYear()}-${serial}`);
+    setEtimsSignature(`TSH-${settings.taxpin || 'KRA'}-CMS-${new Date().getFullYear()}-${serial}-${randomHex}-DE-${code}`);
+    setInvoiceNumber(`INV-${settings.branchCode || 'HQ'}-${new Date().getFullYear()}-${serial}`);
     setShowInvoiceTicket(true);
   };
 
@@ -93,21 +95,28 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, totalAmoun
     onPaymentSuccess();
   };
 
-  // Tax breakdown (VAT 16%)
-  const taxableBase = totalAmount / 1.16;
+  // Tax breakdown based on customizable system setting
+  const vatFactor = 1 + (settings.vatRate / 100);
+  const taxableBase = totalAmount / vatFactor;
   const vatAmount = totalAmount - taxableBase;
 
   // Currency bills shortcut triggers
   const addCashNote = (value: number) => {
     setAmountTendered(prev => {
-      // If previous value matches totalAmount exactly, override it. Otherwise append.
       if (prev === totalAmount) return value;
       return prev + value;
     });
   };
 
+  if (!isOpen) return null;
+
+  // Adaptable denominations shortcuts based on chosen currency
+  const currencyShortcuts = ['USD', 'EUR', 'GBP', 'AED'].includes(settings.currency)
+    ? [5, 10, 20, 50, 100]
+    : [100, 200, 500, 1000, 2000];
+
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 overflow-y-auto animate-fade-in">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 overflow-y-auto animate-fade-in text-slate-900 dark:text-gray-100">
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 dark:border-slate-700">
         
         {!showInvoiceTicket ? (
@@ -124,8 +133,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, totalAmoun
             </div>
             
             <div className="mt-5 text-center bg-brand-orange/5 dark:bg-brand-orange/10 p-4 rounded-xl border border-brand-orange/20">
-                <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-bold">Total Payable base</p>
-                <p className="text-4xl font-black text-brand-orange mt-1">KES {totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400 uppercase tracking-wider font-bold">Total Payable Base</p>
+                <p className="text-4xl font-black text-brand-orange mt-1">{formatPrice(totalAmount)}</p>
             </div>
 
             {/* Gateway selectors */}
@@ -138,6 +147,10 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, totalAmoun
                           onClick={() => {
                             setPaymentMethod(method as any);
                             setValidationError('');
+                            if (method === 'Split') {
+                              setCashSplit(parseFloat((totalAmount / 2).toFixed(2)));
+                              setMpesaSplit(parseFloat((totalAmount / 2).toFixed(2)));
+                            }
                           }} 
                           className={`p-2.5 rounded-lg border-2 font-bold transition-all ${
                             paymentMethod === method 
@@ -237,16 +250,16 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, totalAmoun
 
                    {/* Note Shortcuts */}
                    <div>
-                     <span className="text-[10px] uppercase font-bold text-slate-400">Currency Bill Shortcuts</span>
+                     <span className="text-[10px] uppercase font-bold text-slate-400">Currency Bill Shortcuts ({settings.currency})</span>
                      <div className="mt-1 flex gap-1.5 overflow-x-auto py-1">
-                       {[100, 200, 500, 1000, 2000].map(val => (
-                         <button 
-                            key={val} 
-                            onClick={() => addCashNote(val)}
-                            className="bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 text-xs px-2.5 py-1.5 rounded font-bold font-mono transition-colors"
-                         >
-                           +{val}
-                         </button>
+                       {currencyShortcuts.map(val => (
+                          <button 
+                             key={val} 
+                             onClick={() => addCashNote(val)}
+                             className="bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-300 text-xs px-2.5 py-1.5 rounded font-bold font-mono transition-colors"
+                          >
+                            +{val}
+                          </button>
                        ))}
                        <button 
                           onClick={() => setAmountTendered(totalAmount)}
@@ -264,10 +277,10 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, totalAmoun
                 <div className="bg-slate-50 dark:bg-slate-900/40 p-4 rounded-xl border border-slate-200 dark:border-slate-700 space-y-3">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">Lipa na M-Pesa Merchant Hook</h4>
+                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">Lipa na Mobile Merchant Hook</h4>
                   </div>
                   <div>
-                    <label className="text-xs font-bold text-slate-600 dark:text-slate-400">LIPA NA Mpesa Receipt Code (10 Chars)</label>
+                    <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Mobile Transaction Receipt Code (10 Chars)</label>
                     <input 
                       type="text"
                       maxLength={10}
@@ -279,7 +292,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, totalAmoun
                       className="w-full mt-1.5 p-2.5 bg-white dark:bg-gray-700 border border-slate-200 dark:border-slate-600 rounded-lg text-center font-mono font-bold text-lg uppercase focus:ring-2 focus:ring-brand-orange focus:outline-none text-slate-900 dark:text-slate-100"
                       placeholder="e.g. SFI38MK97L"
                     />
-                    <p className="text-[10px] text-slate-400 mt-1">Accepts SKFxxxxxxx patterns. For test bypass use 10 letters (e.g. <span className="font-mono font-bold">A1B2C3D4E5</span>)</p>
+                    <p className="text-[10px] text-slate-400 mt-1">Accepts any 10-character code. (e.g. <span className="font-mono font-bold">A1B2C3D4E5</span>)</p>
                   </div>
                 </div>
               ) : null}
@@ -287,13 +300,13 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, totalAmoun
               {/* CARD DETAILS */}
               {paymentMethod === 'Card' ? (
                 <div className="bg-slate-50 dark:bg-slate-900/40 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
-                  <p className="text-xs text-slate-500">Please swipe or tap customer visa/mastercard on the terminal, then enter authorization index to log transaction.</p>
+                  <p className="text-xs text-slate-500">Please swipe or tap customer payment card/token on the terminal, then enter authorization index to log transaction.</p>
                   <div className="mt-3">
                     <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Terminal Authorization Code</label>
                     <input 
                       type="text"
                       className="w-full mt-1.5 p-2 bg-white dark:bg-gray-700 border border-slate-200 dark:border-slate-600 rounded font-mono text-center text-slate-900 dark:text-slate-50"
-                      placeholder="e.g. VISA-AUTH-7412"
+                      placeholder="e.g. CARD-AUTH-7412"
                     />
                   </div>
                 </div>
@@ -319,15 +332,23 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, totalAmoun
                 </div>
               ) : null}
 
-              {/* CHANGE COMPONENT */}
-              {(paymentMethod === 'Cash' || paymentMethod === 'Split') && (
-                 <div className="bg-slate-100 dark:bg-slate-900 p-3 rounded-lg border border-slate-200 dark:border-slate-700 text-center">
-                    <p className="text-xs text-slate-500 dark:text-slate-400">Change Due back</p>
-                    <p className={`text-2xl font-black ${changeDue > 0 ? 'text-emerald-500' : 'text-slate-500 dark:text-slate-400'}`}>
-                      KES {changeDue.toLocaleString(undefined, {minimumFractionDigits: 2})}
-                    </p>
-                 </div>
-              )}
+              {/* TENDER BALANCE RENDER */}
+              {paymentMethod === 'Cash' || paymentMethod === 'Split' ? (
+                <div className="grid grid-cols-2 gap-4 border-t border-slate-105 dark:border-slate-700 pt-4 text-xs">
+                  <div>
+                    <span className="text-slate-500 font-bold block">Tendered Value:</span>
+                    <strong className="text-base text-slate-800 dark:text-zinc-200 font-black font-mono">
+                      {formatPrice(actualTendered)}
+                    </strong>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-slate-500 font-bold block">Change Output:</span>
+                    <strong className={`text-base font-black font-mono ${changeDue > 0 ? 'text-teal-600' : 'text-slate-400'}`}>
+                      {formatPrice(changeDue)}
+                    </strong>
+                  </div>
+                </div>
+              ) : null}
             </div>
 
             <div className="mt-8 flex gap-3">
@@ -347,13 +368,13 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, totalAmoun
             </div>
           </div>
         ) : (
-          /* TAX COMPLIANT KRA eTIMS RECEIPT */
+          /* TAX COMPLIANT ADAPTABLE RECEIPT */
           <div className="p-6 bg-slate-50 dark:bg-slate-800 animate-slide-up max-h-[85vh] overflow-y-auto">
             <div className="bg-white dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-700 p-5 rounded-lg font-mono text-xs text-slate-800 dark:text-slate-50 shadow-inner">
                <div className="text-center font-bold pb-4 border-b border-dashed border-slate-300 dark:border-slate-700">
-                  <h3 className="text-sm font-black uppercase text-brand-orange">Masuma Autoparts EA</h3>
-                  <p className="text-[10px] text-slate-500 mt-0.5">PO Box 84218 - Nairobi, Kenya</p>
-                  <p className="text-[9px] text-slate-400">Tel: +254 712 345678 | PIN: P012345678X</p>
+                  <h3 className="text-sm font-black uppercase text-brand-orange">{settings.corpName}</h3>
+                  <p className="text-[10px] text-slate-500 mt-0.5">{settings.defaultOutlet || 'HQ Depot'}</p>
+                  <p className="text-[9px] text-slate-400">Tel: {settings.corpPhone} | PIN: {settings.taxpin}</p>
                   <p className="text-[11px] font-black tracking-wider text-teal-600 dark:text-teal-400 mt-2 bg-teal-500/10 py-1 rounded">*** OFFICIAL TAX INVOICE ***</p>
                </div>
 
@@ -362,8 +383,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, totalAmoun
                   <p><span className="text-slate-400">CUSTOMER:</span> <span className="font-bold">{customer.companyName || customer.name}</span></p>
                   <p><span className="text-slate-400">PIN TIER:</span> <span className="font-bold">{customer.tier} ({customer.type})</span></p>
                   <p><span className="text-slate-400">GATEWAY:</span> <span className="font-bold text-teal-600">{paymentMethod.toUpperCase()}</span></p>
-                  {paymentMethod === 'M-Pesa' && <p><span className="text-slate-400">MPESA REF:</span> <span className="font-bold font-sans">{mpesaRef}</span></p>}
-                  {paymentMethod === 'Split' && <p><span className="text-slate-400">MPESA REF:</span> <span className="font-bold font-sans">{mpesaRef}</span></p>}
+                  {(paymentMethod === 'M-Pesa' || paymentMethod === 'Split') && mpesaRef && <p><span className="text-slate-400">MOBILE REF:</span> <span className="font-bold font-sans">{mpesaRef}</span></p>}
                   {paymentMethod === 'Bank EFT' && <p><span className="text-slate-400">EFT SWIFT:</span> <span className="font-bold font-sans">{bankRef}</span></p>}
                   <p><span className="text-slate-400">DATE/TIME:</span> <span className="font-bold">{new Date().toLocaleString()}</span></p>
                </div>
@@ -371,43 +391,42 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, totalAmoun
                {/* SEGREGATED VAT TAX BREAKDOWNS */}
                <div className="py-4 space-y-2 border-b border-dashed border-slate-300 dark:border-slate-700">
                   <div className="flex justify-between font-bold">
-                    <span>Tax Basis (Excl. VAT 16%)</span>
-                    <span>KES {taxableBase.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                    <span>Tax Basis (Excl. VAT {settings.vatRate}%)</span>
+                    <span>{formatPrice(taxableBase)}</span>
                   </div>
                   <div className="flex justify-between font-bold text-slate-600 dark:text-slate-300">
-                    <span>VAT Component Code A (16%)</span>
-                    <span>KES {vatAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                    <span>VAT Component Code A ({settings.vatRate}%)</span>
+                    <span>{formatPrice(vatAmount)}</span>
                   </div>
                   <div className="flex justify-between text-base font-black border-t border-dashed border-slate-250 dark:border-slate-700 pt-2 text-slate-900 dark:text-white mt-1">
                     <span>TOTAL COMPLIANT DUE</span>
-                    <span>KES {totalAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                    <span>{formatPrice(totalAmount)}</span>
                   </div>
                   {paymentMethod === 'Split' && (
                     <div className="border-t border-dotted border-slate-300 pt-1.5 text-[10px] space-y-0.5">
                        <span className="text-slate-500">PAYMENT SPLIT RATIO:</span>
                        <div className="flex justify-between">
                          <span className="text-slate-500">Cash Ratio:</span>
-                         <span>KES {cashSplit.toLocaleString()}</span>
+                         <span>{formatPrice(cashSplit)}</span>
                        </div>
                        <div className="flex justify-between">
-                         <span className="text-slate-500">M-Pesa Ratio:</span>
-                         <span>KES {mpesaSplit.toLocaleString()}</span>
+                         <span className="text-slate-500">Mobile Ratio:</span>
+                         <span>{formatPrice(mpesaSplit)}</span>
                        </div>
                     </div>
                   )}
                </div>
 
-               {/* KENYA GOVERNMENT eTIMS OFFICIAL DIGITAL CODE */}
+               {/* GOVERNMENT eTIMS OFFICIAL DIGITAL REGISTER */}
                <div className="py-4 text-center space-y-2">
                  <div className="bg-slate-100 dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-slate-700">
-                   <p className="text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest">eTIMS REGISTERED SECURITY KEY</p>
+                   <p className="text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest text-[8px]">REGISTERED COMPLIANCE SECURITY KEY</p>
                    <p className="text-[9px] font-bold text-slate-800 dark:text-slate-200 mt-1 select-all break-all break-words">{etimsSignature}</p>
                  </div>
                  
-                 {/* Simulate KRA Cryptographic QR Code Matrix */}
+                 {/* Simulate Cryptographic QR Code Matrix */}
                  <div className="flex justify-center mt-3">
                     <div className="w-24 h-24 p-1.5 bg-white border border-slate-300 rounded flex flex-col justify-between">
-                      {/* Generates a nice retro pixel simulated QR matrix block */}
                       <div className="grid grid-cols-6 gap-0.5 h-full">
                         {Array.from({ length: 36 }).map((_, idx) => (
                           <div 
@@ -422,7 +441,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, totalAmoun
                       </div>
                     </div>
                  </div>
-                 <p className="text-[8px] text-slate-400 uppercase tracking-widest mt-1">Verified eTIMS Digital Signature</p>
+                 <p className="text-[8px] text-slate-400 uppercase tracking-widest mt-1">Verified Audit Device Serial • {settings.deviceSerial}</p>
                </div>
             </div>
 
@@ -438,8 +457,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, totalAmoun
                <button 
                   onClick={finalizeSale}
                   className="w-full py-3 bg-brand-orange hover:bg-brand-orange/90 text-white rounded-xl font-bold font-sans text-sm tracking-wider uppercase shadow-md"
-               >
-                 Done & Close
+                >
+                  Done & Close
                </button>
             </div>
           </div>
@@ -450,4 +469,3 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, totalAmoun
 };
 
 export default PaymentModal;
-

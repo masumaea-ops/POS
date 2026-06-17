@@ -1,6 +1,7 @@
 import React from 'react';
 import type { Product } from '../../types';
 import { PlusIcon } from '../shared/Icons';
+import { useSystemSettings } from '../../contexts/SettingsContext';
 
 interface ProductGridProps {
   products: Product[];
@@ -19,6 +20,7 @@ const ProductCard: React.FC<{
   onAddToCart: (product: Product) => void;
   customerTier: 'Retail' | 'Wholesale A' | 'Wholesale B';
 }> = ({ product, onAddToCart, customerTier }) => {
+  const { formatPrice } = useSystemSettings();
   const finalPrice = getTierPrice(product.price, customerTier);
   const isDiscounted = finalPrice < product.price;
 
@@ -63,16 +65,16 @@ const ProductCard: React.FC<{
           <div className="mt-2">
             {isDiscounted ? (
               <div className="flex flex-col">
-                <span className="text-xs text-slate-400 line-through">KES {product.price.toLocaleString()}</span>
+                <span className="text-xs text-slate-400 line-through">{formatPrice(product.price)}</span>
                 <div className="flex items-center gap-1.5">
-                  <span className="text-base sm:text-lg font-black text-brand-orange">KES {finalPrice.toLocaleString()}</span>
+                  <span className="text-base sm:text-lg font-black text-brand-orange">{formatPrice(finalPrice)}</span>
                   <span className="text-[10px] bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-1 py-0.2 rounded font-bold">
                     {customerTier === 'Wholesale A' ? '-20%' : '-12%'}
                   </span>
                 </div>
               </div>
             ) : (
-              <p className="text-lg sm:text-xl font-extrabold text-ink dark:text-gray-50">KES {product.price.toLocaleString()}</p>
+              <p className="text-lg sm:text-xl font-extrabold text-ink dark:text-gray-50">{formatPrice(product.price)}</p>
             )}
           </div>
         </div>

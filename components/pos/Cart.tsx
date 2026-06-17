@@ -4,6 +4,7 @@ import { TrashIcon, PlusIcon, XIcon } from '../shared/Icons';
 import PaymentModal from './PaymentModal';
 import DiscountModal from './DiscountModal';
 import ApprovalModal from './ApprovalModal';
+import { useSystemSettings } from '../../contexts/SettingsContext';
 
 interface CartProps {
     cartItems: CartItem[];
@@ -14,6 +15,7 @@ interface CartProps {
 }
 
 const Cart: React.FC<CartProps> = ({ cartItems, onUpdateQuantity, onRemoveItem, onClearCart, customer }) => {
+    const { settings, formatPrice } = useSystemSettings();
     const [isPaymentModalOpen, setPaymentModalOpen] = useState(false);
     const [isDiscountModalOpen, setDiscountModalOpen] = useState(false);
     const [isApprovalModalOpen, setApprovalModalOpen] = useState(false);
@@ -24,7 +26,7 @@ const Cart: React.FC<CartProps> = ({ cartItems, onUpdateQuantity, onRemoveItem, 
 
     // Calculate subtotal from cartItems
     const subtotal = cartItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
-    const tax = subtotal * 0.16; // 16% VAT
+    const tax = subtotal * (settings.vatRate / 100); // Dynamic VAT from settings
     const discountAmount = (subtotal * discount) / 100;
     const total = subtotal + tax - discountAmount;
 
@@ -93,7 +95,7 @@ const Cart: React.FC<CartProps> = ({ cartItems, onUpdateQuantity, onRemoveItem, 
                                 <img src={item.imageUrl} alt={item.name} className="w-16 h-16 object-cover rounded-md" referrerPolicy="no-referrer" />
                                 <div className="flex-1">
                                     <p className="font-semibold text-sm line-clamp-2">{item.name}</p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 font-bold">KES {item.price.toLocaleString()}</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 font-bold">{formatPrice(item.price)}</p>
                                     <div className="mt-2 flex items-center gap-2">
                                         <button 
                                             onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
@@ -107,7 +109,7 @@ const Cart: React.FC<CartProps> = ({ cartItems, onUpdateQuantity, onRemoveItem, 
                                     </div>
                                 </div>
                                 <div className="flex flex-col items-end justify-between">
-                                     <p className="font-bold text-sm">KES {(item.price * item.quantity).toLocaleString()}</p>
+                                     <p className="font-bold text-sm">{formatPrice(item.price * item.quantity)}</p>
                                      <button onClick={() => onRemoveItem(item.id)} className="p-1 text-gray-400 hover:text-red-500">
                                         <XIcon className="w-4 h-4" />
                                      </button>
@@ -125,8 +127,8 @@ const Cart: React.FC<CartProps> = ({ cartItems, onUpdateQuantity, onRemoveItem, 
                         <div className="bg-white dark:bg-slate-800 p-2 rounded-lg border border-slate-200 dark:border-slate-700 text-xs">
                             <span className="font-bold text-slate-500 dark:text-slate-400">B2B Credit Account Status:</span>
                             <div className="grid grid-cols-2 gap-1 mt-1 text-slate-600 dark:text-slate-300">
-                                <span>Limit Capac: KES {creditLimit.toLocaleString()}</span>
-                                <span>Oust. Debt: KES {outstandingBalance.toLocaleString()}</span>
+                                <span>Limit Capac: {formatPrice(creditLimit)}</span>
+                                <span>Oust. Debt: {formatPrice(outstandingBalance)}</span>
                             </div>
                             <div className="mt-1.5 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
                                 <div 
@@ -136,7 +138,7 @@ const Cart: React.FC<CartProps> = ({ cartItems, onUpdateQuantity, onRemoveItem, 
                             </div>
                             {hasCreditLimitExceeded && (
                                 <p className="text-red-600 dark:text-red-400 font-extrabold mt-1 text-[10px]">
-                                    ⚠️ Credit Limit exceeded by KES {(outstandingBalance + total - creditLimit).toLocaleString()}!
+                                    ⚠️ Credit Limit exceeded by {formatPrice(outstandingBalance + total - creditLimit)}!
                                 </p>
                             )}
                         </div>
@@ -144,19 +146,19 @@ const Cart: React.FC<CartProps> = ({ cartItems, onUpdateQuantity, onRemoveItem, 
 
                     <div className="flex justify-between">
                         <span>Subtotal</span>
-                        <span className="font-semibold">KES {subtotal.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                        <span className="font-semibold">{formatPrice(subtotal)}</span>
                     </div>
                      <div className="flex justify-between">
                         <span>Discount ({discount}%)</span>
-                        <span className="font-semibold text-green-600 dark:text-green-400">- KES {discountAmount.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                        <span className="font-semibold text-green-600 dark:text-green-400">- {formatPrice(discountAmount)}</span>
                     </div>
                     <div className="flex justify-between">
-                        <span>VAT (16%)</span>
-                        <span className="font-semibold">KES {tax.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                        <span>VAT ({settings.vatRate}%)</span>
+                        <span className="font-semibold">{formatPrice(tax)}</span>
                     </div>
                     <div className="flex justify-between text-xl font-bold border-t border-surface-2 dark:border-gray-600 pt-3 mt-3 text-ink dark:text-gray-50">
-                        <span>Total (KES)</span>
-                        <span>{total.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                        <span>Total ({settings.currency})</span>
+                        <span>{formatPrice(total)}</span>
                     </div>
 
                     <div className="flex gap-2 pt-1">
@@ -186,7 +188,7 @@ const Cart: React.FC<CartProps> = ({ cartItems, onUpdateQuantity, onRemoveItem, 
                             : 'bg-brand-orange hover:bg-brand-orange/95'
                         }`}
                     >
-                        {hasCreditLimitExceeded ? "Override Credit Guard & Pay" : `Charge KES ${total.toLocaleString(undefined, {minimumFractionDigits: 2})}`}
+                        {hasCreditLimitExceeded ? "Override Credit Guard & Pay" : `Charge ${formatPrice(total)}`}
                     </button>
                 </div>
             )}
