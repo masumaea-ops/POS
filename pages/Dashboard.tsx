@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { MOCK_CUSTOMERS, MOCK_PRODUCTS } from '../data/mockData';
 import { useSystemSettings } from '../contexts/SettingsContext';
+import { AlertTriangle } from 'lucide-react';
 
 const Dashboard: React.FC = () => {
   const { settings, formatPrice } = useSystemSettings();
@@ -136,7 +137,7 @@ const Dashboard: React.FC = () => {
              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Critical Part types<br/>Warning</span>
            </div>
            <div className="mt-2.5 text-xs text-amber-600 font-semibold flex items-center gap-1">
-              <span>⚠️ Need Immediate reorder dispatch POs</span>
+              <span><span className="flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" /> Need Immediate reorder dispatch POs</span></span>
            </div>
         </div>
       </div>

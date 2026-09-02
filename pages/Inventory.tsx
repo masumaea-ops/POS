@@ -1,13 +1,63 @@
 import React, { useState, useEffect } from 'react';
-import { MOCK_PRODUCTS } from '../data/mockData';
+import { MOCK_PRODUCTS, MOCK_SALE_ORDERS } from '../data/mockData';
 import PageHeader from '../components/shared/PageHeader';
 import Table from '../components/shared/Table';
-import type { Product } from '../types';
-import { SearchIcon, PlusIcon, XIcon } from '../components/shared/Icons';
+import type { Product, SaleOrder } from '../types';
+import { Search, X, Package, AlertTriangle, Coins, Zap, BarChart2, Download, FileText, Printer, Scan, Camera, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { useSystemSettings } from '../contexts/SettingsContext';
+import { exportToPDF, exportToCSV as generateCSV } from '../utils/exportUtils';
+import ExportDropdown from '../components/shared/ExportDropdown';
+import { QRScannerModal } from '../components/shared/QRScannerModal';
+import { ProductQuickInspectorModal } from '../components/shared/ProductQuickInspectorModal';
+import { OrderVerificationModal } from '../components/shared/OrderVerificationModal';
+import { ProductPriceTrendSection } from '../components/inventory/ProductPriceTrendSection';
 
 const Inventory: React.FC = () => {
   const { settings, formatPrice } = useSystemSettings();
+  
+  // State for active sales history view & active hub tab
+  const [selectedProductHistory, setSelectedProductHistory] = useState<Product | null>(null);
+  const [hubTab, setHubTab] = useState<'trends' | 'sales' | 'specs'>('trends');
+
+  // Scanner & Modal states
+  const [isScannerOpen, setIsScannerOpen] = useState(false);
+  const [inspectedProduct, setInspectedProduct] = useState<Product | null>(null);
+  const [verifiedOrder, setVerifiedOrder] = useState<SaleOrder | null>(null);
+  const [scannerToast, setScannerToast] = useState<{ message: string; isError?: boolean } | null>(null);
+
+  const triggerToast = (message: string, isError = false) => {
+    setScannerToast({ message, isError });
+    setTimeout(() => setScannerToast(null), 3500);
+  };
+
+  const getProductSalesHistory = (product: Product) => {
+    const history: Array<{
+      orderId: string;
+      customerName: string;
+      date: string;
+      status: SaleOrder['status'];
+      quantity: number;
+      price: number;
+    }> = [];
+
+    const ordersToSearch = salesOrdersList;
+    ordersToSearch.forEach(order => {
+      order.items?.forEach(item => {
+        if (item.productName.toLowerCase() === product.name.toLowerCase()) {
+          history.push({
+            orderId: order.id,
+            customerName: order.customer.name,
+            date: order.date,
+            status: order.status,
+            quantity: item.quantity,
+            price: item.price
+          });
+        }
+      });
+    });
+
+    return history.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  };
   
   // Persistent Inventory state
   const [products, setProducts] = useState<Product[]>(() => {
@@ -20,6 +70,19 @@ const Inventory: React.FC = () => {
       }
     }
     return MOCK_PRODUCTS;
+  });
+
+  // Persistent Sales Orders state for Order Verification
+  const [salesOrdersList, setSalesOrdersList] = useState<SaleOrder[]>(() => {
+    const saved = localStorage.getItem('masuma_sales_orders');
+    if (saved) {
+      try {
+        return JSON.parse(saved);
+      } catch (e) {
+        console.error('Error loading sales orders in Inventory', e);
+      }
+    }
+    return MOCK_SALE_ORDERS;
   });
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -60,9 +123,9 @@ const Inventory: React.FC = () => {
 
   const getStatus = (product: Product) => {
     const minLevel = product.minStockLevel || 10;
-    if (product.stock === 0) return <span className="px-2.5 py-1 text-xs font-bold text-red-800 bg-red-100 dark:text-red-300 dark:bg-red-900/50 rounded-full">🚫 Depleted</span>;
-    if (product.stock <= minLevel) return <span className="px-2.5 py-1 text-xs font-bold text-amber-800 bg-amber-100 dark:text-amber-300 dark:bg-amber-900/50 rounded-full">⚠️ Reorder ({product.stock})</span>;
-    return <span className="px-2.5 py-1 text-xs font-bold text-green-800 bg-green-100 dark:text-green-300 dark:bg-green-900/50 rounded-full">✅ Normal ({product.stock})</span>;
+    if (product.stock === 0) return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold text-red-800 bg-red-100 dark:text-red-350 dark:bg-red-950/40 rounded-full"><span className="w-1.5 h-1.5 rounded-full bg-red-500"></span> Depleted</span>;
+    if (product.stock <= minLevel) return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold text-amber-800 bg-amber-100 dark:text-amber-300 dark:bg-amber-950/40 rounded-full"><span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span> Reorder ({product.stock})</span>;
+    return <span className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold text-green-800 bg-green-100 dark:text-green-300 dark:bg-green-950/40 rounded-full"><span className="w-1.5 h-1.5 rounded-full bg-green-500"></span> Normal ({product.stock})</span>;
   };
 
   const handleAddProductClick = () => {
@@ -164,45 +227,96 @@ const Inventory: React.FC = () => {
   });
 
   // ----------------------------------------------------------------------
-  // SEAMLESS & ACCURATE EXPORT: Safe Blob trigger
+  // SEAMLESS & ACCURATE EXPORT: Comprehensive PDF & CSV Generation
   // ----------------------------------------------------------------------
-  const handleExportToCSV = () => {
+  const handleExportInventoryPDF = () => {
+    const totalWealth = filteredProducts.reduce((acc, p) => acc + (p.price * p.stock), 0);
+    const lowCount = filteredProducts.filter(p => p.stock <= (p.minStockLevel || 10) && p.stock > 0).length;
+    const outCount = filteredProducts.filter(p => p.stock === 0).length;
+
     const headers = [
-      'SKU', 'Name', 'Brand', 'Category', 'Price', 'Stock', 
-      'Min Stock Level', 'OEM Code', 'Bin Location', 'Image URL'
+      'SKU Code', 'Component Name', 'Brand', 'Category', 'OEM Code', 'Bin Loc', 'Stock Qty', 'Min Level', `Unit Price (${settings.currency})`, `Valuation (${settings.currency})`
     ];
 
-    const rows = products.map(p => [
+    const rows = filteredProducts.map(p => [
       p.sku,
       p.name,
       p.brand,
       p.category || 'Uncategorized',
-      p.price.toString(),
+      p.oemCode || 'N/A',
+      p.binLocation || 'W1-A1',
       p.stock.toString(),
       (p.minStockLevel || 10).toString(),
+      formatPrice(p.price),
+      formatPrice(p.price * p.stock)
+    ]);
+
+    exportToPDF({
+      title: 'Masuma Automotive Parts & Inventory Catalog',
+      subtitle: 'Complete SKU inventory ledger, bin location mapping, and holding valuation',
+      filename: `masuma_inventory_catalog_${filterTab}_${new Date().toISOString().slice(0, 10)}`,
+      headers,
+      rows,
+      metadata: {
+        'Catalog Scope': filterTab === 'all' ? 'All Registered SKUs' : filterTab === 'low' ? 'Low Stock Warning Items' : 'Depleted Stock Items',
+        'Search Filter': searchTerm || 'None (All Records)',
+        'Active SKUs Displayed': filteredProducts.length,
+        'Base Valuation Mode': 'Physical FIFO / Standard Cost'
+      },
+      summaryStats: [
+        { label: 'Total Catalog Value', value: formatPrice(totalWealth) },
+        { label: 'SKU Count in View', value: `${filteredProducts.length} Items` },
+        { label: 'Low Stock Warnings', value: `${lowCount} Parts` },
+        { label: 'Depleted / Out-of-Stock', value: `${outCount} Parts` }
+      ],
+      notes: [
+        'Physical count verification conducted regularly.',
+        'Ensure automatic PO trigger parameters align with procurement SLA policies.'
+      ],
+      currency: settings.currency
+    });
+  };
+
+  const handleExportInventoryCSV = () => {
+    const totalWealth = filteredProducts.reduce((acc, p) => acc + (p.price * p.stock), 0);
+    const headers = [
+      'SKU Code', 'Product Name', 'Brand', 'Category', 'Price', 'Physical Stock', 
+      'Min Safety Stock', 'OEM Code', 'Bin Location', 'Asset Valuation', 'Image URL'
+    ];
+
+    const rows = filteredProducts.map(p => [
+      p.sku,
+      p.name,
+      p.brand,
+      p.category || 'Uncategorized',
+      p.price,
+      p.stock,
+      p.minStockLevel || 10,
       p.oemCode || '',
       p.binLocation || '',
+      p.price * p.stock,
       p.imageUrl || ''
     ]);
 
-    const csvContent = "\uFEFF" 
-      + [headers.join(","), ...rows.map(row => row.map(cell => {
-          const stringVal = String(cell).replace(/"/g, '""');
-          return stringVal.includes(',') || stringVal.includes('\n') || stringVal.includes('"') 
-            ? `"${stringVal}"` 
-            : stringVal;
-        }).join(","))].join("\n");
-
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `masuma_inventory_catalog_${new Date().toISOString().slice(0,10)}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+    generateCSV({
+      title: 'Masuma Automotive Parts Inventory Catalog',
+      filename: `masuma_inventory_catalog_${filterTab}_${new Date().toISOString().slice(0, 10)}`,
+      headers,
+      rows,
+      metadata: {
+        'View Tab': filterTab.toUpperCase(),
+        'Search Keyword': searchTerm || 'ALL',
+        'Total Lines': filteredProducts.length,
+        'Holding Asset Wealth': formatPrice(totalWealth)
+      },
+      summaryStats: [
+        { label: 'Total Stock Valuation', value: formatPrice(totalWealth) },
+        { label: 'Total SKUs Exported', value: `${filteredProducts.length} items` }
+      ]
+    });
   };
+
+  const handleExportToCSV = handleExportInventoryCSV;
 
   // ----------------------------------------------------------------------
   // DRAFT TEMPLATE EXPORTER
@@ -425,18 +539,30 @@ const Inventory: React.FC = () => {
     }
   };
 
+  const handleStockCorrection = (productId: number, newStock: number, reason: string) => {
+    setProducts(prev => prev.map(p => p.id === productId ? { ...p, stock: newStock } : p));
+    if (inspectedProduct && inspectedProduct.id === productId) {
+      setInspectedProduct(prev => prev ? { ...prev, stock: newStock } : null);
+    }
+    triggerToast(`✓ Stock count adjusted to ${newStock} units (${reason})`);
+  };
+
   const columns = [
     { 
       header: 'Component Details', 
       accessor: (item: Product) => (
-        <div className="flex items-center gap-3">
-          <img src={item.imageUrl} alt={item.name} className="w-10 h-10 object-cover rounded border border-slate-200 dark:border-slate-700 bg-slate-50" referrerPolicy="no-referrer" />
+        <div 
+          onClick={() => setSelectedProductHistory(item)}
+          className="flex items-center gap-3 cursor-pointer group"
+          title="Click to view full specs & Sales History"
+        >
+          <img src={item.imageUrl} alt={item.name} className="w-10 h-10 object-cover rounded border border-slate-200 dark:border-slate-700 bg-slate-50 group-hover:opacity-85 transition-opacity" referrerPolicy="no-referrer" />
           <div>
-            <div className="font-bold text-slate-900 dark:text-slate-100 text-sm">{item.name}</div>
+            <div className="font-bold text-slate-900 dark:text-slate-100 text-sm group-hover:text-brand-orange group-hover:underline transition-all">{item.name}</div>
             <div className="text-xs text-slate-500 flex items-center gap-2 mt-0.5">
-              <span>Brand: <strong className="text-slate-700 dark:text-slate-300">{item.brand}</strong></span>
+              <span>Brand: <strong className="text-slate-700 dark:text-slate-300 group-hover:text-slate-950 dark:group-hover:text-white transition-colors">{item.brand}</strong></span>
               <span>•</span>
-              <span>SKU: <strong className="font-mono">{item.sku}</strong></span>
+              <span>SKU: <strong className="font-mono text-indigo-600 dark:text-indigo-400 font-bold">{item.sku}</strong></span>
             </div>
           </div>
         </div>
@@ -478,7 +604,26 @@ const Inventory: React.FC = () => {
     { 
       header: 'Operations', 
       accessor: (item: Product) => (
-        <div className="flex gap-2 text-xs">
+        <div className="flex gap-2 items-center text-xs">
+          <button 
+             onClick={() => setInspectedProduct(item)}
+             className="px-2.5 py-1 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/50 rounded font-bold transition-all flex items-center gap-1 border border-amber-200 dark:border-amber-800/40"
+             title="Quick physical stock count adjustment & print shelf QR tag"
+          >
+             <Scan className="w-3.5 h-3.5" />
+             <span>Audit / QR</span>
+          </button>
+          <button 
+             onClick={() => {
+               setSelectedProductHistory(item);
+               setHubTab('trends');
+             }}
+             className="px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded font-bold transition-all flex items-center gap-1 border border-indigo-200 dark:border-indigo-800/40"
+             title="View Price Trends, Gross Margin & Procurement Analytics"
+          >
+             <BarChart2 className="w-3.5 h-3.5" />
+             <span>Trends & Sales</span>
+          </button>
           <button 
              onClick={() => handleEditProductClick(item)}
              className="px-2.5 py-1 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded font-bold transition-all"
@@ -488,9 +633,10 @@ const Inventory: React.FC = () => {
           {item.stock <= (item.minStockLevel || 10) && (
             <button 
                onClick={() => triggerDraftPO(item)}
-               className="px-2 py-1 bg-brand-orange hover:bg-brand-orange/90 text-white rounded font-bold hover:scale-105 transition-all text-[11px]"
+               className="px-2 py-1 bg-brand-orange hover:bg-brand-orange/90 text-white rounded font-bold hover:scale-105 transition-all text-[11px] flex items-center gap-1"
             >
-               ⚡ Auto-PO
+               <Zap className="w-3 h-3 fill-current" />
+               <span>Auto-PO</span>
             </button>
           )}
         </div>
@@ -504,7 +650,9 @@ const Inventory: React.FC = () => {
         title="Automotive Parts Catalog"
         primaryAction={{ label: "Add Product Spec", onClick: handleAddProductClick }}
         secondaryActions={[
-          { label: "📤 Export CSV", onClick: handleExportToCSV },
+          { label: "📷 QR Scanner", onClick: () => setIsScannerOpen(true) },
+          { label: "📄 Export PDF", onClick: handleExportInventoryPDF },
+          { label: "📊 Export CSV", onClick: handleExportInventoryCSV },
           { label: "📥 Import CSV (Bulk)", onClick: () => setIsImportModalOpen(true) }
         ]}
       />
@@ -516,14 +664,18 @@ const Inventory: React.FC = () => {
             <span className="text-[10px] text-slate-400 font-extrabold uppercase block tracking-wider">Total SKUs Registered</span>
             <span className="text-xl font-black text-slate-900 dark:text-white mt-1 block font-mono">{products.length} Items</span>
           </div>
-          <span className="text-2xl">📦</span>
+          <div className="w-10 h-10 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-lg flex items-center justify-center">
+            <Package className="w-5 h-5" />
+          </div>
         </div>
         <div className="p-4 bg-white dark:bg-gray-800 rounded-xl border border-slate-200 dark:border-slate-700/50 shadow-sm flex items-center justify-between">
           <div>
             <span className="text-[10px] text-slate-400 font-extrabold uppercase block tracking-wider">Low Level Breaches</span>
             <span className="text-xl font-black text-amber-600 mt-1 block font-mono">{products.filter(p => p.stock <= (p.minStockLevel || 10) && p.stock > 0).length} Parts</span>
           </div>
-          <span className="text-2xl text-amber-500">⚠️</span>
+          <div className="w-10 h-10 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-lg flex items-center justify-center">
+            <AlertTriangle className="w-5 h-5" />
+          </div>
         </div>
         <div className="p-4 bg-white dark:bg-gray-800 rounded-xl border border-slate-200 dark:border-slate-700/50 shadow-sm flex items-center justify-between">
           <div>
@@ -532,28 +684,39 @@ const Inventory: React.FC = () => {
               {formatPrice(products.reduce((acc, p) => acc + (p.price * p.stock), 0))}
             </span>
           </div>
-          <span className="text-2xl text-indigo-500">💰</span>
+          <div className="w-10 h-10 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-lg flex items-center justify-center">
+            <Coins className="w-5 h-5" />
+          </div>
         </div>
         <div className="p-4 bg-white dark:bg-gray-800 rounded-xl border border-slate-200 dark:border-slate-700/50 shadow-sm flex items-center justify-between">
           <div>
-            <span className="text-[10px] text-slate-400 font-extrabold uppercase block tracking-wider">Bulk Utilities Feed</span>
-            <div className="mt-1 flex gap-2">
+            <span className="text-[10px] text-slate-400 font-extrabold uppercase block tracking-wider">Universal Export</span>
+            <div className="mt-1 flex items-center gap-2">
               <button 
-                onClick={handleExportToCSV}
-                className="text-[11px] font-black uppercase text-brand-orange hover:underline"
+                onClick={handleExportInventoryPDF}
+                className="text-[11px] font-black uppercase text-brand-orange hover:underline flex items-center gap-0.5"
               >
-                Export CSV
+                PDF
+              </button>
+              <span className="text-slate-300">|</span>
+              <button 
+                onClick={handleExportInventoryCSV}
+                className="text-[11px] font-black uppercase text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-0.5"
+              >
+                CSV
               </button>
               <span className="text-slate-300">|</span>
               <button 
                 onClick={() => setIsImportModalOpen(true)}
-                className="text-[11px] font-black uppercase text-indigo-600 dark:text-indigo-405 hover:underline"
+                className="text-[11px] font-black uppercase text-slate-600 dark:text-slate-300 hover:underline"
               >
-                Import CSV
+                Import
               </button>
             </div>
           </div>
-          <span className="text-2xl">⚡</span>
+          <div className="w-10 h-10 bg-orange-50 dark:bg-orange-950/40 text-brand-orange rounded-lg flex items-center justify-center">
+            <Download className="w-5 h-5" />
+          </div>
         </div>
       </div>
 
@@ -582,17 +745,39 @@ const Inventory: React.FC = () => {
              </button>
            </div>
 
-           {/* Search query box */}
-           <div className="relative w-full md:max-w-xs shrink-0">
-             <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
-               <SearchIcon className="w-4 h-4"/>
-             </span>
-             <input 
-               type="text"
-               placeholder="OEM, Name or Brand..."
-               value={searchTerm}
-               onChange={(e) => setSearchTerm(e.target.value)}
-               className="w-full pl-9 pr-3 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs focus:ring-2 focus:ring-brand-orange focus:outline-none text-slate-800 dark:text-slate-100 font-bold"
+           {/* Search query box, Camera Scanner, and Export Dropdown */}
+           <div className="flex items-center gap-2.5 w-full md:w-auto justify-end">
+             <div className="relative w-full md:w-56 shrink-0">
+               <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
+                 <Search className="w-4 h-4"/>
+               </span>
+               <input 
+                 type="text"
+                 placeholder="OEM, Name or Brand..."
+                 value={searchTerm}
+                 onChange={(e) => setSearchTerm(e.target.value)}
+                 className="w-full pl-9 pr-3 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs focus:ring-2 focus:ring-brand-orange focus:outline-none text-slate-800 dark:text-slate-100 font-bold"
+               />
+             </div>
+
+             <button
+               onClick={() => setIsScannerOpen(true)}
+               className="px-3.5 py-2 bg-brand-orange hover:bg-orange-600 text-white font-black text-xs uppercase tracking-wider rounded-lg flex items-center gap-1.5 transition-all shrink-0 select-none shadow-sm shadow-brand-orange/20"
+               title="Launch device camera QR & barcode scanner"
+             >
+               <Scan className="w-4 h-4" />
+               <span>Scan</span>
+             </button>
+
+             <ExportDropdown
+               label="Export Catalog"
+               pdfLabel="Download PDF Ledger"
+               csvLabel="Download CSV Sheet"
+               onExportPDF={handleExportInventoryPDF}
+               onExportCSV={handleExportInventoryCSV}
+               onPrint={() => window.print()}
+               variant="primary"
+               size="md"
              />
            </div>
       </div>
@@ -612,7 +797,7 @@ const Inventory: React.FC = () => {
                  {editingProduct ? '👨‍🔧 Modify Autopart Parameters' : '🆕 Add Autopart Configuration'}
                </h3>
                <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600">
-                  <XIcon className="w-5 h-5" />
+                  <X className="w-5 h-5" />
                </button>
             </div>
 
@@ -743,7 +928,7 @@ const Inventory: React.FC = () => {
                 }} 
                 className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
               >
-                <XIcon className="w-5 h-5" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
@@ -914,6 +1099,373 @@ const Inventory: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* PRODUCT SPECIFICATIONS, PRICE TRENDS & SALES HISTORY MODAL DRAWER */}
+      {selectedProductHistory && (() => {
+         const productSales = getProductSalesHistory(selectedProductHistory);
+         const totalQtySold = productSales.reduce((sum, item) => sum + item.quantity, 0);
+         const totalRevSold = productSales.reduce((sum, item) => sum + (item.quantity * item.price), 0);
+         const avgPrice = totalQtySold > 0 ? Math.round(totalRevSold / totalQtySold) : 0;
+         const orderCount = productSales.length;
+
+         return (
+            <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex justify-end z-50 animate-fade-in">
+                <div className="w-full max-w-2xl sm:max-w-3xl bg-white dark:bg-slate-900 h-full p-6 shadow-2xl flex flex-col justify-between overflow-y-auto animate-slide-left text-xs">
+                    <div>
+                        <div className="flex justify-between items-start border-b border-slate-150 dark:border-slate-800 pb-4 mb-4">
+                             <div>
+                                 <div className="flex items-center gap-2">
+                                   <span className="text-[10px] uppercase font-mono tracking-wider px-2 py-0.5 rounded bg-brand-orange/10 text-brand-orange font-bold">
+                                     Procurement & Inventory Hub
+                                   </span>
+                                   <span className="text-[10px] font-mono text-slate-400">
+                                     SKU: {selectedProductHistory.sku}
+                                   </span>
+                                 </div>
+                                 <h3 className="text-xl font-black text-slate-900 dark:text-white mt-1">
+                                   {selectedProductHistory.name}
+                                 </h3>
+                                 <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                                   {selectedProductHistory.brand} • {selectedProductHistory.category || 'Automotive Component'} • Bin: <strong className="text-slate-800 dark:text-slate-200">{selectedProductHistory.binLocation || 'W1-A1'}</strong>
+                                 </p>
+                             </div>
+                             <button 
+                               onClick={() => setSelectedProductHistory(null)} 
+                               className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition"
+                             >
+                                 <X className="w-5 h-5"/>
+                             </button>
+                        </div>
+
+                        {/* TAB CONTROLS */}
+                        <div className="flex border-b border-slate-200 dark:border-slate-800 gap-2 mb-5">
+                          <button
+                            onClick={() => setHubTab('trends')}
+                            className={`pb-2.5 px-3 text-xs font-black uppercase tracking-wider border-b-2 transition flex items-center gap-1.5 ${
+                              hubTab === 'trends'
+                                ? 'border-brand-orange text-brand-orange'
+                                : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                            }`}
+                          >
+                            <BarChart2 className="w-3.5 h-3.5" />
+                            <span>Cost & Price Trends</span>
+                          </button>
+
+                          <button
+                            onClick={() => setHubTab('sales')}
+                            className={`pb-2.5 px-3 text-xs font-black uppercase tracking-wider border-b-2 transition flex items-center gap-1.5 ${
+                              hubTab === 'sales'
+                                ? 'border-brand-orange text-brand-orange'
+                                : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                            }`}
+                          >
+                            <FileText className="w-3.5 h-3.5" />
+                            <span>Sales Ledger ({productSales.length})</span>
+                          </button>
+
+                          <button
+                            onClick={() => setHubTab('specs')}
+                            className={`pb-2.5 px-3 text-xs font-black uppercase tracking-wider border-b-2 transition flex items-center gap-1.5 ${
+                              hubTab === 'specs'
+                                ? 'border-brand-orange text-brand-orange'
+                                : 'border-transparent text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+                            }`}
+                          >
+                            <Package className="w-3.5 h-3.5" />
+                            <span>Specs & QR Bin Tag</span>
+                          </button>
+                        </div>
+
+                        {/* TAB 1: PRICE & COST TRENDS */}
+                        {hubTab === 'trends' && (
+                          <div className="space-y-4">
+                            <ProductPriceTrendSection
+                              product={selectedProductHistory}
+                              onOpenCreatePO={(prod, suggestedCost, suggestedQty) => {
+                                setSelectedProductHistory(null);
+                                triggerDraftPO(prod);
+                              }}
+                            />
+                          </div>
+                        )}
+
+                        {/* TAB 2: SALES HISTORY */}
+                        {hubTab === 'sales' && (
+                          <div className="space-y-5">
+                            {/* Metrics Grid */}
+                            <div className="grid grid-cols-3 gap-3">
+                                <div className="bg-emerald-500/5 dark:bg-emerald-950/20 p-3 rounded-xl border border-emerald-500/10 text-center">
+                                    <span className="text-[9px] uppercase font-bold text-slate-400 block tracking-widest">Revenue</span>
+                                    <span className="text-sm font-black text-emerald-600 dark:text-emerald-400 font-mono mt-1 block">{formatPrice(totalRevSold)}</span>
+                                </div>
+                                <div className="bg-indigo-500/5 dark:bg-indigo-950/20 p-3 rounded-xl border border-indigo-500/10 text-center">
+                                    <span className="text-[9px] uppercase font-bold text-slate-400 block tracking-widest">Units Sold</span>
+                                    <span className="text-sm font-black text-indigo-600 dark:text-indigo-400 font-mono mt-1 block">{totalQtySold} pcs</span>
+                                </div>
+                                <div className="bg-amber-500/5 dark:bg-amber-955/20 p-3 rounded-xl border border-amber-500/10 text-center">
+                                    <span className="text-[9px] uppercase font-bold text-slate-400 block tracking-widest">Orders</span>
+                                    <span className="text-sm font-black text-amber-600 dark:text-amber-400 font-mono mt-1 block">{orderCount} Bills</span>
+                                </div>
+                            </div>
+
+                            {/* History Table Header with Export */}
+                            <div className="flex justify-between items-center">
+                              <h4 className="text-xs uppercase font-extrabold tracking-wider text-slate-500">B2B Order Transactions</h4>
+                              {productSales.length > 0 && (
+                                <ExportDropdown
+                                  label="Export Transactions"
+                                  pdfLabel="Download History PDF"
+                                  csvLabel="Download History CSV"
+                                  onExportPDF={() => {
+                                    const headers = ['Order Ref', 'Date Logged', 'Client Merchant', 'Status', 'Qty Sold', `Unit Price (${settings.currency})`, `Extended Total (${settings.currency})`];
+                                    const rows = productSales.map(item => [
+                                      item.orderId,
+                                      item.date,
+                                      item.customerName,
+                                      item.status.toUpperCase(),
+                                      item.quantity.toString(),
+                                      formatPrice(item.price),
+                                      formatPrice(item.price * item.quantity)
+                                    ]);
+                                    exportToPDF({
+                                      title: `Product Sales History: ${selectedProductHistory.name}`,
+                                      subtitle: `Detailed transaction ledger for SKU: ${selectedProductHistory.sku}`,
+                                      filename: `sales_history_${selectedProductHistory.sku}_${new Date().toISOString().slice(0, 10)}`,
+                                      headers,
+                                      rows,
+                                      metadata: {
+                                        'Product Name': selectedProductHistory.name,
+                                        'SKU Code': selectedProductHistory.sku,
+                                        'Brand': selectedProductHistory.brand,
+                                        'OEM Ref': selectedProductHistory.oemCode || 'N/A',
+                                        'Bin Slot': selectedProductHistory.binLocation || 'W1-A1',
+                                        'Current Physical Stock': `${selectedProductHistory.stock} Units`
+                                      },
+                                      summaryStats: [
+                                        { label: 'Total Revenue Generated', value: formatPrice(totalRevSold) },
+                                        { label: 'Total Units Sold', value: `${totalQtySold} pcs` },
+                                        { label: 'Total Orders Processed', value: `${orderCount} bills` }
+                                      ],
+                                      currency: settings.currency
+                                    });
+                                  }}
+                                  onExportCSV={() => {
+                                    const headers = ['Order Ref', 'Date Logged', 'Client Merchant', 'Status', 'Qty Sold', 'Unit Price', 'Extended Total'];
+                                    const rows = productSales.map(item => [
+                                      item.orderId,
+                                      item.date,
+                                      item.customerName,
+                                      item.status,
+                                      item.quantity,
+                                      item.price,
+                                      item.price * item.quantity
+                                    ]);
+                                    generateCSV({
+                                      title: `Masuma Product Sales History - ${selectedProductHistory.sku}`,
+                                      filename: `sales_history_${selectedProductHistory.sku}_${new Date().toISOString().slice(0, 10)}`,
+                                      headers,
+                                      rows,
+                                      metadata: {
+                                        'Part Name': selectedProductHistory.name,
+                                        'SKU': selectedProductHistory.sku,
+                                        'Brand': selectedProductHistory.brand,
+                                        'Total Revenue': formatPrice(totalRevSold)
+                                      },
+                                      summaryStats: [
+                                        { label: 'Total Revenue', value: formatPrice(totalRevSold) },
+                                        { label: 'Total Qty Sold', value: `${totalQtySold} pcs` }
+                                      ]
+                                    });
+                                  }}
+                                  onPrint={() => window.print()}
+                                  variant="outline"
+                                  size="sm"
+                                />
+                              )}
+                            </div>
+
+                            {productSales.length > 0 ? (
+                               <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden text-xs">
+                                    <table className="w-full text-left">
+                                        <thead className="bg-slate-50 dark:bg-slate-750 text-slate-600 dark:text-slate-300 font-bold">
+                                            <tr>
+                                                <th className="p-3">Ref Code / Date</th>
+                                                <th className="p-3">Client Merchant</th>
+                                                <th className="p-3 text-center">Qty</th>
+                                                <th className="p-3 text-right">Sold At</th>
+                                                <th className="p-3 text-right">Extended Value</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-150 dark:divide-slate-700">
+                                             {productSales.map((item, id) => (
+                                                 <tr key={id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 text-slate-800 dark:text-zinc-100 font-mono text-[11px]">
+                                                     <td className="p-3">
+                                                         <span className="font-bold text-brand-orange block">{item.orderId}</span>
+                                                         <span className="text-[9px] text-slate-400 block font-sans">{item.date}</span>
+                                                     </td>
+                                                     <td className="p-3 font-sans font-semibold text-slate-900 dark:text-white">
+                                                         {item.customerName}
+                                                         <span className="block text-[9px] text-slate-400 uppercase font-sans font-bold">{item.status}</span>
+                                                     </td>
+                                                     <td className="p-3 text-center font-bold text-slate-750 dark:text-slate-250">{item.quantity}</td>
+                                                     <td className="p-3 text-right text-slate-600 dark:text-slate-400">{formatPrice(item.price)}</td>
+                                                     <td className="p-3 text-right font-black text-slate-900 dark:text-white">{formatPrice(item.price * item.quantity)}</td>
+                                                 </tr>
+                                             ))}
+                                        </tbody>
+                                    </table>
+                               </div>
+                            ) : (
+                               <div className="p-8 text-center bg-slate-50 dark:bg-slate-900 rounded-xl border border-dashed border-slate-200 dark:border-slate-700 text-slate-450 font-mono">
+                                  ⚠️ No active sales transactions registered for this component in the current ledger cycle.
+                                </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* TAB 3: SPECS & BIN LOCATION */}
+                        {hubTab === 'specs' && (
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                <div className="flex items-center gap-3 bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700">
+                                    <img 
+                                      src={selectedProductHistory.imageUrl} 
+                                      alt={selectedProductHistory.name} 
+                                      className="w-16 h-16 object-cover rounded-lg border border-slate-200 dark:border-slate-750" 
+                                      referrerPolicy="no-referrer"
+                                    />
+                                    <div className="space-y-1">
+                                        <span className="text-[10px] text-slate-400 uppercase font-black block">Catalog ID</span>
+                                        <span className="font-mono font-bold text-slate-800 dark:text-white">{selectedProductHistory.sku}</span>
+                                        <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold block">📍 {selectedProductHistory.binLocation || 'W1-A1'}</span>
+                                    </div>
+                                </div>
+                                
+                                <div className="bg-slate-50 dark:bg-slate-800 p-3 rounded-xl border border-slate-200 dark:border-slate-700 flex flex-col justify-between">
+                                    <div className="flex justify-between items-center">
+                                        <span className="text-[10px] text-slate-400 uppercase font-bold">Base Retail Price:</span>
+                                        <span className="font-mono font-bold text-slate-900 dark:text-white">{formatPrice(selectedProductHistory.price)}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center mt-1">
+                                        <span className="text-[10px] text-slate-400 uppercase font-bold">Physical Stock:</span>
+                                        <span className="font-bold text-slate-900 dark:text-white">{selectedProductHistory.stock} Units</span>
+                                    </div>
+                                    <div className="flex justify-between items-center mt-1 border-t dark:border-slate-700 pt-1">
+                                        <span className="text-[10px] text-slate-400 uppercase font-bold">Safety Limit:</span>
+                                        <span className="font-mono text-amber-600 dark:text-amber-400 font-bold">{selectedProductHistory.minStockLevel || 10} qty</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="p-4 bg-slate-50 dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2">
+                              <span className="text-[10px] uppercase font-mono font-bold text-slate-400 block">
+                                Technical Specifications & Cross-References
+                              </span>
+                              <div className="grid grid-cols-2 gap-3 text-xs font-mono">
+                                <div>
+                                  <span className="text-slate-400 text-[10px] block">OEM Code:</span>
+                                  <span className="font-bold">{selectedProductHistory.oemCode || 'N/A'}</span>
+                                </div>
+                                <div>
+                                  <span className="text-slate-400 text-[10px] block">Brand Manufacturer:</span>
+                                  <span className="font-bold">{selectedProductHistory.brand}</span>
+                                </div>
+                                <div>
+                                  <span className="text-slate-400 text-[10px] block">Primary Category:</span>
+                                  <span className="font-bold">{selectedProductHistory.category || 'General'}</span>
+                                </div>
+                                <div>
+                                  <span className="text-slate-400 text-[10px] block">Total Valuation (Asset):</span>
+                                  <span className="font-bold text-brand-orange">{formatPrice(selectedProductHistory.price * selectedProductHistory.stock)}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                    </div>
+
+                    {/* Modal bottom action button */}
+                    <div className="pt-4 border-t border-slate-150 dark:border-slate-800 mt-6 flex items-center justify-between">
+                        <button
+                          onClick={() => {
+                            setInspectedProduct(selectedProductHistory);
+                            setSelectedProductHistory(null);
+                          }}
+                          className="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold rounded-xl flex items-center gap-1.5 transition"
+                        >
+                          <Scan className="w-3.5 h-3.5" />
+                          <span>Open Physical Stock Auditor</span>
+                        </button>
+
+                        <button 
+                          onClick={() => setSelectedProductHistory(null)}
+                          className="px-5 py-2 bg-slate-900 hover:bg-slate-800 dark:bg-slate-700 dark:hover:bg-slate-600 text-white text-xs font-bold rounded-xl transition-all focus:outline-none shadow-sm"
+                        >
+                          Close Hub
+                        </button>
+                    </div>
+                </div>
+            </div>
+         );
+      })()}
+
+      {/* FLOATING ACTION NOTIFICATION TOAST */}
+      {scannerToast && (
+        <div className={`fixed bottom-6 right-6 z-50 px-4 py-3 rounded-xl shadow-2xl flex items-center gap-3 border text-xs font-bold animate-slide-up backdrop-blur-md ${
+          scannerToast.isError 
+            ? 'bg-rose-950/90 text-rose-200 border-rose-800 shadow-rose-950/40' 
+            : 'bg-emerald-950/90 text-emerald-200 border-emerald-800 shadow-emerald-950/40'
+        }`}>
+          {scannerToast.isError ? <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" /> : <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />}
+          <span>{scannerToast.message}</span>
+        </div>
+      )}
+
+      {/* UNIFIED DEVICE QR & BARCODE SCANNER MODAL */}
+      {isScannerOpen && (
+        <QRScannerModal
+          products={products}
+          salesOrders={salesOrdersList}
+          onScanProduct={(product) => {
+            setIsScannerOpen(false);
+            setInspectedProduct(product);
+            triggerToast(`🎯 Product Identified: ${product.name} [SKU: ${product.sku}]`);
+          }}
+          onScanOrder={(order) => {
+            setIsScannerOpen(false);
+            setVerifiedOrder(order);
+            triggerToast(`📋 Sales Order Identified: ${order.id} (${order.customer.name})`);
+          }}
+          onClose={() => setIsScannerOpen(false)}
+          title="Inventory Rapid Scanner"
+          subtitle="Scan shelf tags, bin labels, packaging QR, or packing slips"
+        />
+      )}
+
+      {/* PRODUCT QUICK STOCK INSPECTOR & QR LABEL MODAL */}
+      {inspectedProduct && (
+        <ProductQuickInspectorModal
+          product={inspectedProduct}
+          onClose={() => setInspectedProduct(null)}
+          onUpdateStock={handleStockCorrection}
+          onViewFullHistory={(prod) => {
+            setInspectedProduct(null);
+            setSelectedProductHistory(prod);
+          }}
+        />
+      )}
+
+      {/* ORDER PICK & DISPATCH VERIFICATION MODAL */}
+      {verifiedOrder && (
+        <OrderVerificationModal
+          order={verifiedOrder}
+          onClose={() => setVerifiedOrder(null)}
+          onUpdateOrderStatus={(orderId, newStatus) => {
+            setSalesOrdersList(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+            triggerToast(`✓ Order ${orderId} status set to ${newStatus}`);
+          }}
+        />
       )}
 
     </div>

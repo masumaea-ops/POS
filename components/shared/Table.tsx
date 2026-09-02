@@ -1,5 +1,5 @@
 import React from 'react';
-import { MoreVerticalIcon } from './Icons';
+import { MoreVertical } from 'lucide-react';
 
 interface Column<T> {
   header: string;
@@ -40,7 +40,7 @@ const Table = <T extends { id: any }>({ columns, data, onRowClick }: TableProps<
                   </td>
                 ))}
                 <td className="p-4 text-sm text-ink dark:text-gray-100 whitespace-nowrap">
-                    <button className="text-gray-400 hover:text-ink dark:hover:text-white"><MoreVerticalIcon/></button>
+                    <button className="text-gray-400 hover:text-ink dark:hover:text-white"><MoreVertical className="w-4 h-4" /></button>
                 </td>
               </tr>
             ))}

@@ -3,7 +3,7 @@ import PageHeader from '../components/shared/PageHeader';
 import Table from '../components/shared/Table';
 import { MOCK_CUSTOMERS, MOCK_SUPPLIERS } from '../data/mockData';
 import type { Customer, Supplier } from '../types';
-import { XIcon, SearchIcon } from '../components/shared/Icons';
+import { X, Search } from 'lucide-react';
 import { useSystemSettings } from '../contexts/SettingsContext';
 
 const Contacts: React.FC = () => {
@@ -72,7 +72,9 @@ const Contacts: React.FC = () => {
     email: '',
     phone: '',
     creditLimit: 150000,
-    outstandingBalance: 0
+    outstandingBalance: 0,
+    kraPin: '',
+    shippingAddress: ''
   });
 
   // Individual Form Fields - Suppliers
@@ -97,7 +99,9 @@ const Contacts: React.FC = () => {
         email: '',
         phone: '',
         creditLimit: 150000,
-        outstandingBalance: 0
+        outstandingBalance: 0,
+        kraPin: '',
+        shippingAddress: ''
       });
       setIsCustomerModalOpen(true);
     } else {
@@ -122,7 +126,9 @@ const Contacts: React.FC = () => {
       email: cust.email || '',
       phone: cust.phone || '',
       creditLimit: cust.creditLimit || 0,
-      outstandingBalance: cust.outstandingBalance || 0
+      outstandingBalance: cust.outstandingBalance || 0,
+      kraPin: cust.kraPin || '',
+      shippingAddress: cust.shippingAddress || ''
     });
     setIsCustomerModalOpen(true);
   };
@@ -155,7 +161,9 @@ const Contacts: React.FC = () => {
         email: customerForm.email,
         phone: customerForm.phone,
         creditLimit: Number(customerForm.creditLimit),
-        outstandingBalance: Number(customerForm.outstandingBalance)
+        outstandingBalance: Number(customerForm.outstandingBalance),
+        kraPin: customerForm.kraPin,
+        shippingAddress: customerForm.shippingAddress
       } : c));
     } else {
       const newCustomer: Customer = {
@@ -167,7 +175,9 @@ const Contacts: React.FC = () => {
         email: customerForm.email,
         phone: customerForm.phone,
         creditLimit: Number(customerForm.creditLimit),
-        outstandingBalance: Number(customerForm.outstandingBalance)
+        outstandingBalance: Number(customerForm.outstandingBalance),
+        kraPin: customerForm.kraPin,
+        shippingAddress: customerForm.shippingAddress
       };
       setCustomers(prev => [newCustomer, ...prev]);
     }
@@ -227,7 +237,7 @@ const Contacts: React.FC = () => {
 
     if (activeTab === 'Customers') {
       prefix = 'customers';
-      headers = ['Name', 'Type', 'Tier', 'Company Name', 'Email', 'Phone', 'Credit Limit', 'Outstanding Balance'];
+      headers = ['Name', 'Type', 'Tier', 'Company Name', 'Email', 'Phone', 'Credit Limit', 'Outstanding Balance', 'KRA PIN', 'Shipping Address'];
       rows = customers.map(c => [
         c.name,
         c.type,
@@ -236,7 +246,9 @@ const Contacts: React.FC = () => {
         c.email || '',
         c.phone || '',
         (c.creditLimit || 0).toString(),
-        (c.outstandingBalance || 0).toString()
+        (c.outstandingBalance || 0).toString(),
+        c.kraPin || '',
+        c.shippingAddress || ''
       ]);
     } else {
       prefix = 'suppliers';
@@ -389,6 +401,9 @@ const Contacts: React.FC = () => {
           const rawBalance = getVal(row, ['outstandingbalance', 'balance', 'due', 'outstanding']);
           const outstandingBalance = Math.max(0, parseInt(rawBalance.replace(/[^0-9]/g, ''), 10) || 0);
 
+          const kraPin = getVal(row, ['krapin', 'taxid', 'pin', 'kra']);
+          const shippingAddress = getVal(row, ['shippingaddress', 'address', 'deliveryaddress', 'location', 'shipaddress']);
+
           return {
             id: Date.now() + rIdx,
             name: name || 'Unnamed Enterprise ' + rIdx,
@@ -398,7 +413,9 @@ const Contacts: React.FC = () => {
             email: email || undefined,
             phone: phone || undefined,
             creditLimit,
-            outstandingBalance
+            outstandingBalance,
+            kraPin: kraPin || undefined,
+            shippingAddress: shippingAddress || undefined
           };
         });
 
@@ -526,7 +543,30 @@ const Contacts: React.FC = () => {
       accessor: (item: Customer) => (
         <div className="text-xs">
           <div className="text-slate-800 dark:text-slate-200 font-semibold">{item.email || 'No email registered'}</div>
-          <div className="text-slate-400 mt-0.5 font-mono">{item.phone || '- No core phone line -'}</div>
+          <div className="text-slate-405 mt-0.5 font-mono">{item.phone || '- No core phone line -'}</div>
+        </div>
+      )
+    },
+    { 
+      header: 'Tax ID & Shipping Address', 
+      accessor: (item: Customer) => (
+        <div className="text-xs space-y-1 max-w-[200px]">
+          {item.kraPin ? (
+            <div>
+              <span className="text-[10px] font-mono font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded border border-amber-500/20">
+                🏷️ KRA: {item.kraPin}
+              </span>
+            </div>
+          ) : (
+            <span className="text-[9px] text-slate-400 italic">No KRA PIN Registered</span>
+          )}
+          {item.shippingAddress ? (
+            <p className="text-slate-600 dark:text-slate-400 leading-tight text-[10px] truncate" title={item.shippingAddress}>
+              🚚 {item.shippingAddress}
+            </p>
+          ) : (
+            <p className="text-[9px] text-slate-400 italic">No address registered</p>
+          )}
         </div>
       )
     },
@@ -547,8 +587,8 @@ const Contacts: React.FC = () => {
         <button 
            onClick={() => handleEditCustomerClick(item)}
            className="px-2.5 py-1 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-605 text-slate-700 dark:text-slate-200 rounded font-bold transition-all text-xs"
-        >
-           Modify
+         >
+            Modify
         </button>
       ) 
     },
@@ -623,7 +663,7 @@ const Contacts: React.FC = () => {
         <div className="flex gap-2 w-full md:w-auto items-center">
           <div className="relative w-full md:max-w-xs">
             <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
-              <SearchIcon className="w-4 h-4" />
+              <Search className="w-4 h-4" />
             </span>
             <input 
               type="text"
@@ -672,7 +712,7 @@ const Contacts: React.FC = () => {
                   {editingCustomer ? '👨‍🔧 Modify Corporate Customer parameters' : '🆕 Add Corporate Credit Customer'}
                </h3>
                <button onClick={() => setIsCustomerModalOpen(false)} className="text-slate-405">
-                  <XIcon className="w-5 h-5" />
+                  <X className="w-5 h-5" />
                </button>
             </div>
 
@@ -771,6 +811,30 @@ const Contacts: React.FC = () => {
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border-t border-slate-100 dark:border-slate-700/60 pt-3.5">
+                <div>
+                  <label className="text-[10px] uppercase font-black text-slate-500">KRA PIN (Kenya Revenue Authority Tax ID)</label>
+                  <input 
+                    type="text"
+                    value={customerForm.kraPin}
+                    onChange={(e) => setCustomerForm({...customerForm, kraPin: e.target.value.toUpperCase()})}
+                    maxLength={11}
+                    className="w-full mt-1 p-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded text-xs font-mono font-bold text-slate-900 dark:text-slate-100 focus:ring-1 focus:ring-brand-orange"
+                    placeholder="e.g. A012345678B"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase font-black text-slate-500">Shipping / Delivery Address</label>
+                  <textarea 
+                    value={customerForm.shippingAddress}
+                    onChange={(e) => setCustomerForm({...customerForm, shippingAddress: e.target.value})}
+                    rows={2}
+                    className="w-full mt-1 p-2 bg-slate-50 dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded text-xs text-slate-900 dark:text-slate-100 focus:ring-1 focus:ring-brand-orange font-medium"
+                    placeholder="e.g. Ngong Road, Nairobi or Plot 12, Enterprise Road"
+                  />
+                </div>
+              </div>
+
               <div className="pt-4 flex gap-3 border-t border-slate-100 dark:border-slate-700">
                 <button 
                   type="button" 
@@ -800,7 +864,7 @@ const Contacts: React.FC = () => {
                   {editingSupplier ? '👨‍🔧 Modify OEM Supplier profile' : '🆕 Register Sourcing OEM Supplier'}
                </h3>
                <button onClick={() => setIsSupplierModalOpen(false)} className="text-slate-405">
-                  <XIcon className="w-5 h-5" />
+                  <X className="w-5 h-5" />
                </button>
             </div>
 
@@ -892,7 +956,7 @@ const Contacts: React.FC = () => {
                 }} 
                 className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
               >
-                <XIcon className="w-5 h-5" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 

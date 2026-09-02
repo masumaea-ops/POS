@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { XIcon } from '../shared/Icons';
+import { X } from 'lucide-react';
 
 interface DiscountModalProps {
     isOpen: boolean;
@@ -23,7 +23,7 @@ const DiscountModal: React.FC<DiscountModalProps> = ({ isOpen, onClose, onApplyD
                 <div className="flex justify-between items-center">
                     <h2 className="text-xl font-bold">Apply Discount</h2>
                      <button onClick={onClose} className="p-2 rounded-full hover:bg-surface dark:hover:bg-gray-700">
-                        <XIcon />
+                        <X className="w-5 h-5" />
                     </button>
                 </div>
 

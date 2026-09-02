@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { XIcon } from '../shared/Icons';
+import { X } from 'lucide-react';
 
 interface ApprovalModalProps {
     isOpen: boolean;
@@ -31,7 +31,7 @@ const ApprovalModal: React.FC<ApprovalModalProps> = ({ isOpen, onClose, onApprov
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-sm p-6 text-center border border-slate-200 dark:border-slate-700">
                 <div className="flex justify-end">
                      <button onClick={() => { setPin(''); setError(''); onClose(); }} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 -mt-2 -mr-2">
-                        <XIcon className="w-5 h-5 text-slate-500" />
+                        <X className="w-5 h-5 text-slate-500" />
                     </button>
                 </div>
                 <div className="w-12 h-12 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-full flex items-center justify-center mx-auto mb-3">

@@ -16,10 +16,10 @@ export const MOCK_PRODUCTS: Product[] = [
 ];
 
 export const MOCK_CUSTOMERS: Customer[] = [
-    { id: 1, name: 'Walk-in Customer', type: 'Cash', tier: 'Retail', creditLimit: 0, outstandingBalance: 0 },
-    { id: 2, name: 'John Doe', type: 'Credit', companyName: 'John Doe Motors (JDM)', email: 'john@jdmotors.co.ke', phone: '0712345678', tier: 'Wholesale A', creditLimit: 250000, outstandingBalance: 145000 },
-    { id: 3, name: 'Jane Smith', type: 'Credit', companyName: 'Jane Smith Garage', email: 'jane@jsgarage.co.ke', phone: '0787654321', tier: 'Wholesale B', creditLimit: 120000, outstandingBalance: 88000 },
-    { id: 4, name: 'AutoFix Solutions', type: 'Credit', companyName: 'AutoFix Solutions Ltd', email: 'procurement@autofix.co.ke', phone: '0722000111', tier: 'Wholesale A', creditLimit: 500000, outstandingBalance: 310000 },
+    { id: 1, name: 'Walk-in Customer', type: 'Cash', tier: 'Retail', creditLimit: 0, outstandingBalance: 0, kraPin: 'P051234567A', shippingAddress: 'Nairobi CBD Counter Pickup' },
+    { id: 2, name: 'John Doe', type: 'Credit', companyName: 'John Doe Motors (JDM)', email: 'john@jdmotors.co.ke', phone: '0712345678', tier: 'Wholesale A', creditLimit: 250000, outstandingBalance: 145000, kraPin: 'P001928374B', shippingAddress: 'Workshop No. 4, Baricho Road, Industrial Area, Nairobi' },
+    { id: 3, name: 'Jane Smith', type: 'Credit', companyName: 'Jane Smith Garage', email: 'jane@jsgarage.co.ke', phone: '0787654321', tier: 'Wholesale B', creditLimit: 120000, outstandingBalance: 88000, kraPin: 'P011223344C', shippingAddress: 'Ngong Road, Opp. Junction Mall, Nairobi' },
+    { id: 4, name: 'AutoFix Solutions', type: 'Credit', companyName: 'AutoFix Solutions Ltd', email: 'procurement@autofix.co.ke', phone: '0722000111', tier: 'Wholesale A', creditLimit: 500000, outstandingBalance: 310000, kraPin: 'A009988776Z', shippingAddress: 'Enterprise Road, Plot 12, Industrial Area, Nairobi' },
 ];
 
 export const MOCK_SUPPLIERS: Supplier[] = [

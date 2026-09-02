@@ -24,7 +24,7 @@ const DEFAULT_SETTINGS: SystemSettings = {
   currency: 'KES',
   vatRate: 16,
   corpPhone: '+254 712 345678',
-  adminEmail: 'billing@masuma.co.ke',
+  adminEmail: 'admin@masuma.co.ke',
   taxpin: 'A011429519Z',
   branchCode: 'NRB-HQ-01',
   deviceSerial: 'FSC-KRA-10940C',

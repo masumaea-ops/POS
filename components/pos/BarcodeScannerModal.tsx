@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { Product } from '../../types';
-import { XIcon, SearchIcon } from '../shared/Icons';
+import { X, Search } from 'lucide-react';
 import { useSystemSettings } from '../../contexts/SettingsContext';
 
 interface ScanLogEntry {
@@ -262,7 +262,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
             onClick={onClose}
             className="p-1 px-1.5 hover:bg-slate-200 dark:hover:bg-slate-750 text-slate-500 rounded-md transition"
           >
-            <XIcon className="w-5 h-5" />
+            <X className="w-5 h-5" />
           </button>
         </header>
 
@@ -509,7 +509,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                   {/* SEARCH SHEET BOX */}
                   <div className="relative w-full md:w-56">
                     <span className="absolute inset-y-0 left-0 flex items-center pl-2.5 text-slate-450">
-                      <SearchIcon className="w-4 h-4" />
+                      <Search className="w-4 h-4" />
                     </span>
                     <input
                       type="text"

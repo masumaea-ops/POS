@@ -2,15 +2,17 @@ import React, { useState, useMemo } from 'react';
 import PageHeader from '../components/shared/PageHeader';
 import Card from '../components/shared/Card';
 import { 
-  BarChartIcon, 
-  ArchiveIcon, 
-  UsersIcon, 
-  FileTextIcon, 
-  ChevronDownIcon,
-  SearchIcon
-} from '../components/shared/Icons';
+  BarChart2 as BarChartIcon, 
+  Archive as ArchiveIcon, 
+  Users as UsersIcon, 
+  FileText as FileTextIcon, 
+  ChevronDown as ChevronDownIcon,
+  Search as SearchIcon
+} from 'lucide-react';
 import { MOCK_PRODUCTS, MOCK_CUSTOMERS, MOCK_SUPPLIERS, MOCK_PURCHASE_ORDERS, MOCK_SALE_ORDERS } from '../data/mockData';
 import { useSystemSettings } from '../contexts/SettingsContext';
+import { exportToPDF, exportToCSV as generateCSV } from '../utils/exportUtils';
+import ExportDropdown from '../components/shared/ExportDropdown';
 
 // Types of reports
 type ReportKey = 'sales' | 'inventory' | 'receivables' | 'vat' | 'suppliers' | 'cashup';
@@ -244,36 +246,544 @@ const Reports: React.FC = () => {
   }, [cashShifts]);
 
   // ----------------------------------------------------------------------
-  // SERVICE EXPORTERS (CSV GENERATOR)
+  // SERVICE EXPORTERS (UNIVERSAL PDF & CSV GENERATORS)
   // ----------------------------------------------------------------------
-  const exportToCSV = (headers: string[], rows: (string | number)[][], fileName: string) => {
-    const csvContent = "\uFEFF" 
-      + [headers.join(","), ...rows.map(e => e.map(val => {
-          const stringVal = String(val).replace(/"/g, '""');
-          return stringVal.includes(',') || stringVal.includes('\n') || stringVal.includes('"') 
-            ? `"${stringVal}"` 
-            : stringVal;
-        }).join(","))].join("\n");
-        
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `${fileName}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    
-    // Quick success brief popup
-    showBriefNotification("CSV exported successfully and downloading!");
-  };
-
   const showBriefNotification = (message: string) => {
     setAlertMessage(message);
     setTimeout(() => {
       setAlertMessage(null);
     }, 4000);
+  };
+
+  const handleExportSalesPDF = () => {
+    const headers = ['SKU Code', 'Product Description', 'Brand', 'Category', 'Outlet Account', 'Qty Sold', `Revenue (${settings.currency})`, 'Gross Margin', `Est. Profit (${settings.currency})`];
+    const rows = salesItemsFiltered.map(i => [
+      i.sku,
+      i.name,
+      i.brand,
+      i.category,
+      i.outlet,
+      i.quantity.toLocaleString(),
+      formatPrice(i.revenue),
+      `${(i.margin * 100).toFixed(1)}%`,
+      formatPrice(i.revenue * i.margin)
+    ]);
+    exportToPDF({
+      title: 'Sales Demand & Margin Performance Report',
+      subtitle: 'Analysis of sales volumes, gross revenues, and product profitability by SKU & Outlet',
+      filename: `masuma_sales_report_${selectedOutlet.replace(/\s+/g, '_')}_${dateRange}`,
+      headers,
+      rows,
+      metadata: {
+        'Outlet': selectedOutlet,
+        'Period': dateRange.toUpperCase(),
+        'Filter': searchQuery ? `Query: "${searchQuery}"` : 'All Catalog Items',
+        'Currency': settings.currency
+      },
+      summaryStats: [
+        { label: 'Total Revenue', value: formatPrice(salesTotals.revenue) },
+        { label: 'Units Sold', value: `${salesTotals.units} Units` },
+        { label: 'Gross Profit', value: formatPrice(salesTotals.profit) },
+        { label: 'Weighted Margin', value: `${salesTotals.marginPercent.toFixed(1)}%` }
+      ],
+      notes: ['Figures correspond with real-time POS receipts and wholesale B2B invoices.', 'Gross profit estimated from standard product margin allocations.'],
+      currency: settings.currency
+    });
+    showBriefNotification('Sales Demand Report exported as PDF document!');
+  };
+
+  const handleExportSalesCSV = () => {
+    const headers = ['SKU Code', 'Product Description', 'Brand Group', 'Category', 'Outlet Account', 'QTY Sold', `Total Revenue (${settings.currency})`, 'Gross Margin (%)', `Estimated Profit (${settings.currency})`];
+    const rows = salesItemsFiltered.map(i => [
+      i.sku,
+      i.name,
+      i.brand,
+      i.category,
+      i.outlet,
+      i.quantity,
+      i.revenue,
+      (i.margin * 100).toFixed(1),
+      (i.revenue * i.margin).toFixed(2)
+    ]);
+    generateCSV({
+      title: 'Masuma Sales Demand & Margin Performance Ledger',
+      filename: `masuma_sales_report_${selectedOutlet.replace(/\s+/g, '_')}_${dateRange}`,
+      headers,
+      rows,
+      metadata: {
+        'Outlet Account': selectedOutlet,
+        'Period Window': dateRange,
+        'Search Filter': searchQuery || 'None',
+        'Currency': settings.currency
+      },
+      summaryStats: [
+        { label: 'Total Filtered Revenue', value: formatPrice(salesTotals.revenue) },
+        { label: 'Total Filtered Units', value: salesTotals.units },
+        { label: 'Estimated Gross Profit', value: formatPrice(salesTotals.profit) },
+        { label: 'Weighted Margin', value: `${salesTotals.marginPercent.toFixed(1)}%` }
+      ]
+    });
+    showBriefNotification('Sales Demand CSV spreadsheet downloaded!');
+  };
+
+  const handleExportInventoryPDF = () => {
+    const headers = ['SKU Code', 'Parts Description', 'Brand', 'Stock Qty', `Unit Cost (${settings.currency})`, `Total Holding Cost (${settings.currency})`, `Unit Retail (${settings.currency})`, `Total Retail Worth (${settings.currency})`, 'Potential Margin', 'Stock Status'];
+    const rows = inventoryItemsValued.map(i => [
+      i.sku,
+      i.name,
+      i.brand,
+      i.stock.toLocaleString(),
+      formatPrice(i.unitCost),
+      formatPrice(i.totalCostValue),
+      formatPrice(i.price),
+      formatPrice(i.totalRetailValue),
+      `${i.potentialMargin.toFixed(1)}%`,
+      i.stockStatus
+    ]);
+    exportToPDF({
+      title: `Inventory Valuation & Asset Holding Ledger (${valuationMethod})`,
+      subtitle: `Warehouse asset valuation evaluated on ${valuationMethod === 'FIFO' ? 'First In, First Out (FIFO)' : 'Weighted Average Cost (WAC)'} accounting rules`,
+      filename: `masuma_inventory_valuation_${valuationMethod}_${new Date().toISOString().slice(0, 10)}`,
+      headers,
+      rows,
+      metadata: {
+        'Costing Method': `${valuationMethod} Model`,
+        'Total Lines': `${inventoryItemsValued.length} SKUs`,
+        'Filter': searchQuery ? `Query "${searchQuery}"` : 'Complete Catalog',
+        'Currency': settings.currency
+      },
+      summaryStats: [
+        { label: 'Total Holding Cost', value: formatPrice(inventorySummary.totalCost) },
+        { label: 'Total Retail Value', value: formatPrice(inventorySummary.totalRetail) },
+        { label: 'Potential Gross Profit', value: formatPrice(inventorySummary.potentialProfit) },
+        { label: 'Low Stock Lines', value: `${inventorySummary.lowStockCount} Items` },
+        { label: 'Depleted Stock', value: `${inventorySummary.outOfStockCount} Items` }
+      ],
+      notes: ['Valuations align with KRA eTIMS asset holding standards.', 'FIFO reflects arrival batch queue costing; WAC reflects averaged historic purchase prices.'],
+      currency: settings.currency
+    });
+    showBriefNotification(`Inventory Valuation (${valuationMethod}) PDF downloaded!`);
+  };
+
+  const handleExportInventoryCSV = () => {
+    const headers = ['SKU Code', 'Parts Description', 'Brand', 'Stock Level', `Unit Cost (${settings.currency})`, `Total Asset Holding Cost (${settings.currency})`, `Unit Retail Price (${settings.currency})`, `Total Retail Worth (${settings.currency})`, 'Margin Potential (%)', 'Stock Status'];
+    const rows = inventoryItemsValued.map(i => [
+      i.sku,
+      i.name,
+      i.brand,
+      i.stock,
+      i.unitCost.toFixed(2),
+      i.totalCostValue.toFixed(2),
+      i.price.toFixed(2),
+      i.totalRetailValue.toFixed(2),
+      i.potentialMargin.toFixed(1),
+      i.stockStatus
+    ]);
+    generateCSV({
+      title: `Masuma Inventory Asset Valuation (${valuationMethod} Costing Model)`,
+      filename: `masuma_inventory_valuation_${valuationMethod}_${new Date().toISOString().slice(0, 10)}`,
+      headers,
+      rows,
+      metadata: {
+        'Valuation Rule': valuationMethod,
+        'Catalog Lines': inventoryItemsValued.length,
+        'Filter': searchQuery || 'All'
+      },
+      summaryStats: [
+        { label: 'Asset Holding Cost Basis', value: formatPrice(inventorySummary.totalCost) },
+        { label: 'Asset Total Retail Worth', value: formatPrice(inventorySummary.totalRetail) },
+        { label: 'Unrealized Gross Margin', value: formatPrice(inventorySummary.potentialProfit) },
+        { label: 'Low Stock SKU Count', value: inventorySummary.lowStockCount },
+        { label: 'Out of Stock SKU Count', value: inventorySummary.outOfStockCount }
+      ]
+    });
+    showBriefNotification('Inventory Valuation CSV spreadsheet downloaded!');
+  };
+
+  const handleExportReceivablesPDF = () => {
+    const headers = ['Customer Entity', 'Corporate Legal Name', `Total Due (${settings.currency})`, `Current (${settings.currency})`, `1 - 30 Days (${settings.currency})`, `31 - 60 Days (${settings.currency})`, `61 - 90 Days (${settings.currency})`, `90+ Days (${settings.currency})`];
+    const rows = debtorsFiltered.map(d => [
+      d.customerName,
+      d.company,
+      formatPrice(d.totalDue),
+      formatPrice(d.current),
+      formatPrice(d.d1_30),
+      formatPrice(d.d31_60),
+      formatPrice(d.d61_90),
+      formatPrice(d.d90Over)
+    ]);
+    exportToPDF({
+      title: 'Aged Trade Accounts Receivable Ledger',
+      subtitle: 'Audit analysis of outstanding commercial buyer credit balances and aging overdue terms',
+      filename: `masuma_aged_receivables_report_${new Date().toISOString().slice(0, 10)}`,
+      headers,
+      rows,
+      metadata: {
+        'Ledger Scope': 'Wholesale Trade Debtors',
+        'Accounts Evaluated': debtorsFiltered.length,
+        'Overdue 90+ Risk': formatPrice(receivablesTotals.d90Over),
+        'Currency': settings.currency
+      },
+      summaryStats: [
+        { label: 'Total Outstanding', value: formatPrice(receivablesTotals.totalDue) },
+        { label: 'Current Terms', value: formatPrice(receivablesTotals.current) },
+        { label: '1-30 Days Due', value: formatPrice(receivablesTotals.d1_30) },
+        { label: '31-60 Days Due', value: formatPrice(receivablesTotals.d31_60) },
+        { label: '61-90 Days Due', value: formatPrice(receivablesTotals.d61_90) },
+        { label: '90+ Days Arrears', value: formatPrice(receivablesTotals.d90Over) }
+      ],
+      notes: ['Credit accounts exceeding 60 days are flagged for automated dunning and trade credit hold.'],
+      currency: settings.currency
+    });
+    showBriefNotification('Aged Receivables Report exported as PDF document!');
+  };
+
+  const handleExportReceivablesCSV = () => {
+    const headers = ['Customer Entity', 'Corporate Entity', `Total Due (${settings.currency})`, `Current (${settings.currency})`, `1-30 Days (${settings.currency})`, `31-60 Days (${settings.currency})`, `61-90 Days (${settings.currency})`, `90+ Days Overdue (${settings.currency})`];
+    const rows = debtorsFiltered.map(d => [
+      d.customerName,
+      d.company,
+      d.totalDue,
+      d.current,
+      d.d1_30,
+      d.d31_60,
+      d.d61_90,
+      d.d90Over
+    ]);
+    generateCSV({
+      title: 'Masuma Aged Commercial Receivables Ledger',
+      filename: `masuma_aged_receivables_${new Date().toISOString().slice(0, 10)}`,
+      headers,
+      rows,
+      metadata: {
+        'Accounts Evaluated': debtorsFiltered.length,
+        'Filter': searchQuery || 'All'
+      },
+      summaryStats: [
+        { label: 'Total Trade Receivables', value: formatPrice(receivablesTotals.totalDue) },
+        { label: 'Current (Not Overdue)', value: formatPrice(receivablesTotals.current) },
+        { label: '1 - 30 Days Past Due', value: formatPrice(receivablesTotals.d1_30) },
+        { label: '31 - 60 Days Past Due', value: formatPrice(receivablesTotals.d31_60) },
+        { label: '61 - 90 Days Past Due', value: formatPrice(receivablesTotals.d61_90) },
+        { label: '90+ Days Past Due (Critical)', value: formatPrice(receivablesTotals.d90Over) }
+      ]
+    });
+    showBriefNotification('Aged Receivables CSV spreadsheet downloaded!');
+  };
+
+  const handleExportVatPDF = () => {
+    const headers = ['Reference Slip No.', 'Audit Date', 'Associated Commercial Entity', 'Type', 'VAT Standard Attribution', `Net Excl. Tax (${settings.currency})`, `VAT Amount (${settings.currency})`, `Gross Ledger Total (${settings.currency})`];
+    const eligibleSales = MOCK_SALE_ORDERS.filter(o => o.status === 'Invoiced' || o.status === 'Paid');
+    const eligiblePurchases = MOCK_PURCHASE_ORDERS.filter(p => p.status === 'Received');
+
+    const salesRows = eligibleSales.map(so => {
+      const netVal = so.total / (1 + (vatRate / 100));
+      const calculatedTax = so.total - netVal;
+      return [
+        so.id,
+        so.date,
+        so.customer.name,
+        'OUTWARD SUPPLY',
+        `Output Supplies (${vatRate}%)`,
+        formatPrice(netVal),
+        formatPrice(calculatedTax),
+        formatPrice(so.total)
+      ];
+    });
+
+    const purchaseRows = eligiblePurchases.map(po => {
+      const netVal = po.total / (1 + (vatRate / 100));
+      const calculatedTax = po.total - netVal;
+      return [
+        po.id,
+        po.date,
+        po.supplier.name,
+        'INWARD SUPPLY',
+        `Input Supplies (${vatRate}%)`,
+        formatPrice(netVal),
+        formatPrice(calculatedTax),
+        formatPrice(po.total)
+      ];
+    });
+
+    const rows = [...salesRows, ...purchaseRows];
+
+    exportToPDF({
+      title: `VAT Tax Attribution Ledger & KRA eTIMS Statement Draft (${vatRate}%)`,
+      subtitle: `Draft value added tax computation for sales invoices and purchase order input deductions`,
+      filename: `masuma_vat_tax_ledger_${vatRate}percent_${new Date().toISOString().slice(0, 10)}`,
+      headers,
+      rows,
+      metadata: {
+        'Standard VAT Rate': `${vatRate}%`,
+        'Filing Period': dateRange.toUpperCase(),
+        'eTIMS Status': 'Audit Validated Draft',
+        'Net Remittance Due': formatPrice(vatCalculations.netVat)
+      },
+      summaryStats: [
+        { label: 'Gross Taxable Sales', value: formatPrice(vatCalculations.taxableSales) },
+        { label: 'Output VAT Collected', value: formatPrice(vatCalculations.outputVat) },
+        { label: 'Gross Purchases', value: formatPrice(vatCalculations.taxablePurchases) },
+        { label: 'Input VAT Deductible', value: formatPrice(vatCalculations.inputVat) },
+        { label: 'Net VAT Payable to KRA', value: formatPrice(vatCalculations.netVat) }
+      ],
+      notes: [
+        'Outward supplies reflect invoiced and settled customer orders.',
+        'Inward deductions require confirmed supplier fiscal receipts with ETR pin verification.'
+      ],
+      currency: settings.currency
+    });
+    showBriefNotification('VAT Tax Ledger Report exported as PDF document!');
+  };
+
+  const handleExportVatCSV = () => {
+    const headers = ['Tax Metric / Transaction Item', 'Audit Date', 'Associated Entity', 'Attribution Direction', `Net Value Excl. Tax (${settings.currency})`, `Calculated VAT Amount (${settings.currency})`, `Gross Ledger Entry (${settings.currency})`];
+    const eligibleSales = MOCK_SALE_ORDERS.filter(o => o.status === 'Invoiced' || o.status === 'Paid');
+    const eligiblePurchases = MOCK_PURCHASE_ORDERS.filter(p => p.status === 'Received');
+
+    const salesRows = eligibleSales.map(so => {
+      const netVal = so.total / (1 + (vatRate / 100));
+      const calculatedTax = so.total - netVal;
+      return [so.id, so.date, so.customer.name, 'Outward Sales Supply', netVal.toFixed(2), calculatedTax.toFixed(2), so.total.toFixed(2)];
+    });
+
+    const purchaseRows = eligiblePurchases.map(po => {
+      const netVal = po.total / (1 + (vatRate / 100));
+      const calculatedTax = po.total - netVal;
+      return [po.id, po.date, po.supplier.name, 'Inward Purchase Deduction', netVal.toFixed(2), calculatedTax.toFixed(2), po.total.toFixed(2)];
+    });
+
+    const rows = [...salesRows, ...purchaseRows];
+
+    generateCSV({
+      title: `Masuma VAT Tax Attribution Ledger (${vatRate}% Rate Standard)`,
+      filename: `masuma_vat_tax_ledger_${vatRate}percent_${new Date().toISOString().slice(0, 10)}`,
+      headers,
+      rows,
+      metadata: {
+        'Standard VAT Rate': `${vatRate}%`,
+        'Filing Period': dateRange,
+        'Net Remittance': formatPrice(vatCalculations.netVat)
+      },
+      summaryStats: [
+        { label: 'Total Taxable Gross Sales', value: formatPrice(vatCalculations.taxableSales) },
+        { label: `Output VAT Collected (${vatRate}%)`, value: formatPrice(vatCalculations.outputVat) },
+        { label: 'Total Deductible Purchases', value: formatPrice(vatCalculations.taxablePurchases) },
+        { label: `Input VAT Claimable (${vatRate}%)`, value: formatPrice(vatCalculations.inputVat) },
+        { label: 'Net VAT Liability Payable', value: formatPrice(vatCalculations.netVat) }
+      ]
+    });
+    showBriefNotification('VAT Tax Ledger CSV spreadsheet downloaded!');
+  };
+
+  const handleExportSuppliersPDF = () => {
+    const headers = ['Supplier Name', 'Primary Product Desk', 'Avg Lead Days', 'Order Fill Rate (%)', 'Defect Ratio (%)', 'Cost Score Card', 'Score Grade'];
+    const rows = SUPPLIER_RATINGS.map(s => [
+      s.name,
+      s.category,
+      `${s.avgLeadTime} Days`,
+      `${s.fillRate}%`,
+      `${s.discrepancyRate}%`,
+      s.priceIndex,
+      s.scoreGrade
+    ]);
+    exportToPDF({
+      title: 'Supplier Logistics & Performance Scorecard',
+      subtitle: 'Comparative matrix of OEM parts suppliers, lead time speed, fill accuracy, and quality metrics',
+      filename: `masuma_supplier_scorecard_${new Date().toISOString().slice(0, 10)}`,
+      headers,
+      rows,
+      metadata: {
+        'Factories Evaluated': SUPPLIER_RATINGS.length,
+        'Benchmark Standard': 'Automotive OEM Quality Standard',
+        'Top Supplier': 'Masuma Japan (Grade A+)'
+      },
+      summaryStats: [
+        { label: 'Top Order Fill Rate', value: 'Masuma Japan (98.4%)' },
+        { label: 'Fastest Average Lead', value: 'Denso Global (8.5 Days)' },
+        { label: 'Lowest Discrepancy', value: 'Masuma Japan (0.15%)' }
+      ],
+      notes: ['Supplier metrics computed from inbound warehouse inspection logs over the past 12 months.'],
+      currency: settings.currency
+    });
+    showBriefNotification('Supplier Scorecard Report exported as PDF document!');
+  };
+
+  const handleExportSuppliersCSV = () => {
+    const headers = ['Supplier Name', 'Primary Product Desk', 'Average Lead Days', 'Order Fill Rate (%)', 'Defect Ratio (%)', 'Pricing Competitiveness Index', 'Overall Score Grade'];
+    const rows = SUPPLIER_RATINGS.map(s => [
+      s.name,
+      s.category,
+      s.avgLeadTime,
+      s.fillRate,
+      s.discrepancyRate,
+      s.priceIndex,
+      s.scoreGrade
+    ]);
+    generateCSV({
+      title: 'Masuma Supplier Logistics & Quality Scorecard',
+      filename: `masuma_supplier_scorecard_${new Date().toISOString().slice(0, 10)}`,
+      headers,
+      rows,
+      metadata: {
+        'Factories Tracked': SUPPLIER_RATINGS.length
+      },
+      summaryStats: [
+        { label: 'Top Fill Rate Record', value: 'Masuma Japan (98.4%)' },
+        { label: 'Fastest Logistics Lead', value: 'Denso Global (8.5 Days)' }
+      ]
+    });
+    showBriefNotification('Supplier Scorecard CSV spreadsheet downloaded!');
+  };
+
+  const handleExportCashupPDF = () => {
+    const headers = ['Shift ID', 'Audit Date', 'Assigned Cashier', 'POS Device Code', `Cash Declared (${settings.currency})`, `Card Total (${settings.currency})`, `MPesa Total (${settings.currency})`, `Variance (${settings.currency})`, 'Status', 'Supervisor Audit Notes'];
+    const rows = cashShifts.map(s => [
+      s.id,
+      s.date,
+      s.cashier,
+      s.terminal,
+      formatPrice(s.physicalCash),
+      formatPrice(s.salesCard),
+      formatPrice(s.salesMpesa),
+      formatPrice(s.variance),
+      s.variance === 0 ? 'Balanced' : 'Flagged Audit',
+      s.notes
+    ]);
+    exportToPDF({
+      title: 'POS Till Balancing & Cash-Up Shift Reconciliation Report',
+      subtitle: 'Supervisor audit register of physical register counts, card slips, mobile payments, and drawer discrepancies',
+      filename: `masuma_cash_shifts_reconciliation_${new Date().toISOString().slice(0, 10)}`,
+      headers,
+      rows,
+      metadata: {
+        'Total Shifts': `${cashShifts.length} Registered Sessions`,
+        'Net Accumulated Variance': formatPrice(tillVarianceTotal),
+        'Audit Compliance': '100% Shift Logging Enforced',
+        'Currency': settings.currency
+      },
+      summaryStats: [
+        { label: 'Total Audited Shifts', value: `${cashShifts.length} Sessions` },
+        { label: 'Accumulated Variance', value: formatPrice(tillVarianceTotal) },
+        { label: 'Balanced Shifts', value: `${cashShifts.filter(s => s.variance === 0).length} of ${cashShifts.length}` }
+      ],
+      notes: ['All cash variances require supervisory sign-off before end-of-day register lock.'],
+      currency: settings.currency
+    });
+    showBriefNotification('POS Cash-Up Reconciliation Report exported as PDF document!');
+  };
+
+  const handleExportCashupCSV = () => {
+    const headers = ['Shift ID', 'Audit Date', 'Assigned Cashier', 'POS Device Code', `Physical Cash Declared (${settings.currency})`, `Shift Card Total (${settings.currency})`, `Shift MPesa Total (${settings.currency})`, `Discrepancy Variance (${settings.currency})`, 'Audit Status', 'Supervisor Notes'];
+    const rows = cashShifts.map(s => [
+      s.id,
+      s.date,
+      s.cashier,
+      s.terminal,
+      s.physicalCash,
+      s.salesCard,
+      s.salesMpesa,
+      s.variance,
+      s.variance === 0 ? 'Balanced' : 'Flagged Audit',
+      s.notes
+    ]);
+    generateCSV({
+      title: 'Masuma POS Till Balancing & Shift Variance Registry',
+      filename: `masuma_cash_shifts_reconciliation_${new Date().toISOString().slice(0, 10)}`,
+      headers,
+      rows,
+      metadata: {
+        'Total Sessions': cashShifts.length,
+        'Accumulated Discrepancy': formatPrice(tillVarianceTotal)
+      },
+      summaryStats: [
+        { label: 'Total Audit Sessions', value: cashShifts.length },
+        { label: 'Net Cumulative Discrepancy', value: formatPrice(tillVarianceTotal) }
+      ]
+    });
+    showBriefNotification('POS Cash-Up Reconciliation CSV spreadsheet downloaded!');
+  };
+
+  const handleExportExecutiveDirectoryPDF = () => {
+    const headers = ['Analytical Report Module', 'Focus Area & Scope', 'Key Core Metric', 'Status / Audit Value'];
+    const rows = [
+      ['Sales by Outlet/SKU', 'Volume, Revenue & Profit Margins', 'Filtered Sales Volume', formatPrice(salesTotals.revenue)],
+      ['Inventory Asset Valuation', `${valuationMethod} Costing & Holding Value`, 'Total Holding Cost Basis', formatPrice(inventorySummary.totalCost)],
+      ['Aged Trade Receivables', 'Commercial Debtors & Arrears', 'Outstanding Trade Receivables', formatPrice(receivablesTotals.totalDue)],
+      ['VAT Tax Attribution Ledger', `Standard ${vatRate}% Rate Output/Input`, 'Draft Net Tax Remittance Liability', formatPrice(vatCalculations.netVat)],
+      ['Supplier Logistics Scorecard', 'Factory Lead Times & Fill Rates', 'Top Performing Supplier', 'Masuma Japan (Grade A+)'],
+      ['POS Till Reconciliation', 'Drawer Cash, Card & MPesa Variances', 'Accumulated Till Variance', formatPrice(tillVarianceTotal)]
+    ];
+    exportToPDF({
+      title: 'Executive BI Analytics & Operational Directory Summary',
+      subtitle: 'Comprehensive executive summary across all automotive retail, wholesale, tax, and logistics modules',
+      filename: `masuma_executive_bi_summary_${new Date().toISOString().slice(0, 10)}`,
+      headers,
+      rows,
+      metadata: {
+        'Company': 'Masuma East Africa Ltd',
+        'Executive Scope': 'Full Business Intelligence Directory',
+        'Currency': settings.currency
+      },
+      summaryStats: [
+        { label: 'YTD Gross Revenue', value: formatPrice(4528600) },
+        { label: 'Asset Holding Cost', value: formatPrice(inventorySummary.totalCost) },
+        { label: 'Outstanding Receivables', value: formatPrice(receivablesTotals.totalDue) },
+        { label: 'Draft VAT Liability', value: formatPrice(vatCalculations.netVat) }
+      ],
+      currency: settings.currency
+    });
+    showBriefNotification('Executive BI Summary Report exported as PDF document!');
+  };
+
+  const handleExportExecutiveDirectoryCSV = () => {
+    const headers = ['Report Key', 'Report Title', 'Description', 'Primary Operational Metric', 'Current Calculated Value'];
+    const rows = [
+      ['sales', 'Sales by Outlet/SKU', 'Analyze sales volume, gross margins, and brand trends', 'Filtered Revenue', salesTotals.revenue],
+      ['inventory', 'Inventory Valuation', `Holding value via ${valuationMethod} costing model`, 'Asset Holding Cost', inventorySummary.totalCost],
+      ['receivables', 'Aged Receivables', 'Trade debtor aging limits and arrears risk', 'Total Outstanding Receivables', receivablesTotals.totalDue],
+      ['vat', 'VAT Tax Ledger', `Input/output tax returns at ${vatRate}% standard rate`, 'Net VAT Remittance Due', vatCalculations.netVat],
+      ['suppliers', 'Supplier Scorecard', 'Lead times, fill accuracy records, and pricing competitive indices', 'Top Factory Grade', 'A+ (Masuma Japan)'],
+      ['cashup', 'POS Cash-Up Reconciliation', 'Supervisor balance registry to audit till variances and mobile slips', 'Accumulated Variance', tillVarianceTotal]
+    ];
+    generateCSV({
+      title: 'Masuma Executive BI Analytics Directory Overview',
+      filename: `masuma_executive_bi_directory_${new Date().toISOString().slice(0, 10)}`,
+      headers,
+      rows,
+      summaryStats: [
+        { label: 'YTD Gross Revenue', value: formatPrice(4528600) },
+        { label: 'Asset Holding Cost Basis', value: formatPrice(inventorySummary.totalCost) },
+        { label: 'Trade Accounts Receivable', value: formatPrice(receivablesTotals.totalDue) },
+        { label: 'Draft VAT Liability', value: formatPrice(vatCalculations.netVat) }
+      ]
+    });
+    showBriefNotification('Executive BI Directory CSV spreadsheet downloaded!');
+  };
+
+  // Helper dispatcher based on active report
+  const handleActiveReportExportPDF = () => {
+    switch (activeReport) {
+      case 'sales': return handleExportSalesPDF();
+      case 'inventory': return handleExportInventoryPDF();
+      case 'receivables': return handleExportReceivablesPDF();
+      case 'vat': return handleExportVatPDF();
+      case 'suppliers': return handleExportSuppliersPDF();
+      case 'cashup': return handleExportCashupPDF();
+      default: return handleExportExecutiveDirectoryPDF();
+    }
+  };
+
+  const handleActiveReportExportCSV = () => {
+    switch (activeReport) {
+      case 'sales': return handleExportSalesCSV();
+      case 'inventory': return handleExportInventoryCSV();
+      case 'receivables': return handleExportReceivablesCSV();
+      case 'vat': return handleExportVatCSV();
+      case 'suppliers': return handleExportSuppliersCSV();
+      case 'cashup': return handleExportCashupCSV();
+      default: return handleExportExecutiveDirectoryCSV();
+    }
   };
 
   // ----------------------------------------------------------------------
@@ -347,7 +857,7 @@ const Reports: React.FC = () => {
     <div className="flex-1 overflow-y-auto bg-surface dark:bg-gray-900 pb-12 focus:outline-none" id="reports_workspace">
       
       {/* ----------------- BREADCRUMBS & GENERAL HEADER ----------------- */}
-      <div className="bg-white dark:bg-gray-800 border-b border-surface-2 dark:border-gray-700 p-4 md:px-8 flex justify-between items-center">
+      <div className="bg-white dark:bg-gray-800 border-b border-surface-2 dark:border-gray-700 p-4 md:px-8 flex justify-between items-center gap-4 flex-wrap">
         <div>
           <div className="flex items-center text-xs text-brand-orange font-bold uppercase tracking-widest gap-2">
             <span>Masuma Analytics</span>
@@ -364,15 +874,37 @@ const Reports: React.FC = () => {
               : "Reports & Executive BI Suite"}
           </h1>
         </div>
-        {activeReport && (
-          <button 
-            id="back_to_menu"
-            onClick={() => { setActiveReport(null); setSearchQuery(''); }}
-            className="flex items-center gap-2 px-4 py-2 text-sm border border-surface-2 dark:border-gray-650 bg-white dark:bg-gray-800 dark:border-gray-700 hover:bg-surface dark:hover:bg-gray-700 text-ink dark:text-gray-200 font-semibold rounded-lg shadow-sm transition"
-          >
-            ← Back to Report Directory
-          </button>
-        )}
+
+        <div className="flex items-center gap-3">
+          {!activeReport ? (
+            <ExportDropdown
+              label="Export Executive BI Summary"
+              pdfLabel="Download Executive PDF"
+              csvLabel="Download Executive CSV"
+              onExportPDF={handleExportExecutiveDirectoryPDF}
+              onExportCSV={handleExportExecutiveDirectoryCSV}
+              variant="primary"
+              size="md"
+            />
+          ) : (
+            <div className="flex items-center gap-2">
+              <ExportDropdown
+                label="Export View"
+                onExportPDF={handleActiveReportExportPDF}
+                onExportCSV={handleActiveReportExportCSV}
+                variant="primary"
+                size="sm"
+              />
+              <button 
+                id="back_to_menu"
+                onClick={() => { setActiveReport(null); setSearchQuery(''); }}
+                className="flex items-center gap-2 px-3 py-1.5 text-xs border border-surface-2 dark:border-gray-650 bg-white dark:bg-gray-800 dark:border-gray-700 hover:bg-surface dark:hover:bg-gray-700 text-ink dark:text-gray-200 font-semibold rounded-lg shadow-sm transition"
+              >
+                ← Back to Directory
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ----------------- ALERT NOTIFICATION BANNER ----------------- */}
@@ -562,58 +1094,15 @@ const Reports: React.FC = () => {
                 </div>
               )}
 
-              {/* Functional Export CSV Action Trigger */}
-              <button
-                id="export_csv_btn"
-                onClick={() => {
-                  if (activeReport === 'sales') {
-                    const headers = ['SKU', 'Product Name', 'Brand', 'Category', 'Quantity Sold', `Revenue (${settings.currency})`, 'Gross Margin (%)', 'Location'];
-                    const rows = salesItemsFiltered.map(i => [i.sku, i.name, i.brand, i.category, i.quantity, i.revenue, (i.margin * 100), i.outlet]);
-                    exportToCSV(headers, rows, `sales_report_${selectedOutlet.replace(/\s+/g, '_')}_${dateRange}`);
-                  }
-                  else if (activeReport === 'inventory') {
-                    const headers = ['SKU', 'Product Name', 'Brand', 'Stock Level', `Cost Per Unit (${settings.currency})`, `Total Asset Cost Valuation (${settings.currency})`, `Retail Value (${settings.currency})`, 'Status'];
-                    const rows = inventoryItemsValued.map(i => [i.sku, i.name, i.brand, i.stock, i.unitCost.toFixed(2), i.totalCostValue.toFixed(2), i.totalRetailValue.toFixed(2), i.stockStatus]);
-                    exportToCSV(headers, rows, `inventory_valuation_${valuationMethod}`);
-                  }
-                  else if (activeReport === 'receivables') {
-                    const headers = ['Buyer Customer', 'Corporate Entity', `Current Balance (${settings.currency})`, '1-30 Days Overdue', '31-60 Days Overdue', '61-90 Days Overdue', '90+ Days Limit'];
-                    const rows = debtorsFiltered.map(i => [i.customerName, i.company, i.totalDue, i.current, i.d1_30, i.d31_60, i.d90Over]);
-                    exportToCSV(headers, rows, 'aged_receivables_audit_ledger');
-                  }
-                  else if (activeReport === 'vat') {
-                    const headers = ['Tax Metric Category', `Net Excl. Tax Ledger Value (${settings.currency})`, `VAT Calculated Value (${settings.currency})`];
-                    const rows = [
-                      ['Taxable Gross Sales', vatCalculations.taxableSales, vatCalculations.outputVat],
-                      ['Taxable Gross Purchases', vatCalculations.taxablePurchases, vatCalculations.inputVat],
-                      ['Net Retained Liability Payable', (vatCalculations.taxableSales - vatCalculations.taxablePurchases), vatCalculations.netVat]
-                    ];
-                    exportToCSV(headers, rows, `vat_ledger_draft_${vatRate}percent`);
-                  }
-                  else if (activeReport === 'suppliers') {
-                    const headers = ['Supplier Name', 'Primary Product Desk', 'Average Lead Days', 'Order Fill Rate (%)', 'Defect Ratio (%)', 'Cost Score Card'];
-                    const rows = SUPPLIER_RATINGS.map(i => [i.name, i.category, i.avgLeadTime, i.fillRate, i.discrepancyRate, i.priceIndex]);
-                    exportToCSV(headers, rows, 'suppliers_performance_statistics');
-                  }
-                  else if (activeReport === 'cashup') {
-                    const headers = ['Shift ID', 'Date Logged', 'Assigned Cashier', 'POS Device Code', `Cash Declared (${settings.currency})`, `Shift Card Total (${settings.currency})`, `Shift Mpesa Total (${settings.currency})`, `discrepancy/Variance (${settings.currency})`];
-                    const rows = cashShifts.map(i => [i.id, i.date, i.cashier, i.terminal, i.physicalCash, i.salesCard, i.salesMpesa, i.variance]);
-                    exportToCSV(headers, rows, 'cashier_shift_variance_history');
-                  }
-                }}
-                className="bg-brand-orange hover:bg-orange-600 text-white font-bold text-xs uppercase tracking-wider px-4 py-2 rounded-lg transition-transform hover:scale-105 shadow"
-              >
-                📥 Export Sheet
-              </button>
-
-              {/* Functional Print View (triggers system native printer) */}
-              <button
-                id="print_btn"
-                onClick={() => window.print()}
-                className="bg-gray-100 hover:bg-gray-200 dark:bg-gray-750 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 font-bold text-xs uppercase tracking-wider px-3 py-2 rounded-lg"
-              >
-                🖨️ Print Report
-              </button>
+              {/* Universal Export Dropdown (PDF / CSV / Print) */}
+              <ExportDropdown
+                label="Export View"
+                onExportPDF={handleActiveReportExportPDF}
+                onExportCSV={handleActiveReportExportCSV}
+                onPrint={() => window.print()}
+                variant="primary"
+                size="sm"
+              />
 
             </div>
 

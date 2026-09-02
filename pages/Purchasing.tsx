@@ -3,7 +3,7 @@ import PageHeader from '../components/shared/PageHeader';
 import Table from '../components/shared/Table';
 import { MOCK_PURCHASE_ORDERS, MOCK_SUPPLIERS, MOCK_PRODUCTS } from '../data/mockData';
 import type { PurchaseOrder, Supplier, Product } from '../types';
-import { XIcon } from '../components/shared/Icons';
+import { X, ClipboardList, FileText } from 'lucide-react';
 import { useSystemSettings } from '../contexts/SettingsContext';
 
 const Purchasing: React.FC = () => {
@@ -172,7 +172,7 @@ const Purchasing: React.FC = () => {
                                  <h3 className="text-xl font-black text-slate-950 dark:text-slate-100 font-mono mt-0.5">{selectedPO.id}</h3>
                              </div>
                              <button onClick={() => setSelectedPO(null)} className="p-2 hover:bg-slate-100 dark:hover:bg-slate-750 rounded-full text-slate-500">
-                                 <XIcon className="w-5 h-5"/>
+                                 <X className="w-5 h-5"/>
                              </button>
                          </div>
 
@@ -254,9 +254,12 @@ const Purchasing: React.FC = () => {
               <div className="fixed inset-0 bg-black/55 backdrop-blur-xs flex items-center justify-center z-50 p-4 overflow-y-auto animate-fade-in">
                  <div className="bg-white dark:bg-gray-800 rounded-xl max-w-xl w-full shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-700">
                      <div className="flex justify-between items-center p-5 border-b border-slate-100 dark:border-slate-700">
-                        <h3 className="text-lg font-black text-slate-900 dark:text-white">📝 Prepare B2B Supply Purchase Order</h3>
+                        <h3 className="text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
+                           <ClipboardList className="w-5 h-5 text-brand-orange" />
+                           <span>Prepare B2B Supply Purchase Order</span>
+                        </h3>
                         <button onClick={() => setIsCreateOpen(false)} className="text-slate-400 hover:text-slate-600">
-                           <XIcon className="w-5 h-5" />
+                           <X className="w-5 h-5" />
                         </button>
                      </div>
 

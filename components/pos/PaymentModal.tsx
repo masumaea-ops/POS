@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { XIcon } from '../shared/Icons';
+import { X } from 'lucide-react';
 import type { Customer } from '../../types';
 import { useSystemSettings } from '../../contexts/SettingsContext';
 
@@ -128,7 +128,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, totalAmoun
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Customer: <span className="font-semibold text-slate-700 dark:text-slate-300">{customer.name}</span></p>
               </div>
               <button onClick={onClose} className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500">
-                <XIcon className="w-5 h-5"/>
+                <X className="w-5 h-5"/>
               </button>
             </div>
             
@@ -370,7 +370,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, totalAmoun
         ) : (
           /* TAX COMPLIANT ADAPTABLE RECEIPT */
           <div className="p-6 bg-slate-50 dark:bg-slate-800 animate-slide-up max-h-[85vh] overflow-y-auto">
-            <div className="bg-white dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-700 p-5 rounded-lg font-mono text-xs text-slate-800 dark:text-slate-50 shadow-inner">
+            <div className="printable-receipt bg-white dark:bg-slate-900 border border-dashed border-slate-300 dark:border-slate-700 p-5 rounded-lg font-mono text-xs text-slate-800 dark:text-slate-50 shadow-inner">
                <div className="text-center font-bold pb-4 border-b border-dashed border-slate-300 dark:border-slate-700">
                   <h3 className="text-sm font-black uppercase text-brand-orange">{settings.corpName}</h3>
                   <p className="text-[10px] text-slate-500 mt-0.5">{settings.defaultOutlet || 'HQ Depot'}</p>
@@ -445,18 +445,18 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, totalAmoun
                </div>
             </div>
 
-            <div className="mt-6 flex flex-col gap-2">
+            <div className="mt-6 flex flex-col gap-2 no-print">
                <button 
                   onClick={() => {
-                     alert("Tax receipt sent to standard thermal billing lane printer!");
+                     window.print();
                   }}
-                  className="w-full py-3 bg-slate-900 border border-slate-800 hover:bg-slate-950 text-white rounded-xl font-bold font-sans text-xs tracking-wider uppercase shadow-md flex items-center justify-center gap-2"
+                  className="w-full py-3 bg-slate-900 border border-slate-800 hover:bg-slate-950 text-white rounded-xl font-bold font-sans text-xs tracking-wider uppercase shadow-md flex items-center justify-center gap-2 cursor-pointer"
                >
                  📠 Direct-Print Invoice Slip
                </button>
                <button 
                   onClick={finalizeSale}
-                  className="w-full py-3 bg-brand-orange hover:bg-brand-orange/90 text-white rounded-xl font-bold font-sans text-sm tracking-wider uppercase shadow-md"
+                  className="w-full py-3 bg-brand-orange hover:bg-brand-orange/90 text-white rounded-xl font-bold font-sans text-sm tracking-wider uppercase shadow-md cursor-pointer"
                 >
                   Done & Close
                </button>

@@ -2,14 +2,14 @@ import React, { useState, useMemo } from 'react';
 import PageHeader from '../components/shared/PageHeader';
 import { useSystemSettings } from '../contexts/SettingsContext';
 import { 
-  BookOpenIcon, 
-  FileTextIcon, 
-  CreditCardIcon, 
-  XIcon, 
-  PlusIcon, 
-  SearchIcon, 
-  ChevronDownIcon 
-} from '../components/shared/Icons';
+  BookOpen, 
+  FileText, 
+  CreditCard, 
+  X, 
+  Plus, 
+  Search, 
+  ChevronDown 
+} from 'lucide-react';
 import { MOCK_CUSTOMERS, MOCK_SALE_ORDERS } from '../data/mockData';
 
 // Accounting Interfaces
@@ -602,7 +602,7 @@ const Accounting: React.FC = () => {
                  {/* Internal Search box */}
                  <div className="relative">
                     <span className="absolute inset-y-0 left-0 pl-2 flex items-center text-slate-400">
-                       <SearchIcon className="w-4 h-4"/>
+                       <Search className="w-4 h-4"/>
                     </span>
                     <input 
                       type="text"
@@ -932,7 +932,7 @@ const Accounting: React.FC = () => {
                              <h3 className="text-lg font-black text-slate-950 dark:text-white font-mono mt-0.5">{selectedAccountForAudit.id} - {selectedAccountForAudit.name}</h3>
                          </div>
                          <button onClick={() => setSelectedAccountForAudit(null)} className="p-1.5 hover:bg-slate-100 rounded-full text-slate-500">
-                             <XIcon className="w-5 h-5"/>
+                             <X className="w-5 h-5"/>
                          </button>
                      </div>
 
@@ -1007,7 +1007,7 @@ const Accounting: React.FC = () => {
                  <div className="flex justify-between items-center p-5 border-b">
                     <h3 className="text-base font-black text-slate-900 dark:text-white">📝 Register New ledger Account code</h3>
                     <button onClick={() => setShowAddAccountModal(false)} className="text-slate-400 hover:text-slate-650">
-                       <XIcon className="w-5 h-5"/>
+                       <X className="w-5 h-5"/>
                     </button>
                  </div>
 
