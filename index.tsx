@@ -4,6 +4,7 @@ import App from './App';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { SettingsProvider } from './contexts/SettingsContext';
 import { GarageProvider } from './contexts/GarageContext';
+import { LanguageProvider } from './contexts/LanguageContext';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -14,11 +15,13 @@ const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
     <ThemeProvider>
-      <SettingsProvider>
-        <GarageProvider>
-          <App />
-        </GarageProvider>
-      </SettingsProvider>
+      <LanguageProvider>
+        <SettingsProvider>
+          <GarageProvider>
+            <App />
+          </GarageProvider>
+        </SettingsProvider>
+      </LanguageProvider>
     </ThemeProvider>
   </React.StrictMode>
 );

@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import Sidebar from './components/layout/Sidebar';
+import LanguageSwitcher from './components/shared/LanguageSwitcher';
 import Dashboard from './pages/Dashboard';
 import POS from './pages/POS';
 import Inventory from './pages/Inventory';
@@ -76,13 +77,16 @@ const MainLayout: React.FC<{
                         Masuma<span className="text-brand-orange">POS</span>
                     </h1>
 
-                    <button
-                      onClick={onLockTerminal}
-                      className="p-2 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 rounded-lg"
-                      title="Lock Terminal"
-                    >
-                      <Lock className="w-5 h-5" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <LanguageSwitcher variant="badge" />
+                      <button
+                        onClick={onLockTerminal}
+                        className="p-2 text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 rounded-lg"
+                        title="Lock Terminal"
+                      >
+                        <Lock className="w-5 h-5" />
+                      </button>
+                    </div>
                 </header>
 
                 <main className="flex-1 flex flex-col overflow-y-auto relative">

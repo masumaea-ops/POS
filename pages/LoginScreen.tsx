@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSystemSettings } from '../contexts/SettingsContext';
+import { useLanguage } from '../contexts/LanguageContext';
+import LanguageSwitcher from '../components/shared/LanguageSwitcher';
 import { 
   ShieldCheck, 
   Lock, 
@@ -26,6 +28,7 @@ interface LoginScreenProps {
 
 const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
   const { settings } = useSystemSettings();
+  const { t } = useLanguage();
   const [view, setView] = useState<'login' | 'forgot_email' | 'forgot_otp' | 'forgot_success'>('login');
   
   // Auth inputs
@@ -303,9 +306,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
       )}
 
       <div className="w-full max-w-md p-8 bg-white dark:bg-gray-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl relative z-10">
+        <div className="absolute top-6 right-6">
+          <LanguageSwitcher variant="badge" />
+        </div>
         
         {/* BRAND HEADER */}
-        <div className="text-center select-none mb-8">
+        <div className="text-center select-none mb-8 mt-2">
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-brand-orange/10 text-brand-orange mb-3">
             <ShieldCheck className="w-7 h-7" />
           </div>

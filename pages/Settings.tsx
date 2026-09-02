@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import PageHeader from '../components/shared/PageHeader';
 import ThemeToggle from '../components/layout/ThemeToggle';
+import LanguageSwitcher from '../components/shared/LanguageSwitcher';
 import { useTheme } from '../contexts/ThemeContext';
 import { useSystemSettings } from '../contexts/SettingsContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import Card from '../components/shared/Card';
 import { 
   ShieldCheck, 
@@ -18,7 +20,16 @@ import {
   Ban, 
   CheckCircle2,
   Zap,
-  Activity
+  Activity,
+  Globe,
+  Languages,
+  Check,
+  Database,
+  Server,
+  HardDrive,
+  Terminal,
+  Copy,
+  Play
 } from 'lucide-react';
 import { 
   verifyPassword, 
@@ -136,7 +147,63 @@ const INITIAL_SESSIONS: ActiveSession[] = [
 const Settings: React.FC = () => {
   const { theme } = useTheme();
   const { settings, updateSettings } = useSystemSettings();
-  const [activeTab, setActiveTab] = useState<'general' | 'security'>('general');
+  const { language, setLanguage, t } = useLanguage();
+  const [activeTab, setActiveTab] = useState<'general' | 'security' | 'localization' | 'database'>('general');
+
+  // Database Management State
+  const [dbStatus, setDbStatus] = useState<any>(null);
+  const [isCheckingDb, setIsCheckingDb] = useState(false);
+  const [isSeedingDb, setIsSeedingDb] = useState(false);
+  const [seedResult, setSeedResult] = useState<{ success: boolean; message: string } | null>(null);
+  const [copiedSQL, setCopiedSQL] = useState(false);
+
+  const fetchDbStatus = async () => {
+    setIsCheckingDb(true);
+    try {
+      const res = await fetch('/api/db/status');
+      const data = await res.json();
+      setDbStatus(data);
+    } catch (e: any) {
+      setDbStatus({
+        connected: false,
+        host: '127.0.0.1',
+        port: 3306,
+        database: 'masuma_erp_production',
+        user: 'root',
+        error: e.message || 'API endpoint offline',
+      });
+    } finally {
+      setIsCheckingDb(false);
+    }
+  };
+
+  const handleRunSeed = async () => {
+    setIsSeedingDb(true);
+    setSeedResult(null);
+    try {
+      const res = await fetch('/api/db/seed', { method: 'POST' });
+      const data = await res.json();
+      setSeedResult(data);
+      if (data.status) {
+        setDbStatus(data.status);
+      } else {
+        fetchDbStatus();
+      }
+    } catch (e: any) {
+      setSeedResult({
+        success: false,
+        message: e.message || 'Failed to run seed on MySQL server',
+      });
+    } finally {
+      setIsSeedingDb(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'database') {
+      fetchDbStatus();
+    }
+  }, [activeTab]);
 
   // General Config States
   const [corpName, setCorpName] = useState(settings.corpName);
@@ -446,7 +513,7 @@ const Settings: React.FC = () => {
             onClick={() => setActiveTab('general')}
             className={`py-4 font-bold border-b-2 transition-colors whitespace-nowrap cursor-pointer ${activeTab === 'general' ? 'border-brand-orange text-brand-orange' : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}`}
           >
-            📋 General ERP Settings
+            📋 {t('settings.generalTab', 'General ERP Settings')}
           </button>
           <button 
             type="button"
@@ -454,7 +521,23 @@ const Settings: React.FC = () => {
             className={`py-4 font-bold border-b-2 transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${activeTab === 'security' ? 'border-brand-orange text-brand-orange' : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}`}
           >
             <ShieldCheck className="w-4 h-4 text-emerald-500" />
-            <span>Cybersecurity & Threat Defense Center</span>
+            <span>{t('settings.securityTab', 'Cybersecurity & Threat Defense Center')}</span>
+          </button>
+          <button 
+            type="button"
+            onClick={() => setActiveTab('localization')}
+            className={`py-4 font-bold border-b-2 transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${activeTab === 'localization' ? 'border-brand-orange text-brand-orange' : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}`}
+          >
+            <Globe className="w-4 h-4 text-blue-500" />
+            <span>{t('settings.localizationTab', 'Language & Regional Localization')}</span>
+          </button>
+          <button 
+            type="button"
+            onClick={() => setActiveTab('database')}
+            className={`py-4 font-bold border-b-2 transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${activeTab === 'database' ? 'border-brand-orange text-brand-orange' : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}`}
+          >
+            <Database className="w-4 h-4 text-indigo-500" />
+            <span>MySQL Database & Auto-Seed</span>
           </button>
         </div>
       </div>
@@ -576,7 +659,7 @@ const Settings: React.FC = () => {
 
             <Card className="border border-slate-200 dark:border-slate-800">
                <div>
-                  <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">Theme & Brand Styling</h3>
+                  <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">{t('settings.themeSection', 'Theme & Brand Styling')}</h3>
                   <p className="text-xs text-slate-400">Customize appearance and brand colors.</p>
                </div>
                <div className="mt-4 flex items-center justify-between text-xs border-b dark:border-slate-800 pb-4">
@@ -585,6 +668,16 @@ const Settings: React.FC = () => {
                        <p className="text-slate-400 text-[11px] mt-0.5">Active mode: <span className="capitalize font-bold text-brand-orange">{theme}</span></p>
                    </div>
                    <ThemeToggle />
+               </div>
+               <div className="mt-4 flex items-center justify-between text-xs pt-1">
+                   <div>
+                       <h4 className="font-bold text-slate-800 dark:text-slate-200 text-xs flex items-center gap-1.5">
+                         <Globe className="w-3.5 h-3.5 text-blue-500" />
+                         <span>{t('settings.language', 'System Language')}</span>
+                       </h4>
+                       <p className="text-slate-400 text-[11px] mt-0.5">{language === 'en' ? 'English (UK / Ke)' : 'Kiswahili (Afrika Mashariki)'}</p>
+                   </div>
+                   <LanguageSwitcher variant="full" />
                </div>
             </Card>
           </div>
@@ -962,8 +1055,467 @@ const Settings: React.FC = () => {
         </div>
       )}
 
+      {/* TAB 3: LANGUAGE & REGIONAL LOCALIZATION */}
+      {activeTab === 'localization' && (
+        <div className="p-4 md:p-8 max-w-6xl mx-auto w-full space-y-6 animate-fade-in text-xs font-sans text-slate-600 dark:text-slate-300">
+          
+          {/* LOCALIZATION HERO BANNER */}
+          <div className="bg-slate-900 text-white rounded-3xl p-6 border border-slate-800 shadow-xl">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-blue-500/20 text-blue-400 flex items-center justify-center shrink-0 border border-blue-500/30">
+                  <Globe className="w-7 h-7" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-black uppercase tracking-tight text-white">
+                      {language === 'en' ? 'Multilingual Staff & Regional Suite' : 'Mfumo wa Lugha Nyingi kwa Wafanyakazi na Ukanda'}
+                    </h2>
+                    <span className="bg-blue-500/20 text-blue-400 border border-blue-500/30 text-[9px] font-bold px-2 py-0.5 rounded-full font-mono">
+                      i18n ACTIVE
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1 max-w-2xl">
+                    {language === 'en'
+                      ? 'Customized East African automotive lexicon, Swahili mechanic terminology, and KRA eTIMS compliant bilingual currency and fiscal notation.'
+                      : 'Msamiati maalum wa vipuri vya magari Afrika Mashariki, istilahi za gereji za Kiswahili, na mfumo wa fedha unaozingatia kanuni za KRA eTIMS.'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <LanguageSwitcher variant="full" />
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            {/* LEFT COLUMN: Language Selection & Regional Preferences (7 cols) */}
+            <div className="lg:col-span-7 space-y-6">
+              
+              <Card className="border border-slate-200 dark:border-slate-800">
+                <div className="border-b dark:border-slate-800 pb-3 mb-4 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                      {language === 'en' ? 'Select Operational Language' : 'Chagua Lugha ya Mfumo'}
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      {language === 'en' ? 'Applies immediately across all cash registers, garage job cards, and reports.' : 'Inatumika papo hapo katika kaunta zote za POS, kadi za gereji, na ripoti.'}
+                    </p>
+                  </div>
+                  <Languages className="w-5 h-5 text-brand-orange" />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* English Card */}
+                  <div
+                    onClick={() => setLanguage('en')}
+                    className={`p-4 rounded-2xl border-2 transition cursor-pointer flex flex-col justify-between ${
+                      language === 'en'
+                        ? 'border-brand-orange bg-orange-50/50 dark:bg-orange-950/20 shadow-md shadow-orange-500/10'
+                        : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-gray-800'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-2xl">🇬🇧</span>
+                        {language === 'en' && (
+                          <span className="bg-brand-orange text-white p-1 rounded-full">
+                            <Check className="w-3 h-3" />
+                          </span>
+                        )}
+                      </div>
+                      <h4 className="font-bold text-slate-900 dark:text-white text-sm">English</h4>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Kenya / International Business</p>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-slate-200/60 dark:border-slate-700/60 text-[10px] text-slate-400 font-mono">
+                      Default Corporate Locale
+                    </div>
+                  </div>
+
+                  {/* Swahili Card */}
+                  <div
+                    onClick={() => setLanguage('sw')}
+                    className={`p-4 rounded-2xl border-2 transition cursor-pointer flex flex-col justify-between ${
+                      language === 'sw'
+                        ? 'border-brand-orange bg-orange-50/50 dark:bg-orange-950/20 shadow-md shadow-orange-500/10'
+                        : 'border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 bg-white dark:bg-gray-800'
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-2xl">🇰🇪</span>
+                        {language === 'sw' && (
+                          <span className="bg-brand-orange text-white p-1 rounded-full">
+                            <Check className="w-3 h-3" />
+                          </span>
+                        )}
+                      </div>
+                      <h4 className="font-bold text-slate-900 dark:text-white text-sm">Kiswahili</h4>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Afrika Mashariki (Kenya, Tanzania, Uganda, Rwanda)</p>
+                    </div>
+                    <div className="mt-4 pt-3 border-t border-slate-200/60 dark:border-slate-700/60 text-[10px] text-slate-400 font-mono">
+                      Msamiati wa Vipuri & Gereji
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Regional Conventions & Currency Card */}
+              <Card className="border border-slate-200 dark:border-slate-800">
+                <div className="border-b dark:border-slate-800 pb-3 mb-4">
+                  <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                    {language === 'en' ? 'Regional & Fiscal Formats' : 'Miundo ya Kikanda na Fedha'}
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    {language === 'en' ? 'Configured for East African Community (EAC) trade corridors.' : 'Imeundwa kwa ajili ya biashara ya Jumuiya ya Afrika Mashariki (EAC).'}
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-sans">
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700/50">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
+                      {language === 'en' ? 'Primary Currency' : 'Sarafu Kuu'}
+                    </span>
+                    <span className="font-bold text-slate-800 dark:text-white text-sm">KES (Shilingi ya Kenya)</span>
+                    <p className="text-[10px] text-slate-400 mt-1 font-mono">Example: KES 1,250,000.00</p>
+                  </div>
+
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700/50">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
+                      {language === 'en' ? 'Tax Authority Integration' : 'Muunganisho wa Mamlaka ya Ushuru'}
+                    </span>
+                    <span className="font-bold text-slate-800 dark:text-white text-sm">KRA eTIMS v2.4 Compliant</span>
+                    <p className="text-[10px] text-slate-400 mt-1 font-mono">PIN: {taxpin || 'P051234567X'}</p>
+                  </div>
+
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700/50">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
+                      {language === 'en' ? 'Date & Timezone' : 'Tarehe na Ukanda wa Saa'}
+                    </span>
+                    <span className="font-bold text-slate-800 dark:text-white text-sm">EAT (UTC+3) Nairobi</span>
+                    <p className="text-[10px] text-slate-400 mt-1 font-mono">DD/MM/YYYY • 24-Hour Military</p>
+                  </div>
+
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700/50">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block mb-1">
+                      {language === 'en' ? 'Mobile Payment Tender' : 'Malipo ya Simu'}
+                    </span>
+                    <span className="font-bold text-slate-800 dark:text-white text-sm">M-PESA / Airtel Money / Tigo</span>
+                    <p className="text-[10px] text-slate-400 mt-1 font-mono">STK Push & C2B Validated</p>
+                  </div>
+                </div>
+              </Card>
+
+            </div>
+
+            {/* RIGHT COLUMN: Auto Parts Lexicon & Mechanic Glossary (5 cols) */}
+            <div className="lg:col-span-5 space-y-6">
+              <Card className="border border-slate-200 dark:border-slate-800">
+                <div className="border-b dark:border-slate-800 pb-3 mb-4 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                      {language === 'en' ? 'Auto Parts Glossary' : 'Kamusi ya Vipuri vya Magari'}
+                    </h3>
+                    <p className="text-xs text-slate-400">
+                      {language === 'en' ? 'English - Swahili mechanical terminology.' : 'Istilahi za ufundi kwa Kiingereza na Kiswahili.'}
+                    </p>
+                  </div>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 font-mono">
+                    MASUMA EAC
+                  </span>
+                </div>
+
+                <div className="space-y-2 text-xs divide-y divide-slate-100 dark:divide-slate-800">
+                  {[
+                    { en: 'Brake Pads', sw: 'Pedi za Breki', cat: 'Braking' },
+                    { en: 'Brake Disc / Rotor', sw: 'Diski ya Breki', cat: 'Braking' },
+                    { en: 'Shock Absorber', sw: 'Kinyonya Mshtuko (Shoki)', cat: 'Suspension' },
+                    { en: 'Spark Plug', sw: 'Plagi ya Cheche', cat: 'Ignition' },
+                    { en: 'Oil Filter', sw: 'Kichujio cha Mafuta', cat: 'Filtration' },
+                    { en: 'Air Filter', sw: 'Kichujio cha Hewa', cat: 'Filtration' },
+                    { en: 'Fuel Filter', sw: 'Kichujio cha Mafuta (Petroli/Dizeli)', cat: 'Filtration' },
+                    { en: 'Timing Belt', sw: 'Mkanda wa Majira / Injini', cat: 'Engine' },
+                    { en: 'Tie Rod End', sw: 'Kichwa cha Tai Rodi', cat: 'Steering' },
+                    { en: 'Ball Joint', sw: 'Kiungo cha Tufe (Boli Joiti)', cat: 'Suspension' },
+                    { en: 'Clutch Plate', sw: 'Bamba la Klachi', cat: 'Transmission' },
+                    { en: 'Job Card / Work Order', sw: 'Kadi ya Kazi ya Gereji', cat: 'Garage' },
+                    { en: 'Aged Debtors', sw: 'Madeni Yaliyochelewa', cat: 'Finance' },
+                    { en: 'Fiscal Receipt', sw: 'Stakabadhi ya Ushuru (eTIMS)', cat: 'Tax' },
+                  ].map((item, idx) => (
+                    <div key={idx} className="pt-2 first:pt-0 flex items-center justify-between">
+                      <div>
+                        <span className="font-bold text-slate-800 dark:text-slate-200 block">{item.en}</span>
+                        <span className="text-[11px] text-brand-orange font-medium">{item.sw}</span>
+                      </div>
+                      <span className="text-[9px] uppercase font-mono px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                        {item.cat}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            </div>
+
+          </div>
+
+        </div>
+      )}
+
+      {/* TAB 4: MYSQL DATABASE & AUTO-SEED ENGINE */}
+      {activeTab === 'database' && (
+        <div className="p-4 md:p-8 max-w-6xl mx-auto w-full space-y-6 animate-fade-in text-xs font-sans text-slate-600 dark:text-slate-300">
+          
+          {/* DATABASE HERO BANNER */}
+          <div className="bg-slate-900 text-white rounded-3xl p-6 border border-slate-800 shadow-xl">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 text-indigo-400 flex items-center justify-center shrink-0 border border-indigo-500/30">
+                  <Database className="w-7 h-7" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-lg font-black uppercase tracking-tight text-white">
+                      MySQL Database & Auto-Seed Control Center
+                    </h2>
+                    {dbStatus?.connected ? (
+                      <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[9px] font-bold px-2 py-0.5 rounded-full font-mono flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        CONNECTED ({dbStatus.tablesCount || 0} TABLES)
+                      </span>
+                    ) : (
+                      <span className="bg-amber-500/20 text-amber-400 border border-amber-500/30 text-[9px] font-bold px-2 py-0.5 rounded-full font-mono flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
+                        STANDBY / OFFLINE RESILIENT
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-400 mt-1 max-w-2xl">
+                    Automated DDL table generation, master schema migration, and corporate initial seed data injection for Masuma ERP & B2B Wholesale.
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={fetchDbStatus}
+                  disabled={isCheckingDb}
+                  className="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold flex items-center gap-1.5 border border-slate-700 transition cursor-pointer"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${isCheckingDb ? 'animate-spin' : ''}`} />
+                  <span>Test Connection</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleRunSeed}
+                  disabled={isSeedingDb}
+                  className="px-4 py-2 rounded-xl bg-brand-orange hover:bg-orange-600 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-orange-500/20 transition cursor-pointer"
+                >
+                  {isSeedingDb ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Migrating & Seeding...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Play className="w-3.5 h-3.5" />
+                      <span>Auto-Create Tables & Seed</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+
+            {/* SEED FEEDBACK ALERT */}
+            {seedResult && (
+              <div className={`mt-4 p-3.5 rounded-2xl border text-xs flex items-center gap-3 ${
+                seedResult.success 
+                  ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300' 
+                  : 'bg-rose-950/40 border-rose-500/40 text-rose-300'
+              }`}>
+                {seedResult.success ? <CheckCircle2 className="w-5 h-5 shrink-0" /> : <AlertTriangle className="w-5 h-5 shrink-0" />}
+                <div>
+                  <p className="font-bold">{seedResult.success ? 'Migration & Seed Successful' : 'Migration / Seed Notice'}</p>
+                  <p className="text-[11px] opacity-90">{seedResult.message}</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            
+            {/* LEFT COLUMN: Connection Parameters & Seeded Tables (7 cols) */}
+            <div className="lg:col-span-7 space-y-6">
+              
+              {/* Connection Status Card */}
+              <Card className="border border-slate-200 dark:border-slate-800">
+                <div className="border-b dark:border-slate-800 pb-3 mb-4 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                      MySQL Connection Parameters
+                    </h3>
+                    <p className="text-xs text-slate-400">Configured via environment variables in <code className="font-mono bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded">.env</code></p>
+                  </div>
+                  <Server className="w-5 h-5 text-indigo-500" />
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono text-xs">
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700/50">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block font-sans">Host</span>
+                    <span className="font-bold text-slate-800 dark:text-slate-200 text-[11px] truncate block">{dbStatus?.host || '127.0.0.1'}</span>
+                  </div>
+
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700/50">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block font-sans">Port</span>
+                    <span className="font-bold text-slate-800 dark:text-slate-200 text-[11px]">{dbStatus?.port || 3306}</span>
+                  </div>
+
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700/50">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block font-sans">Database</span>
+                    <span className="font-bold text-slate-800 dark:text-slate-200 text-[11px] truncate block">{dbStatus?.database || 'masuma_erp_production'}</span>
+                  </div>
+
+                  <div className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700/50">
+                    <span className="text-[10px] uppercase font-bold text-slate-400 block font-sans">User</span>
+                    <span className="font-bold text-slate-800 dark:text-slate-200 text-[11px] truncate block">{dbStatus?.user || 'root'}</span>
+                  </div>
+                </div>
+
+                {dbStatus?.error && (
+                  <div className="mt-4 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-xl text-amber-800 dark:text-amber-300 text-xs">
+                    <div className="flex items-center gap-1.5 font-bold mb-1">
+                      <AlertTriangle className="w-3.5 h-3.5" />
+                      <span>Standby Status:</span>
+                    </div>
+                    <p className="text-[11px] leading-relaxed">
+                      {dbStatus.error}. The application operates with seamless local fallback storage and will auto-sync once your MySQL instance is connected.
+                    </p>
+                  </div>
+                )}
+              </Card>
+
+              {/* Seed Entities Table Breakdown */}
+              <Card className="border border-slate-200 dark:border-slate-800">
+                <div className="border-b dark:border-slate-800 pb-3 mb-4 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                      Auto-Seed Master Entities
+                    </h3>
+                    <p className="text-xs text-slate-400">Tables and datasets generated by the seeder engine</p>
+                  </div>
+                  <HardDrive className="w-5 h-5 text-brand-orange" />
+                </div>
+
+                <div className="space-y-2.5">
+                  {[
+                    { name: 'system_settings', desc: 'Corporate tax PIN (P051234567X), eTIMS device serial, VAT rate (16%)', count: '1 Record' },
+                    { name: 'users', desc: 'Default accounts: admin, cashier, workshop, manager with secure PINs', count: '4 Users' },
+                    { name: 'products', desc: 'Brake pads, spark plugs, filters, shocks, tie rods with OEM codes & bins', count: '10+ SKUs' },
+                    { name: 'chart_of_accounts', desc: 'Double-entry general ledger: Cash (1010), M-Pesa (1020), Inventory (1300)', count: '12 Accounts' },
+                    { name: 'customers', desc: 'B2B Garages (John Doe Motors, AutoFix) and retail cash accounts', count: '4 Accounts' },
+                    { name: 'garage_branches', desc: 'Nairobi Central Flagship, Mombasa Coastal, Nakuru Bay, Kisumu Hub', count: '4 Branches' },
+                    { name: 'suppliers', desc: 'Japan, Germany, USA official spare parts importers', count: '3 Importers' },
+                    { name: 'job_cards & sales_invoices', desc: 'Structured schema for work orders and KRA eTIMS invoices', count: 'Schema Ready' },
+                  ].map((table, idx) => (
+                    <div key={idx} className="p-2.5 bg-slate-50 dark:bg-slate-800/40 rounded-xl border border-slate-200/70 dark:border-slate-700/40 flex items-center justify-between">
+                      <div>
+                        <span className="font-mono font-bold text-slate-900 dark:text-white text-xs">{table.name}</span>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">{table.desc}</p>
+                      </div>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-300 font-mono shrink-0 ml-2">
+                        {table.count}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+
+            </div>
+
+            {/* RIGHT COLUMN: CLI Commands & Direct SQL Script (5 cols) */}
+            <div className="lg:col-span-5 space-y-6">
+              
+              {/* Terminal Commands Card */}
+              <Card className="border border-slate-200 dark:border-slate-800">
+                <div className="border-b dark:border-slate-800 pb-3 mb-4 flex items-center justify-between">
+                  <div>
+                    <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                      Terminal & CLI Seeding
+                    </h3>
+                    <p className="text-xs text-slate-400">Run on VPS or development machine</p>
+                  </div>
+                  <Terminal className="w-5 h-5 text-emerald-500" />
+                </div>
+
+                <div className="space-y-3 font-mono text-xs">
+                  <div>
+                    <span className="text-[10px] font-sans font-bold text-slate-400 uppercase block mb-1">1. Run via NPM Script:</span>
+                    <div className="p-2.5 bg-slate-950 text-emerald-400 rounded-xl border border-slate-800 text-[11px] select-all">
+                      npm run db:seed
+                    </div>
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] font-sans font-bold text-slate-400 uppercase block mb-1">2. Run via TSX direct:</span>
+                    <div className="p-2.5 bg-slate-950 text-emerald-400 rounded-xl border border-slate-800 text-[11px] select-all">
+                      npx tsx scripts/seed.ts
+                    </div>
+                  </div>
+
+                  <div>
+                    <span className="text-[10px] font-sans font-bold text-slate-400 uppercase block mb-1">3. Direct MySQL Import:</span>
+                    <div className="p-2.5 bg-slate-950 text-emerald-400 rounded-xl border border-slate-800 text-[11px] select-all">
+                      mysql -u root -p masuma_erp_production &lt; seed.sql
+                    </div>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Seed Credentials Quick Ref */}
+              <Card className="border border-slate-200 dark:border-slate-800">
+                <div className="border-b dark:border-slate-800 pb-3 mb-3">
+                  <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                    Seeded Admin Credentials
+                  </h3>
+                  <p className="text-xs text-slate-400">Default accounts created by seeder</p>
+                </div>
+
+                <div className="space-y-2 text-xs">
+                  <div className="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-800/40 rounded-lg">
+                    <span className="font-bold text-slate-800 dark:text-slate-200">HQ Super Admin</span>
+                    <code className="text-brand-orange font-mono font-bold">admin / admin123</code>
+                  </div>
+
+                  <div className="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-800/40 rounded-lg">
+                    <span className="font-bold text-slate-800 dark:text-slate-200">POS Cashier</span>
+                    <code className="text-brand-orange font-mono font-bold">cashier / cashier123</code>
+                  </div>
+
+                  <div className="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-800/40 rounded-lg">
+                    <span className="font-bold text-slate-800 dark:text-slate-200">Workshop Chief</span>
+                    <code className="text-brand-orange font-mono font-bold">workshop / garage123</code>
+                  </div>
+
+                  <div className="flex items-center justify-between p-2 bg-slate-50 dark:bg-slate-800/40 rounded-lg">
+                    <span className="font-bold text-slate-800 dark:text-slate-200">Terminal PIN</span>
+                    <code className="text-emerald-500 font-mono font-bold">1234</code>
+                  </div>
+                </div>
+              </Card>
+
+            </div>
+
+          </div>
+
+        </div>
+      )}
+
     </div>
   );
 };
 
 export default Settings;
+
