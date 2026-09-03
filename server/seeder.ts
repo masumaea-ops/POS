@@ -1,3 +1,4 @@
+import bcrypt from 'bcryptjs';
 import { getDbPool } from './db';
 import { CREATE_TABLES_SQL } from './schema';
 
@@ -49,18 +50,44 @@ export async function migrateAndSeedDatabase() {
       `);
     }
 
-    // 3. Seed Users (admin, cashier, workshop) if not present
+    // 3. Seed Users with Bcrypt Cryptographic Hashes
     const [usersCount]: any = await connection.query('SELECT COUNT(*) as count FROM users');
     if (usersCount[0].count === 0) {
-      console.log('[Seeder] Seeding default user accounts...');
-      // Passwords are pre-hashed or plain with salt placeholder
+      console.log('[Seeder] Seeding default user accounts with Bcrypt encryption...');
+      
+      const adminHash = bcrypt.hashSync('admin123', 10);
+      const cashierHash = bcrypt.hashSync('cashier123', 10);
+      const workshopHash = bcrypt.hashSync('garage123', 10);
+      const managerHash = bcrypt.hashSync('manager123', 10);
+
       await connection.query(`
         INSERT INTO users (username, email, password_hash, salt, pin_code, full_name, role) VALUES
-        ('admin', 'admin@masuma.co.ke', 'admin123', 'masuma_salt', '1234', 'System Administrator', 'admin'),
-        ('cashier', 'cashier@masuma.co.ke', 'cashier123', 'masuma_salt', '1234', 'POS Terminal Cashier', 'cashier'),
-        ('workshop', 'garage@masuma.co.ke', 'garage123', 'masuma_salt', '1234', 'Workshop Chief Engineer', 'workshop'),
-        ('manager', 'manager@masuma.co.ke', 'manager123', 'masuma_salt', '9988', 'Regional Operations Manager', 'manager')
-      `);
+        ('admin', 'admin@masuma.co.ke', ?, 'bcrypt_salt_10', '1234', 'System Administrator', 'admin'),
+        ('masumaea', 'masumaea@gmail.com', ?, 'bcrypt_salt_10', '1234', 'Masuma EA Executive', 'admin'),
+        ('cashier', 'cashier@masuma.co.ke', ?, 'bcrypt_salt_10', '1234', 'POS Terminal Cashier', 'cashier'),
+        ('workshop', 'garage@masuma.co.ke', ?, 'bcrypt_salt_10', '1234', 'Workshop Chief Engineer', 'workshop'),
+        ('manager', 'manager@masuma.co.ke', ?, 'bcrypt_salt_10', '9988', 'Regional Operations Manager', 'manager')
+      `, [adminHash, adminHash, cashierHash, workshopHash, managerHash]);
+    } else {
+      // Automatic Upgrade: If users exist but passwords are unencrypted (e.g., from earlier seeds), encrypt them with bcrypt immediately
+      const [existingUsers]: any = await connection.query('SELECT id, username, email, password_hash FROM users');
+      for (const u of existingUsers) {
+        if (!u.password_hash || (!u.password_hash.startsWith('$2a$') && !u.password_hash.startsWith('$2b$'))) {
+          console.log(`[Seeder] Upgrading unencrypted password for user "${u.username}" to secure Bcrypt hash...`);
+          const upgradedHash = bcrypt.hashSync(u.password_hash || 'admin123', 10);
+          await connection.query('UPDATE users SET password_hash = ? WHERE id = ?', [upgradedHash, u.id]);
+        }
+      }
+
+      // Check if user's admin email masumaea@gmail.com exists, otherwise insert or link
+      const [userEmailCheck]: any = await connection.query('SELECT id FROM users WHERE email = ? OR username = ?', ['masumaea@gmail.com', 'masumaea']);
+      if (userEmailCheck.length === 0) {
+        const adminHash = bcrypt.hashSync('admin123', 10);
+        await connection.query(`
+          INSERT INTO users (username, email, password_hash, salt, pin_code, full_name, role) VALUES
+          ('masumaea', 'masumaea@gmail.com', ?, 'bcrypt_salt_10', '1234', 'Masuma EA Executive', 'admin')
+        `, [adminHash]);
+      }
     }
 
     // 4. Seed Products if empty

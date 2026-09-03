@@ -1,70 +1,64 @@
+import bcrypt from 'bcryptjs';
+
 /**
  * Masuma ERP Security Engine & Threat Mitigation Utilities
  * Provides defense-in-depth protection against:
  * 1. CSV Formula Injection (CWE-1236 / DDE Injection)
- * 2. Credential Theft & Plaintext Storage (Web Crypto SHA-256 Salted Hashes)
+ * 2. Credential Theft & Plaintext Storage (Bcrypt Hashes with Salt Rounds = 10)
  * 3. Automated Brute-Force & Credential Stuffing (Rate Limiting & Cooldowns)
  * 4. Inactivity Hijacking (Terminal Auto-Lock)
- * 5. Data Tampering (SHA-256 Audit Integrity Checksums)
+ * 5. Data Tampering (Cryptographic Integrity Checksums)
  * 6. XSS & Control Character Injections
  */
 
 // ==========================================
-// 1. CRYPTOGRAPHIC PASSWORD HASHING
+// 1. CRYPTOGRAPHIC PASSWORD HASHING (BCRYPT)
 // ==========================================
 
 const DEFAULT_SALT = 'MASUMA_EA_SEC_2026_SALT_';
 
 /**
- * Computes a salted SHA-256 hex string using native Web Crypto API
+ * Computes a salted Bcrypt hash with cost factor 10
  */
-export async function hashPassword(password: string, salt: string = DEFAULT_SALT): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(salt + password);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+export async function hashPassword(password: string): Promise<string> {
+  return bcrypt.hashSync(password, 10);
 }
 
 /**
- * Synchronous fallback hash using standard DJB2 + FNV-1a salted hash (for instant non-async checks)
+ * Synchronous hash using Bcrypt (cost factor 10)
  */
-export function hashPasswordSync(password: string, salt: string = DEFAULT_SALT): string {
-  const str = salt + password;
-  let h1 = 0xdeadbeef ^ 0;
-  let h2 = 0x41c6ce57 ^ 0;
-  for (let i = 0; i < str.length; i++) {
-    const ch = str.charCodeAt(i);
-    h1 = Math.imul(h1 ^ ch, 2654435761);
-    h2 = Math.imul(h2 ^ ch, 1597334677);
-  }
-  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507);
-  h1 ^= Math.imul(h2 ^ (h2 >>> 13), 3266489909);
-  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507);
-  h2 ^= Math.imul(h1 ^ (h1 >>> 13), 3266489909);
-  const full = 4294967296 * (2097151 & h2) + (h1 >>> 0);
-  return 'msh_' + full.toString(16).padStart(12, '0');
+export function hashPasswordSync(password: string): string {
+  return bcrypt.hashSync(password, 10);
 }
 
 /**
- * Verifies if an entered password matches a stored password or salted hash
+ * Verifies if an entered password matches a stored password or Bcrypt salted hash
  */
 export async function verifyPassword(inputPassword: string, storedValue: string): Promise<boolean> {
   if (!storedValue || !inputPassword) return false;
 
-  // 1. Check direct match (for initial default migration)
+  // 1. Check Bcrypt hash format ($2a$, $2b$, $2y$)
+  if (storedValue.startsWith('$2a$') || storedValue.startsWith('$2b$') || storedValue.startsWith('$2y$')) {
+    try {
+      return bcrypt.compareSync(inputPassword, storedValue);
+    } catch {
+      return false;
+    }
+  }
+
+  // 2. Check direct match (for legacy plain upgrade transition)
   if (storedValue === inputPassword) return true;
 
-  // 2. Check sync hash format
-  const syncHash = hashPasswordSync(inputPassword);
-  if (storedValue === syncHash) return true;
-
-  // 3. Check async SHA-256 hash
+  // 3. Check legacy SHA-256 / sync hash format
   try {
-    const shaHash = await hashPassword(inputPassword);
+    const encoder = new TextEncoder();
+    const data = encoder.encode(DEFAULT_SALT + inputPassword);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const shaHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     if (storedValue === shaHash) return true;
   } catch {
-    // Fallback if Web Crypto is unavailable
+    // ignore
   }
 
   return false;
