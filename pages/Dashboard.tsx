@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { MOCK_CUSTOMERS, MOCK_PRODUCTS } from '../data/mockData';
 import { useSystemSettings } from '../contexts/SettingsContext';
 import { AlertTriangle } from 'lucide-react';
+import DailySalesVolumeChart from '../components/dashboard/DailySalesVolumeChart';
 
 const Dashboard: React.FC = () => {
   const { settings, formatPrice } = useSystemSettings();
@@ -141,6 +142,9 @@ const Dashboard: React.FC = () => {
            </div>
         </div>
       </div>
+
+      {/* 7-DAY DAILY SALES VOLUME RECHARTS VISUALIZATION */}
+      <DailySalesVolumeChart className="mt-8" />
 
       {/* RECHART SIMULATED CUSTOM HIGH-CONTRAST INTERACTIVE SVG GRAPHICS */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mt-10">
