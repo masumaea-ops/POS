@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/shared/PageHeader';
 import { useSystemSettings } from '../contexts/SettingsContext';
 import { 
@@ -106,7 +107,15 @@ const Accounting: React.FC = () => {
   ]);
 
   // 4. UI Layout & Selection Flags
-  const [activeTab, setActiveTab] = useState<'overview' | 'coa' | 'journal' | 'reconciliation' | 'etims'>('overview');
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab') as 'overview' | 'coa' | 'journal' | 'reconciliation' | 'etims' | null;
+  const [activeTab, setActiveTab] = useState<'overview' | 'coa' | 'journal' | 'reconciliation' | 'etims'>(() => tabParam || 'overview');
+
+  useEffect(() => {
+    if (tabParam) {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam]);
   const [selectedAccountForAudit, setSelectedAccountForAudit] = useState<Account | null>(null);
   const [searchCOAQuery, setSearchCOAQuery] = useState('');
   const [showAddAccountModal, setShowAddAccountModal] = useState(false);

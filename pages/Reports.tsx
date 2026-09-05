@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/shared/PageHeader';
 import Card from '../components/shared/Card';
 import { 
@@ -72,8 +73,16 @@ const INITIAL_CASH_SHIFTS = [
 
 const Reports: React.FC = () => {
   const { settings, formatPrice } = useSystemSettings();
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab') as ReportKey | null;
   // Current active sub-report key
-  const [activeReport, setActiveReport] = useState<ReportKey | null>(null);
+  const [activeReport, setActiveReport] = useState<ReportKey | null>(() => tabParam || null);
+
+  useEffect(() => {
+    if (tabParam) {
+      setActiveReport(tabParam);
+    }
+  }, [tabParam]);
 
   // General Filter States
   const [selectedOutlet, setSelectedOutlet] = useState<string>('All Outlets');

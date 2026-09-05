@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import PageHeader from '../components/shared/PageHeader';
 import Tabs from '../components/shared/Tabs';
-import Table from '../components/shared/Table';
+import Table, { TableRowAction } from '../components/shared/Table';
 import { MOCK_SALE_ORDERS, MOCK_CUSTOMERS, MOCK_PRODUCTS } from '../data/mockData';
 import type { SaleOrder, Customer, Product, SalesReturn } from '../types';
-import { X, RefreshCw, FileText, ClipboardList, Printer } from 'lucide-react';
+import { X, RefreshCw, FileText, ClipboardList, Printer, Eye, ArrowRight, Copy } from 'lucide-react';
 import { useSystemSettings } from '../contexts/SettingsContext';
 
 const Sales: React.FC = () => {
@@ -461,7 +461,33 @@ const Sales: React.FC = () => {
             </button>
           </div>
 
-          <Table columns={returnColumns} data={returns} />
+          <Table 
+            columns={returnColumns} 
+            data={returns} 
+            onRowClick={(ret) => setSelectedReturn(ret)}
+            rowActions={[
+              {
+                label: 'Inspect RMA Details',
+                icon: Eye,
+                onClick: (ret) => setSelectedReturn(ret),
+              },
+              {
+                label: 'Copy RMA Number',
+                icon: Copy,
+                onClick: (ret) => {
+                  navigator.clipboard?.writeText(ret.id);
+                },
+              },
+              {
+                label: 'Print RMA Document',
+                icon: Printer,
+                onClick: (ret) => {
+                  setSelectedReturn(ret);
+                  setTimeout(() => window.print(), 300);
+                },
+              }
+            ]}
+          />
         </div>
       );
     }
@@ -472,7 +498,46 @@ const Sales: React.FC = () => {
         if (activeTab === 'Invoices') return order.status === 'Invoiced' || order.status === 'Paid';
         return false;
     });
-    return <div className="mt-4"><Table columns={columns} data={filteredData} /></div>;
+
+    const orderRowActions: TableRowAction<SaleOrder>[] = [
+      {
+        label: 'View Order / Invoice Details',
+        icon: Eye,
+        onClick: (order) => setSelectedOrder(order),
+      },
+      {
+        label: 'Convert to Tax Invoice',
+        icon: ArrowRight,
+        hidden: (order) => order.status !== 'Quote',
+        onClick: (order) => handleConvertToInvoice(order.id),
+      },
+      {
+        label: 'Print Packing / Tax Slip',
+        icon: Printer,
+        onClick: (order) => {
+          setSelectedOrder(order);
+          setTimeout(() => window.print(), 300);
+        },
+      },
+      {
+        label: 'Copy Order ID',
+        icon: Copy,
+        onClick: (order) => {
+          navigator.clipboard?.writeText(order.id);
+        },
+      },
+    ];
+
+    return (
+      <div className="mt-4">
+        <Table 
+          columns={columns} 
+          data={filteredData} 
+          onRowClick={(order) => setSelectedOrder(order)}
+          rowActions={orderRowActions}
+        />
+      </div>
+    );
   };
 
   return (

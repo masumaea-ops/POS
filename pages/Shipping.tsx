@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import PageHeader from '../components/shared/PageHeader';
-import Table from '../components/shared/Table';
+import Table, { TableRowAction } from '../components/shared/Table';
 import { useSystemSettings } from '../contexts/SettingsContext';
 import type { Shipment, Customer, SaleOrder } from '../types';
 import { MOCK_SALE_ORDERS, MOCK_CUSTOMERS } from '../data/mockData';
-import { X, Package, Truck, CheckCircle2, AlertTriangle, FileText } from 'lucide-react';
+import { X, Package, Truck, CheckCircle2, AlertTriangle, FileText, Eye, Printer, Copy, Tag } from 'lucide-react';
 
 const COURIER_PARTNERS = [
   { id: 'dhl', name: 'DHL Express Kenya' },
@@ -308,6 +308,37 @@ const Shipping: React.FC = () => {
     }
   ];
 
+  const shipmentRowActions: TableRowAction<Shipment>[] = [
+    {
+      label: 'Track Consignment & Events',
+      icon: Eye,
+      onClick: (s) => setSelectedShipment(s),
+    },
+    {
+      label: 'Print Thermal Waybill Label',
+      icon: Tag,
+      onClick: (s) => {
+        setSelectedShipment(s);
+        setIsPrintLabelOpen(true);
+      },
+    },
+    {
+      label: 'Print Dispatch Summary',
+      icon: Printer,
+      onClick: (s) => {
+        setSelectedShipment(s);
+        setTimeout(() => window.print(), 300);
+      },
+    },
+    {
+      label: 'Copy Tracking / Waybill No.',
+      icon: Copy,
+      onClick: (s) => {
+        if (s.trackingNumber) navigator.clipboard?.writeText(s.trackingNumber);
+      },
+    },
+  ];
+
   return (
     <div className="flex flex-col bg-slate-50 dark:bg-slate-900 min-h-full pb-12 text-slate-900 dark:text-slate-50 overflow-y-auto">
       <PageHeader 
@@ -396,7 +427,12 @@ const Shipping: React.FC = () => {
           </div>
 
           <div className="mt-4">
-            <Table columns={columns} data={filteredShipments} />
+            <Table 
+              columns={columns} 
+              data={filteredShipments} 
+              onRowClick={(s) => setSelectedShipment(s)}
+              rowActions={shipmentRowActions}
+            />
           </div>
         </div>
       </div>

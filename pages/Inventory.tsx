@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { MOCK_PRODUCTS, MOCK_SALE_ORDERS } from '../data/mockData';
 import PageHeader from '../components/shared/PageHeader';
-import Table from '../components/shared/Table';
+import Table, { TableRowAction } from '../components/shared/Table';
 import type { Product, SaleOrder } from '../types';
-import { Search, X, Package, AlertTriangle, Coins, Zap, BarChart2, Download, FileText, Printer, Scan, Camera, ShieldCheck, CheckCircle2 } from 'lucide-react';
+import { Search, X, Package, AlertTriangle, Coins, Zap, BarChart2, Download, FileText, Printer, Scan, Camera, ShieldCheck, CheckCircle2, Eye, Edit3, Trash2, Copy, TrendingUp } from 'lucide-react';
 import { useSystemSettings } from '../contexts/SettingsContext';
 import { exportToPDF, exportToCSV as generateCSV } from '../utils/exportUtils';
 import ExportDropdown from '../components/shared/ExportDropdown';
@@ -644,6 +644,44 @@ const Inventory: React.FC = () => {
     },
   ];
 
+  const productRowActions: TableRowAction<Product>[] = [
+    {
+      label: 'Inspect Specifications',
+      icon: Eye,
+      onClick: (p) => setInspectedProduct(p),
+    },
+    {
+      label: 'Modify Product & Stock',
+      icon: Edit3,
+      onClick: (p) => handleEditProductClick(p),
+    },
+    {
+      label: 'Sales Trends & History',
+      icon: TrendingUp,
+      onClick: (p) => {
+        setSelectedProductHistory(p);
+        setHubTab('trends');
+      },
+    },
+    {
+      label: 'Copy Part SKU / Code',
+      icon: Copy,
+      onClick: (p) => {
+        navigator.clipboard?.writeText(p.sku || p.name);
+      },
+    },
+    {
+      label: 'Delete Product',
+      icon: Trash2,
+      variant: 'danger',
+      onClick: (p) => {
+        if (window.confirm(`Are you sure you want to remove "${p.name}" from inventory?`)) {
+          setProducts(prev => prev.filter(item => item.id !== p.id));
+        }
+      },
+    },
+  ];
+
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 pb-12">
       <PageHeader
@@ -783,8 +821,13 @@ const Inventory: React.FC = () => {
       </div>
 
       <div className="p-4 md:p-8">
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
-          <Table columns={columns} data={filteredProducts} />
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700">
+          <Table 
+            columns={columns} 
+            data={filteredProducts} 
+            onRowClick={(p) => setInspectedProduct(p)}
+            rowActions={productRowActions}
+          />
         </div>
       </div>
 

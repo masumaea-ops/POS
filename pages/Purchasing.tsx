@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import PageHeader from '../components/shared/PageHeader';
-import Table from '../components/shared/Table';
+import Table, { TableRowAction } from '../components/shared/Table';
 import { MOCK_PURCHASE_ORDERS, MOCK_SUPPLIERS, MOCK_PRODUCTS } from '../data/mockData';
 import type { PurchaseOrder, Supplier, Product } from '../types';
-import { X, ClipboardList, FileText } from 'lucide-react';
+import { X, ClipboardList, FileText, Eye, PackageCheck, Printer, Copy } from 'lucide-react';
 import { useSystemSettings } from '../contexts/SettingsContext';
 
 const Purchasing: React.FC = () => {
@@ -148,6 +148,35 @@ const Purchasing: React.FC = () => {
         }
     ];
 
+    const poRowActions: TableRowAction<PurchaseOrder>[] = [
+      {
+        label: 'Inspect Lines & Specifications',
+        icon: Eye,
+        onClick: (po) => setSelectedPO(po),
+      },
+      {
+        label: 'Receive Inbound Stock (GRN)',
+        icon: PackageCheck,
+        hidden: (po) => po.status !== 'Sent',
+        onClick: (po) => handleTransitionStatus(po.id, 'Received'),
+      },
+      {
+        label: 'Print Purchase Order Document',
+        icon: Printer,
+        onClick: (po) => {
+          setSelectedPO(po);
+          setTimeout(() => window.print(), 300);
+        },
+      },
+      {
+        label: 'Copy PO Number',
+        icon: Copy,
+        onClick: (po) => {
+          navigator.clipboard?.writeText(po.id);
+        },
+      },
+    ];
+
     return (
         <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 pb-12">
             <PageHeader
@@ -156,8 +185,13 @@ const Purchasing: React.FC = () => {
             />
             
             <div className="p-4 md:p-8">
-                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
-                    <Table columns={columns} data={purchaseOrders} />
+                <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700">
+                    <Table 
+                      columns={columns} 
+                      data={purchaseOrders} 
+                      onRowClick={(po) => setSelectedPO(po)}
+                      rowActions={poRowActions}
+                    />
                 </div>
             </div>
 

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   PlusCircle, 
   ChevronDown, 
@@ -218,7 +219,13 @@ export const Quotations: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState<string>('');
 
   // Row Action Dropdown Menu & Batch Menu
-  const [openRowActionId, setOpenRowActionId] = useState<string | null>(null);
+  const [activeQuoteMenu, setActiveQuoteMenu] = useState<{
+    quote: Quotation;
+    top: number;
+    left: number;
+    openUpward: boolean;
+  } | null>(null);
+  const quoteMenuRef = useRef<HTMLDivElement | null>(null);
   const [batchMenuOpen, setBatchMenuOpen] = useState<boolean>(false);
 
   // Modals state
@@ -236,15 +243,41 @@ export const Quotations: React.FC = () => {
     setTimeout(() => setToast(null), 3500);
   };
 
-  // Close menus on outside click
+  // Close menus on outside click or scroll
   useEffect(() => {
-    const handleClickOutside = () => {
-      setOpenRowActionId(null);
+    const handleClickOutside = (e: MouseEvent) => {
+      if (quoteMenuRef.current && quoteMenuRef.current.contains(e.target as Node)) {
+        return;
+      }
+      setActiveQuoteMenu(null);
       setBatchMenuOpen(false);
       setStatusDropdownOpen(false);
     };
-    window.addEventListener('click', handleClickOutside);
-    return () => window.removeEventListener('click', handleClickOutside);
+
+    const handleScroll = (e: Event) => {
+      if (quoteMenuRef.current && quoteMenuRef.current.contains(e.target as Node)) {
+        return;
+      }
+      setActiveQuoteMenu(null);
+    };
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setActiveQuoteMenu(null);
+        setBatchMenuOpen(false);
+        setStatusDropdownOpen(false);
+      }
+    };
+
+    window.addEventListener('mousedown', handleClickOutside);
+    window.addEventListener('scroll', handleScroll, true);
+    window.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      window.removeEventListener('mousedown', handleClickOutside);
+      window.removeEventListener('scroll', handleScroll, true);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
   }, []);
 
   // New Quote Form State
@@ -1131,122 +1164,31 @@ export const Quotations: React.FC = () => {
                             <div className="relative inline-block text-left">
                               <button
                                 type="button"
-                                onClick={() => setOpenRowActionId(openRowActionId === quote.id ? null : quote.id)}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-750 transition cursor-pointer flex items-center"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (activeQuoteMenu && activeQuoteMenu.quote.id === quote.id) {
+                                    setActiveQuoteMenu(null);
+                                    return;
+                                  }
+                                  const rect = e.currentTarget.getBoundingClientRect();
+                                  const menuHeight = 320;
+                                  const menuWidth = 220;
+                                  const spaceBelow = window.innerHeight - rect.bottom;
+                                  const openUpward = spaceBelow < menuHeight && rect.top > menuHeight;
+                                  const top = openUpward ? rect.top - 6 : rect.bottom + 6;
+                                  const left = Math.max(12, Math.min(window.innerWidth - menuWidth - 12, rect.right - menuWidth));
+
+                                  setActiveQuoteMenu({ quote, top, left, openUpward });
+                                }}
+                                className={`p-1.5 rounded-lg transition cursor-pointer flex items-center ${
+                                  activeQuoteMenu?.quote.id === quote.id
+                                    ? 'bg-[#ff5000] text-white shadow-sm ring-2 ring-[#ff5000]/30'
+                                    : 'text-slate-400 hover:text-white hover:bg-slate-750'
+                                }`}
                                 title="More Actions"
                               >
                                 <MoreVertical className="w-4 h-4" />
                               </button>
-
-                              {/* FLOATING ROW ACTIONS MENU */}
-                              {openRowActionId === quote.id && (
-                                <div className="absolute right-0 mt-1 w-52 bg-[#0d172e] border border-slate-700 rounded-xl shadow-2xl py-1.5 z-40 text-left font-sans animate-in fade-in">
-                                  <div className="px-3.5 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800">
-                                    Quotation Actions
-                                  </div>
-                                  
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setOpenRowActionId(null);
-                                      setSelectedQuote(quote);
-                                    }}
-                                    className="w-full text-left px-3.5 py-1.5 text-xs text-slate-200 hover:bg-slate-800 hover:text-white flex items-center gap-2.5 cursor-pointer"
-                                  >
-                                    <Eye className="w-3.5 h-3.5 text-slate-400" />
-                                    <span>View Pro-forma</span>
-                                  </button>
-
-                                  {quote.status !== 'Invoiced' && (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setOpenRowActionId(null);
-                                        handleConvertToInvoice(quote);
-                                      }}
-                                      className="w-full text-left px-3.5 py-1.5 text-xs text-emerald-400 hover:bg-emerald-950/60 flex items-center gap-2.5 cursor-pointer font-semibold"
-                                    >
-                                      <FileCheck className="w-3.5 h-3.5 text-emerald-400" />
-                                      <span>Convert to Tax Invoice</span>
-                                    </button>
-                                  )}
-
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setOpenRowActionId(null);
-                                      handleLoadIntoPos(quote);
-                                    }}
-                                    className="w-full text-left px-3.5 py-1.5 text-xs text-slate-200 hover:bg-slate-800 hover:text-white flex items-center gap-2.5 cursor-pointer"
-                                  >
-                                    <ShoppingCart className="w-3.5 h-3.5 text-blue-400" />
-                                    <span>Load in POS Register</span>
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setOpenRowActionId(null);
-                                      handleOpenWhatsApp(quote);
-                                    }}
-                                    className="w-full text-left px-3.5 py-1.5 text-xs text-slate-200 hover:bg-slate-800 hover:text-white flex items-center gap-2.5 cursor-pointer"
-                                  >
-                                    <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
-                                    <span>Send via WhatsApp</span>
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setOpenRowActionId(null);
-                                      handleSendEmail(quote);
-                                    }}
-                                    className="w-full text-left px-3.5 py-1.5 text-xs text-slate-200 hover:bg-slate-800 hover:text-white flex items-center gap-2.5 cursor-pointer"
-                                  >
-                                    <Mail className="w-3.5 h-3.5 text-slate-400" />
-                                    <span>Send via Email</span>
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setOpenRowActionId(null);
-                                      window.print();
-                                    }}
-                                    className="w-full text-left px-3.5 py-1.5 text-xs text-slate-200 hover:bg-slate-800 hover:text-white flex items-center gap-2.5 cursor-pointer"
-                                  >
-                                    <Printer className="w-3.5 h-3.5 text-slate-400" />
-                                    <span>Print Quotation Sheet</span>
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setOpenRowActionId(null);
-                                      handleDuplicateQuote(quote);
-                                    }}
-                                    className="w-full text-left px-3.5 py-1.5 text-xs text-slate-200 hover:bg-slate-800 hover:text-white flex items-center gap-2.5 cursor-pointer"
-                                  >
-                                    <Copy className="w-3.5 h-3.5 text-slate-400" />
-                                    <span>Duplicate as Draft</span>
-                                  </button>
-
-                                  <div className="border-t border-slate-800 my-1" />
-
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setOpenRowActionId(null);
-                                      handleDeleteQuote(quote);
-                                    }}
-                                    className="w-full text-left px-3.5 py-1.5 text-xs text-rose-400 hover:bg-rose-950/50 flex items-center gap-2.5 cursor-pointer font-medium"
-                                  >
-                                    <Trash2 className="w-3.5 h-3.5 text-rose-400" />
-                                    <span>Void / Delete Quote</span>
-                                  </button>
-
-                                </div>
-                              )}
                             </div>
 
                           </div>
@@ -1261,6 +1203,137 @@ export const Quotations: React.FC = () => {
         )}
 
       </div>
+
+      {/* FLOATING UNCLIPPED ROW ACTIONS MENU VIA PORTAL */}
+      {activeQuoteMenu && typeof document !== 'undefined' && createPortal(
+        <div
+          ref={quoteMenuRef}
+          style={{
+            position: 'fixed',
+            top: activeQuoteMenu.openUpward ? undefined : `${activeQuoteMenu.top}px`,
+            bottom: activeQuoteMenu.openUpward ? `${window.innerHeight - activeQuoteMenu.top}px` : undefined,
+            left: `${activeQuoteMenu.left}px`,
+            zIndex: 99999,
+          }}
+          className="w-56 bg-[#0d172e] border border-slate-700 rounded-xl shadow-2xl py-1.5 text-left font-sans animate-in fade-in zoom-in-95 duration-100 select-none overflow-hidden"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="px-3.5 py-1 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800 flex items-center justify-between">
+            <span>Quotation Actions</span>
+            <span className="text-[9px] font-mono text-slate-500">{activeQuoteMenu.quote.quoteNumber}</span>
+          </div>
+          
+          <button
+            type="button"
+            onClick={() => {
+              const q = activeQuoteMenu.quote;
+              setActiveQuoteMenu(null);
+              setSelectedQuote(q);
+            }}
+            className="w-full text-left px-3.5 py-1.5 text-xs text-slate-200 hover:bg-slate-800 hover:text-white flex items-center gap-2.5 cursor-pointer"
+          >
+            <Eye className="w-3.5 h-3.5 text-slate-400" />
+            <span>View Pro-forma</span>
+          </button>
+
+          {activeQuoteMenu.quote.status !== 'Invoiced' && (
+            <button
+              type="button"
+              onClick={() => {
+                const q = activeQuoteMenu.quote;
+                setActiveQuoteMenu(null);
+                handleConvertToInvoice(q);
+              }}
+              className="w-full text-left px-3.5 py-1.5 text-xs text-emerald-400 hover:bg-emerald-950/60 flex items-center gap-2.5 cursor-pointer font-semibold"
+            >
+              <FileCheck className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Convert to Tax Invoice</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => {
+              const q = activeQuoteMenu.quote;
+              setActiveQuoteMenu(null);
+              handleLoadIntoPos(q);
+            }}
+            className="w-full text-left px-3.5 py-1.5 text-xs text-slate-200 hover:bg-slate-800 hover:text-white flex items-center gap-2.5 cursor-pointer"
+          >
+            <ShoppingCart className="w-3.5 h-3.5 text-blue-400" />
+            <span>Load in POS Register</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              const q = activeQuoteMenu.quote;
+              setActiveQuoteMenu(null);
+              handleOpenWhatsApp(q);
+            }}
+            className="w-full text-left px-3.5 py-1.5 text-xs text-slate-200 hover:bg-slate-800 hover:text-white flex items-center gap-2.5 cursor-pointer"
+          >
+            <MessageSquare className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Send via WhatsApp</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              const q = activeQuoteMenu.quote;
+              setActiveQuoteMenu(null);
+              handleSendEmail(q);
+            }}
+            className="w-full text-left px-3.5 py-1.5 text-xs text-slate-200 hover:bg-slate-800 hover:text-white flex items-center gap-2.5 cursor-pointer"
+          >
+            <Mail className="w-3.5 h-3.5 text-slate-400" />
+            <span>Send via Email</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              const q = activeQuoteMenu.quote;
+              setActiveQuoteMenu(null);
+              setSelectedQuote(q);
+              setTimeout(() => window.print(), 300);
+            }}
+            className="w-full text-left px-3.5 py-1.5 text-xs text-slate-200 hover:bg-slate-800 hover:text-white flex items-center gap-2.5 cursor-pointer"
+          >
+            <Printer className="w-3.5 h-3.5 text-slate-400" />
+            <span>Print Quotation Sheet</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              const q = activeQuoteMenu.quote;
+              setActiveQuoteMenu(null);
+              handleDuplicateQuote(q);
+            }}
+            className="w-full text-left px-3.5 py-1.5 text-xs text-slate-200 hover:bg-slate-800 hover:text-white flex items-center gap-2.5 cursor-pointer"
+          >
+            <Copy className="w-3.5 h-3.5 text-slate-400" />
+            <span>Duplicate as Draft</span>
+          </button>
+
+          <div className="border-t border-slate-800 my-1" />
+
+          <button
+            type="button"
+            onClick={() => {
+              const q = activeQuoteMenu.quote;
+              setActiveQuoteMenu(null);
+              handleDeleteQuote(q);
+            }}
+            className="w-full text-left px-3.5 py-1.5 text-xs text-rose-400 hover:bg-rose-950/50 flex items-center gap-2.5 cursor-pointer font-medium"
+          >
+            <Trash2 className="w-3.5 h-3.5 text-rose-400" />
+            <span>Void / Delete Quote</span>
+          </button>
+        </div>,
+        document.body
+      )}
 
       {/* MODAL: VIEW / INSPECT QUOTATION */}
       {selectedQuote && (

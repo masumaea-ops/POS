@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/shared/PageHeader';
 import Card from '../components/shared/Card';
 import { useSystemSettings } from '../contexts/SettingsContext';
@@ -126,7 +127,15 @@ const API_ENDPOINTS = [
 
 const Integrations: React.FC = () => {
   const { settings, formatPrice } = useSystemSettings();
-  const [activeTab, setActiveTab] = useState<'overview' | 'api-keys' | 'webhooks' | 'playground' | 'logs'>('overview');
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab') as 'overview' | 'api-keys' | 'webhooks' | 'playground' | 'logs' | null;
+  const [activeTab, setActiveTab] = useState<'overview' | 'api-keys' | 'webhooks' | 'playground' | 'logs'>(() => tabParam || 'overview');
+
+  useEffect(() => {
+    if (tabParam) {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam]);
   
   // State elements
   const [apiKeys, setApiKeys] = useState<ApiKey[]>(() => {

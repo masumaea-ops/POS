@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { GarageHeader } from '../components/garage/GarageHeader';
 import { OutletsTab } from '../components/garage/OutletsTab';
 import { JobCardsTab } from '../components/garage/JobCardsTab';
@@ -27,7 +28,15 @@ import {
 type GarageTab = 'job_cards' | 'service_history' | 'notifications' | 'customer_satisfaction' | 'diagnostics' | 'scheduling' | 'mechanic_portal' | 'outlets' | 'bays' | 'rbac';
 
 export const Garage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<GarageTab>('job_cards');
+  const [searchParams] = useSearchParams();
+  const tabParam = searchParams.get('tab') as GarageTab | null;
+  const [activeTab, setActiveTab] = useState<GarageTab>(() => tabParam || 'job_cards');
+
+  useEffect(() => {
+    if (tabParam) {
+      setActiveTab(tabParam);
+    }
+  }, [tabParam]);
 
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-gray-900 pb-12">

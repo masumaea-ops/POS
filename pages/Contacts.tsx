@@ -1,14 +1,32 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/shared/PageHeader';
-import Table from '../components/shared/Table';
+import Table, { TableRowAction } from '../components/shared/Table';
 import { MOCK_CUSTOMERS, MOCK_SUPPLIERS } from '../data/mockData';
 import type { Customer, Supplier } from '../types';
-import { X, Search } from 'lucide-react';
+import { X, Search, Edit3, Copy, Phone, Mail, FileText } from 'lucide-react';
 import { useSystemSettings } from '../contexts/SettingsContext';
 
 const Contacts: React.FC = () => {
   const { settings, formatPrice } = useSystemSettings();
-  const [activeTab, setActiveTab] = useState<'Customers' | 'Suppliers'>('Customers');
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+  const tabFromQuery = searchParams.get('tab');
+  
+  const initialTab = (location.pathname === '/customers' || tabFromQuery?.toLowerCase() === 'customers')
+    ? 'Customers'
+    : (tabFromQuery?.toLowerCase() === 'suppliers' ? 'Suppliers' : 'Customers');
+
+  const [activeTab, setActiveTab] = useState<'Customers' | 'Suppliers'>(initialTab);
+
+  useEffect(() => {
+    if (location.pathname === '/customers') {
+      setActiveTab('Customers');
+    } else if (tabFromQuery) {
+      if (tabFromQuery.toLowerCase() === 'suppliers') setActiveTab('Suppliers');
+      if (tabFromQuery.toLowerCase() === 'customers') setActiveTab('Customers');
+    }
+  }, [location.pathname, tabFromQuery]);
   const [searchTerm, setSearchTerm] = useState('');
 
   // 1. Persistent state for Customers
@@ -612,6 +630,69 @@ const Contacts: React.FC = () => {
     },
   ];
 
+  const customerRowActions: TableRowAction<Customer>[] = [
+    {
+      label: 'Modify Account Parameters',
+      icon: Edit3,
+      onClick: (cust) => handleEditCustomerClick(cust),
+    },
+    {
+      label: 'Copy Phone Number',
+      icon: Phone,
+      hidden: (cust) => !cust.phone,
+      onClick: (cust) => {
+        if (cust.phone) navigator.clipboard?.writeText(cust.phone);
+      },
+    },
+    {
+      label: 'Copy Email Address',
+      icon: Mail,
+      hidden: (cust) => !cust.email,
+      onClick: (cust) => {
+        if (cust.email) navigator.clipboard?.writeText(cust.email);
+      },
+    },
+    {
+      label: 'Copy KRA PIN',
+      icon: Copy,
+      hidden: (cust) => !cust.kraPin,
+      onClick: (cust) => {
+        if (cust.kraPin) navigator.clipboard?.writeText(cust.kraPin);
+      },
+    },
+    {
+      label: 'Inspect Account Details',
+      icon: FileText,
+      onClick: (cust) => {
+        handleEditCustomerClick(cust);
+      },
+    },
+  ];
+
+  const supplierRowActions: TableRowAction<Supplier>[] = [
+    {
+      label: 'Modify Supplier Information',
+      icon: Edit3,
+      onClick: (supp) => handleEditSupplierClick(supp),
+    },
+    {
+      label: 'Copy Contact Phone',
+      icon: Phone,
+      hidden: (supp) => !supp.phone,
+      onClick: (supp) => {
+        if (supp.phone) navigator.clipboard?.writeText(supp.phone);
+      },
+    },
+    {
+      label: 'Copy Dispatch Email',
+      icon: Mail,
+      hidden: (supp) => !supp.email,
+      onClick: (supp) => {
+        if (supp.email) navigator.clipboard?.writeText(supp.email);
+      },
+    },
+  ];
+
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 pb-12">
       <PageHeader
@@ -694,11 +775,21 @@ const Contacts: React.FC = () => {
 
       {/* MAIN ACCOUNTS LISTS */}
       <div className="p-4 md:p-8">
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 overflow-hidden">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700">
           {activeTab === 'Customers' ? (
-            <Table columns={customerColumns} data={filteredCustomers} />
+            <Table 
+              columns={customerColumns} 
+              data={filteredCustomers} 
+              onRowClick={(cust) => handleEditCustomerClick(cust)}
+              rowActions={customerRowActions}
+            />
           ) : (
-            <Table columns={supplierColumns} data={filteredSuppliers} />
+            <Table 
+              columns={supplierColumns} 
+              data={filteredSuppliers} 
+              onRowClick={(supp) => handleEditSupplierClick(supp)}
+              rowActions={supplierRowActions}
+            />
           )}
         </div>
       </div>

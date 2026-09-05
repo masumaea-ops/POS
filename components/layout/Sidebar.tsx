@@ -1,259 +1,372 @@
-import React from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { 
+  LayoutDashboard,
+  TrendingUp,
   ShoppingCart, 
+  CreditCard,
+  Receipt,
   Wrench, 
-  BarChart2, 
-  Users, 
-  FileText, 
-  Receipt, 
-  Truck, 
+  ClipboardCheck,
+  Activity,
+  History,
+  Star,
+  Boxes,
+  Package,
   Car,
+  AlertTriangle,
+  BarChart2, 
+  ShoppingBag,
+  FileText,
+  ClipboardList,
+  FileSpreadsheet,
+  PackageCheck,
+  Truck, 
+  Send,
+  MapPin,
+  Users, 
+  UserCheck,
+  Building2,
+  FileBarChart,
+  LineChart,
+  ShieldCheck,
+  Layers,
+  BookOpen, 
+  Calculator,
+  Coins,
+  Code2,
+  Terminal,
+  Zap,
+  Play,
   User, 
   LogOut,
   Settings as SettingsIcon,
-  BookOpen,
-  Boxes,
-  LayoutDashboard
+  ChevronDown,
+  ChevronRight,
+  LucideIcon
 } from 'lucide-react';
+
+interface SubMenuItem {
+  label: string;
+  to: string;
+  icon: LucideIcon;
+}
+
+interface NavSectionItem {
+  id: string;
+  label: string;
+  to: string;
+  icon: LucideIcon;
+  children?: SubMenuItem[];
+}
 
 interface SidebarProps {
   onLogout: () => void;
   onLockTerminal?: () => void;
 }
 
+const NAV_SECTIONS: NavSectionItem[] = [
+  {
+    id: 'dashboard',
+    label: 'Dashboard',
+    to: '/',
+    icon: LayoutDashboard,
+    children: [
+      { label: 'Executive Overview', to: '/', icon: LayoutDashboard },
+      { label: 'Analytics & Performance', to: '/?tab=analytics', icon: TrendingUp },
+    ],
+  },
+  {
+    id: 'pos',
+    label: 'POS',
+    to: '/pos',
+    icon: ShoppingCart,
+    children: [
+      { label: 'Counter Register', to: '/pos', icon: CreditCard },
+      { label: 'Held Carts & Orders', to: '/pos?view=held', icon: Receipt },
+    ],
+  },
+  {
+    id: 'garage',
+    label: 'Garage Chain & Diag',
+    to: '/garage',
+    icon: Wrench,
+    children: [
+      { label: 'Job Cards & Work Orders', to: '/garage?tab=job_cards', icon: ClipboardCheck },
+      { label: 'OBD-II Diagnostics', to: '/garage?tab=diagnostics', icon: Activity },
+      { label: 'Service History', to: '/garage?tab=service_history', icon: History },
+      { label: 'Customer Satisfaction', to: '/garage?tab=customer_satisfaction', icon: Star },
+    ],
+  },
+  {
+    id: 'inventory',
+    label: 'Inventory',
+    to: '/inventory',
+    icon: Boxes,
+    children: [
+      { label: 'Parts Catalog', to: '/inventory', icon: Package },
+      { label: 'VIN & Chassis Picker', to: '/vin-picker', icon: Car },
+      { label: 'Stock Alerts & Reorder', to: '/inventory?tab=alerts', icon: AlertTriangle },
+    ],
+  },
+  {
+    id: 'sales',
+    label: 'Sales',
+    to: '/sales',
+    icon: BarChart2,
+    children: [
+      { label: 'Sales Orders', to: '/sales', icon: ShoppingBag },
+      { label: 'Sales History', to: '/sales-history', icon: History },
+      { label: 'Quotations', to: '/quotations', icon: FileText },
+      { label: 'Invoices & eTIMS', to: '/invoices', icon: Receipt },
+    ],
+  },
+  {
+    id: 'purchasing',
+    label: 'Purchasing',
+    to: '/purchasing',
+    icon: ClipboardList,
+    children: [
+      { label: 'Purchase Orders', to: '/purchasing', icon: FileSpreadsheet },
+      { label: 'Supplier Deliveries (GRN)', to: '/purchasing?tab=grn', icon: PackageCheck },
+    ],
+  },
+  {
+    id: 'shipping',
+    label: 'Logistics & Shipping',
+    to: '/shipping',
+    icon: Truck,
+    children: [
+      { label: 'Delivery Dispatch', to: '/shipping', icon: Send },
+      { label: 'Couriers & Tracking', to: '/shipping?tab=tracking', icon: MapPin },
+    ],
+  },
+  {
+    id: 'contacts',
+    label: 'Contacts',
+    to: '/contacts',
+    icon: Users,
+    children: [
+      { label: 'Corporate Customers', to: '/customers', icon: UserCheck },
+      { label: 'Parts Suppliers', to: '/contacts?tab=Suppliers', icon: Building2 },
+    ],
+  },
+  {
+    id: 'reports',
+    label: 'Reports',
+    to: '/reports',
+    icon: FileBarChart,
+    children: [
+      { label: 'Sales & Revenue', to: '/reports?tab=sales', icon: LineChart },
+      { label: 'KRA eTIMS Tax Audit', to: '/reports?tab=vat', icon: ShieldCheck },
+      { label: 'Inventory Valuation', to: '/reports?tab=inventory', icon: Layers },
+    ],
+  },
+  {
+    id: 'accounting',
+    label: 'Accounting',
+    to: '/accounting',
+    icon: BookOpen,
+    children: [
+      { label: 'General Ledger & COA', to: '/accounting?tab=coa', icon: Calculator },
+      { label: 'Cash Flow & Balances', to: '/accounting?tab=reconciliation', icon: Coins },
+    ],
+  },
+  {
+    id: 'api',
+    label: 'API',
+    to: '/integrations',
+    icon: Code2,
+    children: [
+      { label: 'Endpoints & Docs', to: '/integrations?tab=overview', icon: Terminal },
+      { label: 'Webhooks & Logs', to: '/integrations?tab=webhooks', icon: Zap },
+      { label: 'Sandbox Playground', to: '/integrations?tab=playground', icon: Play },
+    ],
+  },
+];
+
 export const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
   const location = useLocation();
+  const navigate = useNavigate();
 
-  const isQuotationsActive = location.pathname === '/quotations';
-  const isSalesActive = location.pathname.startsWith('/sales') || location.pathname === '/sales-history';
+  // Determine which sections should be expanded initially
+  const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>(() => {
+    const initial: Record<string, boolean> = {};
+    for (const section of NAV_SECTIONS) {
+      const isParentMatch = location.pathname === section.to;
+      const isChildMatch = section.children?.some(c => {
+        const [childBase] = c.to.split('?');
+        return location.pathname === childBase;
+      });
+      if (isParentMatch || isChildMatch) {
+        initial[section.id] = true;
+      }
+    }
+    return initial;
+  });
+
+  // Keep active section expanded when location changes
+  useEffect(() => {
+    for (const section of NAV_SECTIONS) {
+      const isParentMatch = location.pathname === section.to;
+      const isChildMatch = section.children?.some(c => {
+        const [childBase] = c.to.split('?');
+        return location.pathname === childBase;
+      });
+      if (isParentMatch || isChildMatch) {
+        setExpandedSections(prev => ({ ...prev, [section.id]: true }));
+      }
+    }
+  }, [location.pathname]);
+
+  const toggleSection = (sectionId: string) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [sectionId]: !prev[sectionId]
+    }));
+  };
+
+  const isChildActive = (targetTo: string, isFirstChild: boolean = false) => {
+    const [targetBase, targetQuery] = targetTo.split('?');
+    
+    if (location.pathname !== targetBase) {
+      return false;
+    }
+
+    if (targetQuery) {
+      if (location.search === `?${targetQuery}`) {
+        return true;
+      }
+      // If user is on the base route without query, activate the default first tab
+      if ((!location.search || location.search === '') && isFirstChild) {
+        return true;
+      }
+      return false;
+    }
+
+    // Target has no query string
+    return !location.search || location.search === '';
+  };
+
+  const hasActiveSubItem = (section: NavSectionItem) => {
+    if (!section.children) return false;
+    return section.children.some((c, idx) => isChildActive(c.to, idx === 0));
+  };
+
+  const isParentDirectlyActive = (section: NavSectionItem) => {
+    if (section.to === '/') {
+      return location.pathname === '/' && (!location.search || location.search === '');
+    }
+    return location.pathname === section.to && !hasActiveSubItem(section);
+  };
 
   return (
     <aside className="w-full h-full flex flex-col bg-[#0b1324] border-r border-slate-800 text-slate-300 select-none">
       
-      {/* NAVIGATION ITEMS */}
-      <nav className="flex-1 overflow-y-auto py-5 px-3">
+      {/* SCROLLABLE NAVIGATION LIST */}
+      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1.5 custom-scrollbar">
         <ul className="space-y-1.5 font-medium text-sm">
-          
-          {/* Point of Sale */}
-          <li>
-            <NavLink
-              to="/pos"
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-colors ${
-                  isActive
-                    ? 'bg-[#ff5000] text-white font-semibold shadow-sm'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                }`
-              }
-            >
-              <ShoppingCart className="w-5 h-5 shrink-0" />
-              <span>Point of Sale</span>
-            </NavLink>
-          </li>
+          {NAV_SECTIONS.map((section) => {
+            const isExpanded = !!expandedSections[section.id];
+            const SectionIcon = section.icon;
+            const isDirectActive = isParentDirectlyActive(section);
+            const hasSubActive = hasActiveSubItem(section);
 
-          {/* Inventory */}
-          <li>
-            <NavLink
-              to="/inventory"
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-colors ${
-                  isActive
-                    ? 'bg-[#ff5000] text-white font-semibold shadow-sm'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                }`
-              }
-            >
-              <Wrench className="w-5 h-5 shrink-0" />
-              <span>Inventory</span>
-            </NavLink>
-          </li>
+            return (
+              <li key={section.id} className="space-y-1">
+                {/* Main Menu Item */}
+                <div className="flex items-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigate(section.to);
+                      setExpandedSections(prev => ({ ...prev, [section.id]: true }));
+                    }}
+                    className={`flex-1 flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-colors text-sm font-medium text-left cursor-pointer ${
+                      isDirectActive
+                        ? 'bg-[#ff5000] text-white font-semibold shadow-sm'
+                        : hasSubActive
+                        ? 'text-white bg-slate-800/80 font-medium'
+                        : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                    }`}
+                  >
+                    <SectionIcon className="w-5 h-5 shrink-0" />
+                    <span className="flex-1 truncate">{section.label}</span>
+                  </button>
 
-          {/* Sales with Sales History sub-item */}
-          <li>
-            <NavLink
-              to="/sales"
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-colors ${
-                  isActive && !isQuotationsActive
-                    ? 'bg-[#ff5000] text-white font-semibold shadow-sm'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                }`
-              }
-            >
-              <BarChart2 className="w-5 h-5 shrink-0" />
-              <span>Sales</span>
-            </NavLink>
+                  {/* Accordion toggle if section has children */}
+                  {section.children && section.children.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleSection(section.id);
+                      }}
+                      title={isExpanded ? `Collapse ${section.label}` : `Expand ${section.label}`}
+                      className="p-2 ml-1 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-lg transition-colors cursor-pointer"
+                    >
+                      {isExpanded ? (
+                        <ChevronDown className="w-4 h-4 shrink-0 transition-transform" />
+                      ) : (
+                        <ChevronRight className="w-4 h-4 shrink-0 transition-transform" />
+                      )}
+                    </button>
+                  )}
+                </div>
 
-            {/* Sub-item: Sales History */}
-            <div className="pl-9 pr-2 py-1">
-              <NavLink
-                to="/sales-history"
-                className={({ isActive }) =>
-                  `block text-xs py-1.5 px-2.5 rounded-lg transition-colors ${
-                    isActive
-                      ? 'text-[#ff5000] font-bold bg-[#ff5000]/10'
-                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
-                  }`
-                }
-              >
-                Sales History
-              </NavLink>
-            </div>
-          </li>
+                {/* Nested Submenu Items */}
+                {section.children && section.children.length > 0 && isExpanded && (
+                  <div className="pl-3.5 pt-0.5 pb-1 space-y-1 ml-3 border-l border-slate-800/80">
+                    {section.children.map((subItem, idx) => {
+                      const SubIcon = subItem.icon;
+                      const isSubActive = isChildActive(subItem.to, idx === 0);
 
-          {/* Customers */}
-          <li>
-            <NavLink
-              to="/customers"
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-colors ${
-                  isActive
-                    ? 'bg-[#ff5000] text-white font-semibold shadow-sm'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                }`
-              }
-            >
-              <Users className="w-5 h-5 shrink-0" />
-              <span>Customers</span>
-            </NavLink>
-          </li>
-
-          {/* Quotations (Main highlighted item as seen in screenshot) */}
-          <li>
-            <NavLink
-              to="/quotations"
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-colors ${
-                  isActive
-                    ? 'bg-[#ff5000] text-white font-semibold shadow-sm'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                }`
-              }
-            >
-              <FileText className="w-5 h-5 shrink-0" />
-              <span>Quotations</span>
-            </NavLink>
-          </li>
-
-          {/* Invoices */}
-          <li>
-            <NavLink
-              to="/invoices"
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-colors ${
-                  isActive
-                    ? 'bg-[#ff5000] text-white font-semibold shadow-sm'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                }`
-              }
-            >
-              <Receipt className="w-5 h-5 shrink-0" />
-              <span>Invoices</span>
-            </NavLink>
-          </li>
-
-          {/* Shipping */}
-          <li>
-            <NavLink
-              to="/shipping"
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-colors ${
-                  isActive
-                    ? 'bg-[#ff5000] text-white font-semibold shadow-sm'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                }`
-              }
-            >
-              <Truck className="w-5 h-5 shrink-0" />
-              <span>Shipping</span>
-            </NavLink>
-          </li>
-
-          {/* VIN Picker */}
-          <li>
-            <NavLink
-              to="/vin-picker"
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-colors ${
-                  isActive
-                    ? 'bg-[#ff5000] text-white font-semibold shadow-sm'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                }`
-              }
-            >
-              <Car className="w-5 h-5 shrink-0" />
-              <span>VIN Picker</span>
-            </NavLink>
-          </li>
-
-          {/* Divider */}
-          <li className="pt-2 pb-1">
-            <div className="h-px bg-slate-800/80 mx-2" />
-          </li>
-
-          {/* Enterprise Modules: Dashboard, Accounting, Settings */}
-          <li>
-            <NavLink
-              to="/"
-              end
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs transition-colors ${
-                  isActive
-                    ? 'bg-[#ff5000]/15 text-[#ff5000] font-semibold'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
-                }`
-              }
-            >
-              <LayoutDashboard className="w-4 h-4 shrink-0" />
-              <span>Executive Dashboard</span>
-            </NavLink>
-          </li>
-
-          <li>
-            <NavLink
-              to="/accounting"
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs transition-colors ${
-                  isActive
-                    ? 'bg-[#ff5000]/15 text-[#ff5000] font-semibold'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
-                }`
-              }
-            >
-              <BookOpen className="w-4 h-4 shrink-0" />
-              <span>Accounting & Ledger</span>
-            </NavLink>
-          </li>
-
-          <li>
-            <NavLink
-              to="/settings"
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs transition-colors ${
-                  isActive
-                    ? 'bg-[#ff5000]/15 text-[#ff5000] font-semibold'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
-                }`
-              }
-            >
-              <SettingsIcon className="w-4 h-4 shrink-0" />
-              <span>System Settings</span>
-            </NavLink>
-          </li>
-
+                      return (
+                        <NavLink
+                          key={`${section.id}-${subItem.label}`}
+                          to={subItem.to}
+                          className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-colors text-sm font-medium ${
+                            isSubActive
+                              ? 'bg-[#ff5000] text-white font-semibold shadow-sm'
+                              : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                          }`}
+                        >
+                          <SubIcon className="w-5 h-5 shrink-0" />
+                          <span className="truncate">{subItem.label}</span>
+                        </NavLink>
+                      );
+                    })}
+                  </div>
+                )}
+              </li>
+            );
+          })}
         </ul>
       </nav>
 
-      {/* FOOTER NAVIGATION: Profile & Logout as in Screenshot */}
+      {/* FOOTER NAVIGATION: System Settings, Profile & Logout */}
       <div className="p-3 border-t border-slate-800 space-y-1">
+        <NavLink
+          to="/settings"
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+              isActive
+                ? 'bg-[#ff5000] text-white font-semibold shadow-sm'
+                : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+            }`
+          }
+        >
+          <SettingsIcon className="w-5 h-5 shrink-0" />
+          <span>System Settings</span>
+        </NavLink>
+
         <NavLink
           to="/profile"
           className={({ isActive }) =>
             `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
               isActive
-                ? 'bg-slate-800 text-white font-semibold'
-                : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+                ? 'bg-[#ff5000] text-white font-semibold shadow-sm'
+                : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
             }`
           }
         >
@@ -264,7 +377,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
         <button
           type="button"
           onClick={onLogout}
-          className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-rose-400 hover:bg-slate-800/50 transition cursor-pointer text-left"
+          className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-300 hover:text-rose-400 hover:bg-slate-800/60 transition cursor-pointer text-left"
         >
           <LogOut className="w-5 h-5 shrink-0" />
           <span>Logout</span>
