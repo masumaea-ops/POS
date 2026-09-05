@@ -24,7 +24,18 @@ const POS: React.FC = () => {
         return MOCK_PRODUCTS;
     });
     
-    const [cart, setCart] = useState<CartItem[]>([]);
+    const [cart, setCart] = useState<CartItem[]>(() => {
+        try {
+            const transfer = sessionStorage.getItem('masuma_pos_quick_cart');
+            if (transfer) {
+                sessionStorage.removeItem('masuma_pos_quick_cart');
+                return JSON.parse(transfer);
+            }
+        } catch {
+            // ignore
+        }
+        return [];
+    });
     
     // Persistent Customer lists
     const [customersList, setCustomersList] = useState<Customer[]>(() => {

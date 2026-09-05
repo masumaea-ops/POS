@@ -1,12 +1,20 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
-import ThemeToggle from './ThemeToggle';
-import LanguageSwitcher from '../shared/LanguageSwitcher';
-import { useSystemSettings } from '../../contexts/SettingsContext';
-import { useLanguage } from '../../contexts/LanguageContext';
+import { NavLink, useLocation } from 'react-router-dom';
 import { 
-    LayoutDashboard, ShoppingCart, Package, ShoppingBag, 
-    Truck, Users, BarChart3, BookOpen, Settings, LogOut, Cpu, Wrench, Lock, ShieldCheck 
+  ShoppingCart, 
+  Wrench, 
+  BarChart2, 
+  Users, 
+  FileText, 
+  Receipt, 
+  Truck, 
+  Car,
+  User, 
+  LogOut,
+  Settings as SettingsIcon,
+  BookOpen,
+  Boxes,
+  LayoutDashboard
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -14,91 +22,255 @@ interface SidebarProps {
   onLockTerminal?: () => void;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ onLogout, onLockTerminal }) => {
-  const { settings } = useSystemSettings();
-  const { t } = useLanguage();
-  
-  const navigation = [
-    { name: t('nav.dashboard', 'Dashboard'), href: '/', icon: LayoutDashboard },
-    { name: t('nav.pos', 'POS Counter'), href: '/pos', icon: ShoppingCart },
-    { name: t('nav.garage', 'Garage Chain & Diag'), href: '/garage', icon: Wrench },
-    { name: t('nav.inventory', 'Inventory & Parts'), href: '/inventory', icon: Package },
-    { name: t('nav.sales', 'Sales & Invoices'), href: '/sales', icon: ShoppingBag },
-    { name: t('nav.purchasing', 'Purchasing & POs'), href: '/purchasing', icon: Truck },
-    { name: t('nav.shipping', 'Logistics & Shipping'), href: '/shipping', icon: Truck },
-    { name: t('nav.contacts', 'Contacts & B2B'), href: '/contacts', icon: Users },
-    { name: t('nav.reports', 'Reports & Analytics'), href: '/reports', icon: BarChart3 },
-    { name: t('nav.accounting', 'Accounting & Ledger'), href: '/accounting', icon: BookOpen },
-    { name: t('nav.integrations', 'API Connectors'), href: '/integrations', icon: Cpu },
-  ];
+export const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
+  const location = useLocation();
+
+  const isQuotationsActive = location.pathname === '/quotations';
+  const isSalesActive = location.pathname.startsWith('/sales') || location.pathname === '/sales-history';
 
   return (
-    <aside className="w-full h-full flex flex-col bg-white dark:bg-gray-800 border-r border-surface-2 dark:border-gray-700">
-      <div className="h-16 flex items-center justify-between px-4 border-b border-surface-2 dark:border-gray-700 shrink-0 select-none">
-        <h1 className="text-xl font-black text-ink dark:text-gray-50 flex items-center">
-          {settings.corpShortName || 'Masuma'}
-          <span className="text-brand-orange ml-0.5">POS</span>
-        </h1>
-        <div className="flex items-center gap-1.5">
-          <LanguageSwitcher variant="badge" />
-          <span className="hidden sm:inline-flex items-center gap-1 text-[9px] font-mono px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-400 font-bold">
-            <ShieldCheck className="w-3 h-3" />
-            {t('nav.secure', 'SECURE')}
-          </span>
-        </div>
-      </div>
-      <nav className="flex-1 overflow-y-auto p-4">
-        <ul className="space-y-1">
-          {navigation.map((item) => (
-            <li key={item.href}>
+    <aside className="w-full h-full flex flex-col bg-[#0b1324] border-r border-slate-800 text-slate-300 select-none">
+      
+      {/* NAVIGATION ITEMS */}
+      <nav className="flex-1 overflow-y-auto py-5 px-3">
+        <ul className="space-y-1.5 font-medium text-sm">
+          
+          {/* Point of Sale */}
+          <li>
+            <NavLink
+              to="/pos"
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-colors ${
+                  isActive
+                    ? 'bg-[#ff5000] text-white font-semibold shadow-sm'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                }`
+              }
+            >
+              <ShoppingCart className="w-5 h-5 shrink-0" />
+              <span>Point of Sale</span>
+            </NavLink>
+          </li>
+
+          {/* Inventory */}
+          <li>
+            <NavLink
+              to="/inventory"
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-colors ${
+                  isActive
+                    ? 'bg-[#ff5000] text-white font-semibold shadow-sm'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                }`
+              }
+            >
+              <Wrench className="w-5 h-5 shrink-0" />
+              <span>Inventory</span>
+            </NavLink>
+          </li>
+
+          {/* Sales with Sales History sub-item */}
+          <li>
+            <NavLink
+              to="/sales"
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-colors ${
+                  isActive && !isQuotationsActive
+                    ? 'bg-[#ff5000] text-white font-semibold shadow-sm'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                }`
+              }
+            >
+              <BarChart2 className="w-5 h-5 shrink-0" />
+              <span>Sales</span>
+            </NavLink>
+
+            {/* Sub-item: Sales History */}
+            <div className="pl-9 pr-2 py-1">
               <NavLink
-                to={item.href}
-                end={item.href === '/'}
+                to="/sales-history"
                 className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-semibold transition-colors ${
+                  `block text-xs py-1.5 px-2.5 rounded-lg transition-colors ${
                     isActive
-                      ? 'bg-brand-orange/10 text-brand-orange'
-                      : 'text-gray-600 dark:text-gray-300 hover:bg-surface dark:hover:bg-gray-700'
+                      ? 'text-[#ff5000] font-bold bg-[#ff5000]/10'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
                   }`
                 }
               >
-                <item.icon className="w-5 h-5 shrink-0" />
-                <span className="truncate">{item.name}</span>
+                Sales History
               </NavLink>
-            </li>
-          ))}
+            </div>
+          </li>
+
+          {/* Customers */}
+          <li>
+            <NavLink
+              to="/customers"
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-colors ${
+                  isActive
+                    ? 'bg-[#ff5000] text-white font-semibold shadow-sm'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                }`
+              }
+            >
+              <Users className="w-5 h-5 shrink-0" />
+              <span>Customers</span>
+            </NavLink>
+          </li>
+
+          {/* Quotations (Main highlighted item as seen in screenshot) */}
+          <li>
+            <NavLink
+              to="/quotations"
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-colors ${
+                  isActive
+                    ? 'bg-[#ff5000] text-white font-semibold shadow-sm'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                }`
+              }
+            >
+              <FileText className="w-5 h-5 shrink-0" />
+              <span>Quotations</span>
+            </NavLink>
+          </li>
+
+          {/* Invoices */}
+          <li>
+            <NavLink
+              to="/invoices"
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-colors ${
+                  isActive
+                    ? 'bg-[#ff5000] text-white font-semibold shadow-sm'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                }`
+              }
+            >
+              <Receipt className="w-5 h-5 shrink-0" />
+              <span>Invoices</span>
+            </NavLink>
+          </li>
+
+          {/* Shipping */}
+          <li>
+            <NavLink
+              to="/shipping"
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-colors ${
+                  isActive
+                    ? 'bg-[#ff5000] text-white font-semibold shadow-sm'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                }`
+              }
+            >
+              <Truck className="w-5 h-5 shrink-0" />
+              <span>Shipping</span>
+            </NavLink>
+          </li>
+
+          {/* VIN Picker */}
+          <li>
+            <NavLink
+              to="/vin-picker"
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-colors ${
+                  isActive
+                    ? 'bg-[#ff5000] text-white font-semibold shadow-sm'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                }`
+              }
+            >
+              <Car className="w-5 h-5 shrink-0" />
+              <span>VIN Picker</span>
+            </NavLink>
+          </li>
+
+          {/* Divider */}
+          <li className="pt-2 pb-1">
+            <div className="h-px bg-slate-800/80 mx-2" />
+          </li>
+
+          {/* Enterprise Modules: Dashboard, Accounting, Settings */}
+          <li>
+            <NavLink
+              to="/"
+              end
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs transition-colors ${
+                  isActive
+                    ? 'bg-[#ff5000]/15 text-[#ff5000] font-semibold'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                }`
+              }
+            >
+              <LayoutDashboard className="w-4 h-4 shrink-0" />
+              <span>Executive Dashboard</span>
+            </NavLink>
+          </li>
+
+          <li>
+            <NavLink
+              to="/accounting"
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs transition-colors ${
+                  isActive
+                    ? 'bg-[#ff5000]/15 text-[#ff5000] font-semibold'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                }`
+              }
+            >
+              <BookOpen className="w-4 h-4 shrink-0" />
+              <span>Accounting & Ledger</span>
+            </NavLink>
+          </li>
+
+          <li>
+            <NavLink
+              to="/settings"
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3.5 py-2 rounded-xl text-xs transition-colors ${
+                  isActive
+                    ? 'bg-[#ff5000]/15 text-[#ff5000] font-semibold'
+                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/40'
+                }`
+              }
+            >
+              <SettingsIcon className="w-4 h-4 shrink-0" />
+              <span>System Settings</span>
+            </NavLink>
+          </li>
+
         </ul>
       </nav>
-      <div className="p-3 border-t border-surface-2 dark:border-gray-700 space-y-2">
-        {onLockTerminal && (
-          <button
-            onClick={onLockTerminal}
-            className="w-full flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-xs font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 hover:bg-amber-100 dark:hover:bg-amber-900/60 transition cursor-pointer"
-            title={t('nav.lockTerminal', 'Lock screen against unauthorized physical access')}
-          >
-            <Lock className="w-3.5 h-3.5" />
-            <span>{t('nav.lockTerminal', 'Lock Terminal')}</span>
-          </button>
-        )}
-        <div className="flex items-center justify-around pt-1">
-            <NavLink 
-              to="/settings" 
-              title={t('nav.settings', 'System Settings & Security Center')}
-              className={({isActive}) => `flex items-center gap-3 p-2 rounded-lg ${isActive ? 'bg-surface dark:bg-gray-700 text-brand-orange' : 'text-gray-600 dark:text-gray-300 hover:bg-surface dark:hover:bg-gray-700'}`}
-            >
-                <Settings className="w-5 h-5 shrink-0" />
-            </NavLink>
-            <LanguageSwitcher variant="compact" />
-            <ThemeToggle />
-            <button 
-              onClick={onLogout} 
-              title={t('nav.signOut', 'Sign Out Session')}
-              className="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-surface dark:hover:bg-gray-700 cursor-pointer"
-            >
-                <LogOut className="w-5 h-5 shrink-0" />
-            </button>
-        </div>
+
+      {/* FOOTER NAVIGATION: Profile & Logout as in Screenshot */}
+      <div className="p-3 border-t border-slate-800 space-y-1">
+        <NavLink
+          to="/profile"
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+              isActive
+                ? 'bg-slate-800 text-white font-semibold'
+                : 'text-slate-400 hover:text-white hover:bg-slate-800/50'
+            }`
+          }
+        >
+          <User className="w-5 h-5 shrink-0" />
+          <span>Profile</span>
+        </NavLink>
+
+        <button
+          type="button"
+          onClick={onLogout}
+          className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-400 hover:text-rose-400 hover:bg-slate-800/50 transition cursor-pointer text-left"
+        >
+          <LogOut className="w-5 h-5 shrink-0" />
+          <span>Logout</span>
+        </button>
       </div>
+
     </aside>
   );
 };
