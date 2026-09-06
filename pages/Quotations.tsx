@@ -27,12 +27,21 @@ import {
   Check,
   ExternalLink,
   ShieldCheck,
-  AlertCircle
+  AlertCircle,
+  FileSpreadsheet
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useSystemSettings } from '../contexts/SettingsContext';
 import { MOCK_PRODUCTS, MOCK_CUSTOMERS } from '../data/mockData';
 import type { Product, Customer } from '../types';
+import {
+  PrintableDocument,
+  printDocument,
+  downloadDocumentPdf,
+  downloadDocumentCsv,
+  downloadDocumentHtml
+} from '../utils/documentPrinter';
+import DocumentPrintModal from '../components/shared/DocumentPrintModal';
 
 export interface QuotationItem {
   partNumber: string;
@@ -234,6 +243,39 @@ export const Quotations: React.FC = () => {
   const [whatsappModalQuote, setWhatsappModalQuote] = useState<Quotation | null>(null);
   const [whatsappPhone, setWhatsappPhone] = useState<string>('');
   const [quickPosQuoteId, setQuickPosQuoteId] = useState<string>('');
+  const [printModalDocument, setPrintModalDocument] = useState<PrintableDocument | null>(null);
+  const [printModalFormat, setPrintModalFormat] = useState<'80mm' | 'a4'>('a4');
+
+  const quoteToPrintableDoc = (q: Quotation): PrintableDocument => ({
+    type: 'quotation',
+    docNumber: q.quoteNumber,
+    title: 'OFFICIAL PRO-FORMA QUOTATION',
+    date: q.date,
+    validUntil: q.validUntil,
+    customer: {
+      name: q.customer,
+      companyName: q.customerDetails?.companyName,
+      phone: q.customerPhone || q.customerDetails?.phone,
+      email: q.customerEmail || q.customerDetails?.email,
+      kraPin: q.customerDetails?.kraPin,
+      tier: q.customerDetails?.tier,
+      type: q.customerDetails?.type,
+    },
+    items: q.items.map(it => ({
+      partNumber: it.partNumber,
+      name: it.name,
+      quantity: it.quantity,
+      unitPrice: it.unitPrice,
+      totalPrice: it.totalPrice,
+    })),
+    subtotal: q.subtotal,
+    vatAmount: q.tax,
+    vatRate: settings.vatRate,
+    totalAmount: q.amount,
+    notes: q.notes,
+    status: q.status,
+    branch: settings.defaultOutlet,
+  });
 
   // Toast feedback
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'info' | 'error' } | null>(null);
@@ -850,11 +892,19 @@ export const Quotations: React.FC = () => {
                 <div className="pt-2">
                   <button
                     type="button"
-                    onClick={() => window.print()}
+                    onClick={() => {
+                      const quoteToPrint = selectedQuote || quotations[0];
+                      if (quoteToPrint) {
+                        setPrintModalDocument(quoteToPrintableDoc(quoteToPrint));
+                        setPrintModalFormat('a4');
+                      } else {
+                        showToast('No quotations available to print', 'error');
+                      }
+                    }}
                     className="w-full py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-bold transition flex items-center justify-center gap-2 cursor-pointer border border-slate-700"
                   >
-                    <Printer className="w-3.5 h-3.5" />
-                    <span>Print Pro-forma Sheet</span>
+                    <Printer className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Print Pro-forma Sheet (A4 / 80mm)</span>
                   </button>
                 </div>
               </div>
@@ -1290,18 +1340,64 @@ export const Quotations: React.FC = () => {
             <span>Send via Email</span>
           </button>
 
+          {/* Print POS 80mm Slip */}
           <button
             type="button"
             onClick={() => {
               const q = activeQuoteMenu.quote;
               setActiveQuoteMenu(null);
-              setSelectedQuote(q);
-              setTimeout(() => window.print(), 300);
+              printDocument(quoteToPrintableDoc(q), '80mm', settings);
+              showToast(`Sent ${q.quoteNumber} to POS 80mm printer`);
             }}
             className="w-full text-left px-3.5 py-1.5 text-xs text-slate-200 hover:bg-slate-800 hover:text-white flex items-center gap-2.5 cursor-pointer"
           >
-            <Printer className="w-3.5 h-3.5 text-slate-400" />
-            <span>Print Quotation Sheet</span>
+            <Receipt className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Print POS 80mm Slip</span>
+          </button>
+
+          {/* Print A4 Corporate Sheet */}
+          <button
+            type="button"
+            onClick={() => {
+              const q = activeQuoteMenu.quote;
+              setActiveQuoteMenu(null);
+              printDocument(quoteToPrintableDoc(q), 'a4', settings);
+              showToast(`Sent ${q.quoteNumber} to A4 corporate printer`);
+            }}
+            className="w-full text-left px-3.5 py-1.5 text-xs text-slate-200 hover:bg-slate-800 hover:text-white flex items-center gap-2.5 cursor-pointer"
+          >
+            <Printer className="w-3.5 h-3.5 text-blue-400" />
+            <span>Print A4 Quotation Sheet</span>
+          </button>
+
+          {/* Download A4 PDF */}
+          <button
+            type="button"
+            onClick={() => {
+              const q = activeQuoteMenu.quote;
+              setActiveQuoteMenu(null);
+              downloadDocumentPdf(quoteToPrintableDoc(q), 'a4', settings);
+              showToast(`Downloaded ${q.quoteNumber} PDF`);
+            }}
+            className="w-full text-left px-3.5 py-1.5 text-xs text-slate-200 hover:bg-slate-800 hover:text-white flex items-center gap-2.5 cursor-pointer"
+          >
+            <Download className="w-3.5 h-3.5 text-brand-orange" />
+            <span>Download Official PDF</span>
+          </button>
+
+          {/* Interactive Preview & Options */}
+          <button
+            type="button"
+            onClick={() => {
+              const q = activeQuoteMenu.quote;
+              setActiveQuoteMenu(null);
+              setPrintModalDocument(quoteToPrintableDoc(q));
+              setPrintModalFormat('a4');
+            }}
+            className="w-full text-left px-3.5 py-1.5 text-xs text-slate-200 hover:bg-slate-800 hover:text-white flex items-center gap-2.5 cursor-pointer"
+          >
+            <Eye className="w-3.5 h-3.5 text-slate-400" />
+            <span>Preview, 80mm & Export</span>
           </button>
 
           <button
@@ -1456,14 +1552,57 @@ export const Quotations: React.FC = () => {
 
             {/* Modal Footer Actions */}
             <div className="px-6 py-4 border-t border-slate-800 bg-[#0d1629] flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
-                  onClick={() => window.print()}
-                  className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-semibold flex items-center gap-1.5 cursor-pointer"
+                  onClick={() => {
+                    printDocument(quoteToPrintableDoc(selectedQuote), '80mm', settings);
+                    showToast('Sent to POS 80mm Slip Printer');
+                  }}
+                  className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-semibold flex items-center gap-1.5 cursor-pointer border border-slate-700"
+                  title="Print to POS 80mm thermal receipt printer"
                 >
-                  <Printer className="w-3.5 h-3.5" />
-                  <span>Print Quote</span>
+                  <Receipt className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>POS 80mm</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    printDocument(quoteToPrintableDoc(selectedQuote), 'a4', settings);
+                    showToast('Sent to A4 Corporate Printer');
+                  }}
+                  className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-semibold flex items-center gap-1.5 cursor-pointer border border-slate-700"
+                  title="Print to A4 Office Laser/Inkjet"
+                >
+                  <Printer className="w-3.5 h-3.5 text-blue-400" />
+                  <span>A4 Print</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    downloadDocumentPdf(quoteToPrintableDoc(selectedQuote), 'a4', settings);
+                    showToast('Downloaded Quotation PDF');
+                  }}
+                  className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-semibold flex items-center gap-1.5 cursor-pointer border border-slate-700"
+                  title="Download vector PDF document"
+                >
+                  <Download className="w-3.5 h-3.5 text-brand-orange" />
+                  <span>Download PDF</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPrintModalDocument(quoteToPrintableDoc(selectedQuote));
+                    setPrintModalFormat('a4');
+                  }}
+                  className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-semibold flex items-center gap-1.5 cursor-pointer border border-slate-700"
+                  title="Open live preview, 80mm vs A4 selector, CSV & HTML download"
+                >
+                  <Eye className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Preview & Export</span>
                 </button>
 
                 <button
@@ -1766,6 +1905,16 @@ export const Quotations: React.FC = () => {
 
           </div>
         </div>
+      )}
+
+      {/* DOCUMENT PRINT & EXPORT MODAL */}
+      {printModalDocument && (
+        <DocumentPrintModal
+          isOpen={!!printModalDocument}
+          onClose={() => setPrintModalDocument(null)}
+          document={printModalDocument}
+          defaultFormat={printModalFormat}
+        />
       )}
 
     </div>

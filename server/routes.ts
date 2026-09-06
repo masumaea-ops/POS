@@ -5,7 +5,96 @@ import { migrateAndSeedDatabase } from './seeder';
 
 const router = Router();
 
-// In-memory rate limiter for login brute-force prevention
+interface FallbackUserRecord {
+  id: number;
+  username: string;
+  email: string;
+  hash: string;
+  fullName: string;
+  role: string;
+  pinCode?: string;
+  phone?: string;
+  branch?: string;
+  isActive: boolean;
+  lastLogin?: string;
+  createdAt: string;
+}
+
+const fallbackUsersStore: FallbackUserRecord[] = [
+  {
+    id: 1,
+    username: 'admin',
+    email: 'admin@masuma.co.ke',
+    hash: bcrypt.hashSync('admin123', 10),
+    fullName: 'System Administrator',
+    role: 'admin',
+    pinCode: '1234',
+    phone: '+254 700 000 001',
+    branch: 'Nairobi HQ & Central Warehouse',
+    isActive: true,
+    lastLogin: new Date().toISOString(),
+    createdAt: '2025-01-01T00:00:00Z',
+  },
+  {
+    id: 2,
+    username: 'cashier',
+    email: 'cashier@masuma.co.ke',
+    hash: bcrypt.hashSync('cashier123', 10),
+    fullName: 'POS Terminal Cashier',
+    role: 'cashier',
+    pinCode: '0000',
+    phone: '+254 700 000 002',
+    branch: 'Nairobi Counter 1',
+    isActive: true,
+    lastLogin: new Date().toISOString(),
+    createdAt: '2025-01-01T00:00:00Z',
+  },
+  {
+    id: 3,
+    username: 'workshop',
+    email: 'garage@masuma.co.ke',
+    hash: bcrypt.hashSync('garage123', 10),
+    fullName: 'Workshop Chief Engineer',
+    role: 'workshop',
+    pinCode: '9999',
+    phone: '+254 700 000 003',
+    branch: 'Industrial Area Lift Bays',
+    isActive: true,
+    lastLogin: new Date().toISOString(),
+    createdAt: '2025-01-01T00:00:00Z',
+  },
+  {
+    id: 4,
+    username: 'manager',
+    email: 'manager@masuma.co.ke',
+    hash: bcrypt.hashSync('manager123', 10),
+    fullName: 'Regional Operations Manager',
+    role: 'manager',
+    pinCode: '5555',
+    phone: '+254 700 000 004',
+    branch: 'Regional Headquarters',
+    isActive: true,
+    lastLogin: new Date().toISOString(),
+    createdAt: '2025-01-01T00:00:00Z',
+  },
+  {
+    id: 5,
+    username: 'masumaea',
+    email: 'masumaea@gmail.com',
+    hash: bcrypt.hashSync('admin123', 10),
+    fullName: 'Masuma EA Executive',
+    role: 'admin',
+    pinCode: '1111',
+    phone: '+254 722 000 000',
+    branch: 'Executive Suite',
+    isActive: true,
+    lastLogin: new Date().toISOString(),
+    createdAt: '2025-01-01T00:00:00Z',
+  }
+];
+
+let nextUserId = 6;
+
 const loginAttempts = new Map<string, { count: number; lockedUntil: number }>();
 
 function checkRateLimit(key: string): { blocked: boolean; remainingSec: number } {
@@ -125,32 +214,27 @@ router.post('/auth/login', async (req, res) => {
       }
     } else {
       // Offline / Resilient Bcrypt Fallback Authentication
-      const fallbackUsers: Record<string, { hash: string; role: string; name: string; email: string; user: string }> = {
-        'admin': { hash: bcrypt.hashSync('admin123', 10), role: 'admin', name: 'System Administrator', email: 'admin@masuma.co.ke', user: 'admin' },
-        'admin@masuma.co.ke': { hash: bcrypt.hashSync('admin123', 10), role: 'admin', name: 'System Administrator', email: 'admin@masuma.co.ke', user: 'admin' },
-        'masumaea@gmail.com': { hash: bcrypt.hashSync('admin123', 10), role: 'admin', name: 'Masuma EA Executive', email: 'masumaea@gmail.com', user: 'masumaea' },
-        'cashier': { hash: bcrypt.hashSync('cashier123', 10), role: 'cashier', name: 'POS Terminal Cashier', email: 'cashier@masuma.co.ke', user: 'cashier' },
-        'cashier@masuma.co.ke': { hash: bcrypt.hashSync('cashier123', 10), role: 'cashier', name: 'POS Terminal Cashier', email: 'cashier@masuma.co.ke', user: 'cashier' },
-        'workshop': { hash: bcrypt.hashSync('garage123', 10), role: 'workshop', name: 'Workshop Chief Engineer', email: 'garage@masuma.co.ke', user: 'workshop' },
-        'garage@masuma.co.ke': { hash: bcrypt.hashSync('garage123', 10), role: 'workshop', name: 'Workshop Chief Engineer', email: 'garage@masuma.co.ke', user: 'workshop' },
-        'manager': { hash: bcrypt.hashSync('manager123', 10), role: 'manager', name: 'Regional Operations Manager', email: 'manager@masuma.co.ke', user: 'manager' },
-        'manager@masuma.co.ke': { hash: bcrypt.hashSync('manager123', 10), role: 'manager', name: 'Regional Operations Manager', email: 'manager@masuma.co.ke', user: 'manager' },
-      };
+      const account = fallbackUsersStore.find(
+        u => (u.username.toLowerCase() === cleanId || u.email.toLowerCase() === cleanId) && u.isActive
+      );
 
-      const account = fallbackUsers[cleanId];
       if (account) {
-        // Also allow plain 'password' for legacy backward compatibility in dev fallback if needed
+        // Allow bcrypt compare or plain 'password' for legacy backward compatibility in dev fallback if needed
         const isMatch = bcrypt.compareSync(cleanPass, account.hash) || cleanPass === 'password';
         if (isMatch) {
           resetLoginRateLimit(cleanId);
+          account.lastLogin = new Date().toISOString();
           return res.json({
             success: true,
             user: {
-              id: 1,
-              username: account.user,
+              id: account.id,
+              username: account.username,
               email: account.email,
               role: account.role,
-              fullName: account.name
+              fullName: account.fullName,
+              pinCode: account.pinCode,
+              phone: account.phone,
+              branch: account.branch,
             }
           });
         }
@@ -254,6 +338,224 @@ router.get('/garage/branches', async (req, res) => {
     res.json(rows);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+// ==========================================
+// SYSTEM USER MANAGEMENT ENDPOINTS
+// ==========================================
+
+// 1. Get All System Users
+router.get('/users', async (req, res) => {
+  try {
+    const pool = await getDbPool();
+    if (pool) {
+      try {
+        const [rows]: any = await pool.query(
+          'SELECT id, username, email, full_name as fullName, role, pin_code as pinCode, is_active as isActive, last_login as lastLogin, created_at as createdAt FROM users ORDER BY id ASC'
+        );
+        if (Array.isArray(rows) && rows.length > 0) {
+          return res.json({ success: true, users: rows, source: 'mysql' });
+        }
+      } catch (dbErr) {
+        console.warn('[Users API] MySQL users query error, defaulting to fallback store:', dbErr);
+      }
+    }
+
+    // Fallback store
+    const sanitized = fallbackUsersStore.map(u => ({
+      id: u.id,
+      username: u.username,
+      email: u.email,
+      fullName: u.fullName,
+      role: u.role,
+      pinCode: u.pinCode,
+      phone: u.phone,
+      branch: u.branch,
+      isActive: u.isActive,
+      lastLogin: u.lastLogin,
+      createdAt: u.createdAt,
+    }));
+    return res.json({ success: true, users: sanitized, source: 'memory' });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 2. Create System User
+router.post('/users', async (req, res) => {
+  try {
+    const { username, email, password, fullName, role, pinCode, phone, branch, isActive = true } = req.body;
+
+    if (!username || !email || !password || !fullName) {
+      return res.status(400).json({
+        success: false,
+        message: 'Please provide required fields: Username, Email, Password, and Full Name.'
+      });
+    }
+
+    const cleanUser = String(username).trim().toLowerCase();
+    const cleanEmail = String(email).trim().toLowerCase();
+    const cleanRole = ['admin', 'manager', 'cashier', 'workshop', 'accountant'].includes(role) ? role : 'cashier';
+    const cleanPin = pinCode ? String(pinCode).trim() : '0000';
+
+    // Duplicate check in fallback memory
+    if (fallbackUsersStore.some(u => u.username.toLowerCase() === cleanUser || u.email.toLowerCase() === cleanEmail)) {
+      return res.status(409).json({
+        success: false,
+        message: 'A user with this username or email already exists.'
+      });
+    }
+
+    const hash = bcrypt.hashSync(String(password).trim(), 10);
+    const salt = 'bcrypt_salt_10';
+    const nowIso = new Date().toISOString();
+
+    const newRecord: FallbackUserRecord = {
+      id: nextUserId++,
+      username: cleanUser,
+      email: cleanEmail,
+      hash,
+      fullName: String(fullName).trim(),
+      role: cleanRole,
+      pinCode: cleanPin,
+      phone: phone ? String(phone).trim() : undefined,
+      branch: branch ? String(branch).trim() : 'Nairobi HQ',
+      isActive: Boolean(isActive),
+      lastLogin: undefined,
+      createdAt: nowIso,
+    };
+
+    fallbackUsersStore.push(newRecord);
+
+    // Save to MySQL if active
+    const pool = await getDbPool();
+    if (pool) {
+      try {
+        const [result]: any = await pool.query(
+          `INSERT INTO users (username, email, password_hash, salt, pin_code, full_name, role, is_active)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [cleanUser, cleanEmail, hash, salt, cleanPin, newRecord.fullName, cleanRole, newRecord.isActive]
+        );
+        if (result?.insertId) {
+          newRecord.id = result.insertId;
+        }
+      } catch (dbErr: any) {
+        console.warn('[Users API] MySQL insert warning:', dbErr.message);
+      }
+    }
+
+    return res.status(201).json({
+      success: true,
+      message: `System user ${newRecord.fullName} (@${newRecord.username}) created successfully.`,
+      user: {
+        id: newRecord.id,
+        username: newRecord.username,
+        email: newRecord.email,
+        fullName: newRecord.fullName,
+        role: newRecord.role,
+        pinCode: newRecord.pinCode,
+        phone: newRecord.phone,
+        branch: newRecord.branch,
+        isActive: newRecord.isActive,
+        createdAt: newRecord.createdAt,
+      }
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 3. Update System User
+router.put('/users/:id', async (req, res) => {
+  try {
+    const userId = Number(req.params.id);
+    const { fullName, email, role, pinCode, phone, branch, isActive, password } = req.body;
+
+    const fallbackIndex = fallbackUsersStore.findIndex(u => u.id === userId);
+    if (fallbackIndex === -1 && !await getDbPool()) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    let updatedHash: string | undefined;
+    if (password && String(password).trim().length >= 6) {
+      updatedHash = bcrypt.hashSync(String(password).trim(), 10);
+    }
+
+    if (fallbackIndex !== -1) {
+      const existing = fallbackUsersStore[fallbackIndex];
+      existing.fullName = fullName !== undefined ? String(fullName).trim() : existing.fullName;
+      existing.email = email !== undefined ? String(email).trim().toLowerCase() : existing.email;
+      existing.role = role !== undefined ? role : existing.role;
+      existing.pinCode = pinCode !== undefined ? String(pinCode).trim() : existing.pinCode;
+      existing.phone = phone !== undefined ? String(phone).trim() : existing.phone;
+      existing.branch = branch !== undefined ? String(branch).trim() : existing.branch;
+      existing.isActive = isActive !== undefined ? Boolean(isActive) : existing.isActive;
+      if (updatedHash) {
+        existing.hash = updatedHash;
+      }
+    }
+
+    const pool = await getDbPool();
+    if (pool) {
+      try {
+        if (updatedHash) {
+          await pool.query(
+            `UPDATE users SET full_name = COALESCE(?, full_name), email = COALESCE(?, email), role = COALESCE(?, role),
+             pin_code = COALESCE(?, pin_code), is_active = COALESCE(?, is_active), password_hash = ? WHERE id = ?`,
+            [fullName, email, role, pinCode, isActive, updatedHash, userId]
+          );
+        } else {
+          await pool.query(
+            `UPDATE users SET full_name = COALESCE(?, full_name), email = COALESCE(?, email), role = COALESCE(?, role),
+             pin_code = COALESCE(?, pin_code), is_active = COALESCE(?, is_active) WHERE id = ?`,
+            [fullName, email, role, pinCode, isActive, userId]
+          );
+        }
+      } catch (dbErr: any) {
+        console.warn('[Users API] MySQL update error:', dbErr.message);
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: 'System user parameters updated successfully.'
+    });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 4. Delete / Deactivate System User
+router.delete('/users/:id', async (req, res) => {
+  try {
+    const userId = Number(req.params.id);
+
+    const user = fallbackUsersStore.find(u => u.id === userId);
+    if (userId === 1 || user?.username === 'admin') {
+      return res.status(400).json({
+        success: false,
+        message: 'Primary Super Administrator account cannot be deleted.'
+      });
+    }
+
+    const idx = fallbackUsersStore.findIndex(u => u.id === userId);
+    if (idx !== -1) {
+      fallbackUsersStore.splice(idx, 1);
+    }
+
+    const pool = await getDbPool();
+    if (pool) {
+      try {
+        await pool.query('DELETE FROM users WHERE id = ? AND username != "admin"', [userId]);
+      } catch (dbErr: any) {
+        console.warn('[Users API] MySQL delete error:', dbErr.message);
+      }
+    }
+
+    return res.json({ success: true, message: 'User account removed.' });
+  } catch (err: any) {
+    return res.status(500).json({ success: false, error: err.message });
   }
 });
 

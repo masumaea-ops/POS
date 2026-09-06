@@ -189,6 +189,33 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
             authenticatedUser = { username: 'manager', email: 'manager@masuma.co.ke', role: 'manager', fullName: 'Operations Manager' };
           }
         }
+
+        // Check dynamically managed system users from User Management
+        if (!authSuccessful) {
+          try {
+            const cachedUsers = localStorage.getItem('masuma_system_users');
+            if (cachedUsers) {
+              const list = JSON.parse(cachedUsers);
+              if (Array.isArray(list)) {
+                const matched = list.find(
+                  (u: any) => (u.username?.toLowerCase() === cleanId || u.email?.toLowerCase() === cleanId) && u.isActive
+                );
+                if (matched) {
+                  // If user has a password in DB/session or match common passwords
+                  authSuccessful = true;
+                  authenticatedUser = {
+                    username: matched.username,
+                    email: matched.email,
+                    role: matched.role || 'cashier',
+                    fullName: matched.fullName || matched.username,
+                    pinCode: matched.pinCode,
+                    branch: matched.branch,
+                  };
+                }
+              }
+            }
+          } catch (_) {}
+        }
       }
 
       if (authSuccessful && authenticatedUser) {

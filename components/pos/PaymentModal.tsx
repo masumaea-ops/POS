@@ -1,7 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
-import type { Customer } from '../../types';
+import { X, Printer, Download, FileText, Receipt, Eye, CheckCircle2 } from 'lucide-react';
+import type { Customer, CartItem } from '../../types';
 import { useSystemSettings } from '../../contexts/SettingsContext';
+import {
+  PrintableDocument,
+  printDocument,
+  downloadDocumentPdf,
+  downloadDocumentCsv
+} from '../../utils/documentPrinter';
+import DocumentPrintModal from '../shared/DocumentPrintModal';
 
 interface PaymentModalProps {
   isOpen: boolean;
@@ -9,9 +16,17 @@ interface PaymentModalProps {
   totalAmount: number;
   onPaymentSuccess: () => void;
   customer: Customer;
+  cartItems?: CartItem[];
 }
 
-const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, totalAmount, onPaymentSuccess, customer }) => {
+const PaymentModal: React.FC<PaymentModalProps> = ({
+  isOpen,
+  onClose,
+  totalAmount,
+  onPaymentSuccess,
+  customer,
+  cartItems = [],
+}) => {
   const { settings, formatPrice } = useSystemSettings();
   
   const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'M-Pesa' | 'Card' | 'Bank EFT' | 'Split'>('Cash');
@@ -32,6 +47,8 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, totalAmoun
   const [showInvoiceTicket, setShowInvoiceTicket] = useState(false);
   const [etimsSignature, setEtimsSignature] = useState('');
   const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [actionNotice, setActionNotice] = useState<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
@@ -445,22 +462,220 @@ const PaymentModal: React.FC<PaymentModalProps> = ({ isOpen, onClose, totalAmoun
                </div>
             </div>
 
-            <div className="mt-6 flex flex-col gap-2 no-print">
-               <button 
+            {/* DEDICATED PRINT, DOWNLOAD & ACTION SUITE */}
+            {actionNotice && (
+              <div className="mt-4 p-2.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-semibold flex items-center justify-center gap-2 animate-fade-in no-print">
+                <CheckCircle2 className="w-4 h-4" />
+                <span>{actionNotice}</span>
+              </div>
+            )}
+
+            <div className="mt-5 flex flex-col gap-2.5 no-print">
+              {/* PRIMARY ACTION: PRINT TO POS 80MM */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
                   onClick={() => {
-                     window.print();
+                    const printableDoc: PrintableDocument = {
+                      type: 'receipt',
+                      docNumber: invoiceNumber,
+                      title: 'OFFICIAL CASH SALE RECEIPT',
+                      date: new Date().toLocaleString(),
+                      customer: {
+                        name: customer.name,
+                        companyName: customer.companyName,
+                        phone: customer.phone,
+                        kraPin: customer.kraPin,
+                        tier: customer.tier,
+                        type: customer.type,
+                      },
+                      items: cartItems.length > 0 ? cartItems.map(it => ({
+                        partNumber: it.sku,
+                        name: it.name,
+                        quantity: it.quantity,
+                        unitPrice: it.price,
+                        totalPrice: it.price * it.quantity,
+                      })) : [
+                        { name: 'POS Counter Sale - Genuine Auto Parts', quantity: 1, unitPrice: taxableBase, totalPrice: taxableBase }
+                      ],
+                      subtotal: taxableBase,
+                      vatAmount: vatAmount,
+                      vatRate: settings.vatRate,
+                      totalAmount: totalAmount,
+                      paidAmount: actualTendered,
+                      balanceDue: changeDue > 0 ? 0 : Math.max(0, totalAmount - actualTendered),
+                      paymentMethod: paymentMethod,
+                      paymentReference: mpesaRef || bankRef || undefined,
+                      cashier: 'POS Operator',
+                      branch: settings.defaultOutlet,
+                      eTimsSignature: etimsSignature,
+                      eTimsDeviceSerial: settings.deviceSerial,
+                    };
+                    printDocument(printableDoc, '80mm', settings);
+                    setActionNotice('Sent to POS 80mm Thermal Receipt Printer');
+                    setTimeout(() => setActionNotice(null), 3000);
                   }}
-                  className="w-full py-3 bg-slate-900 border border-slate-800 hover:bg-slate-950 text-white rounded-xl font-bold font-sans text-xs tracking-wider uppercase shadow-md flex items-center justify-center gap-2 cursor-pointer"
-               >
-                 📠 Direct-Print Invoice Slip
-               </button>
-               <button 
-                  onClick={finalizeSale}
-                  className="w-full py-3 bg-brand-orange hover:bg-brand-orange/90 text-white rounded-xl font-bold font-sans text-sm tracking-wider uppercase shadow-md cursor-pointer"
+                  className="py-3 px-2 bg-slate-900 hover:bg-slate-950 text-white rounded-xl font-bold font-sans text-xs tracking-wider uppercase shadow-md flex items-center justify-center gap-1.5 cursor-pointer border border-slate-750 transition-all hover:scale-[1.01]"
                 >
-                  Done & Close
-               </button>
+                  <Receipt className="w-4 h-4 text-emerald-400" />
+                  <span>Print POS 80mm</span>
+                </button>
+
+                {/* PRINT TO A4 INVOICE */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    const printableDoc: PrintableDocument = {
+                      type: 'invoice',
+                      docNumber: invoiceNumber,
+                      title: 'OFFICIAL TAX INVOICE',
+                      date: new Date().toLocaleDateString(),
+                      customer: {
+                        name: customer.name,
+                        companyName: customer.companyName,
+                        phone: customer.phone,
+                        kraPin: customer.kraPin,
+                        tier: customer.tier,
+                        type: customer.type,
+                      },
+                      items: cartItems.length > 0 ? cartItems.map(it => ({
+                        partNumber: it.sku,
+                        name: it.name,
+                        quantity: it.quantity,
+                        unitPrice: it.price,
+                        totalPrice: it.price * it.quantity,
+                      })) : [
+                        { name: 'Counter Sale - Japanese & Korean Spare Parts', quantity: 1, unitPrice: taxableBase, totalPrice: taxableBase }
+                      ],
+                      subtotal: taxableBase,
+                      vatAmount: vatAmount,
+                      vatRate: settings.vatRate,
+                      totalAmount: totalAmount,
+                      paidAmount: actualTendered,
+                      balanceDue: changeDue > 0 ? 0 : Math.max(0, totalAmount - actualTendered),
+                      paymentMethod: paymentMethod,
+                      paymentReference: mpesaRef || bankRef || undefined,
+                      branch: settings.defaultOutlet,
+                      eTimsSignature: etimsSignature,
+                      eTimsDeviceSerial: settings.deviceSerial,
+                    };
+                    printDocument(printableDoc, 'a4', settings);
+                    setActionNotice('Sent to A4 Corporate Laser Printer');
+                    setTimeout(() => setActionNotice(null), 3000);
+                  }}
+                  className="py-3 px-2 bg-slate-800 hover:bg-slate-750 text-white rounded-xl font-bold font-sans text-xs tracking-wider uppercase shadow-md flex items-center justify-center gap-1.5 cursor-pointer border border-slate-700 transition-all hover:scale-[1.01]"
+                >
+                  <FileText className="w-4 h-4 text-blue-400" />
+                  <span>Print A4 Invoice</span>
+                </button>
+              </div>
+
+              {/* SECONDARY ACTION ROW: DOWNLOAD PDF & PREVIEW */}
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const printableDoc: PrintableDocument = {
+                      type: 'invoice',
+                      docNumber: invoiceNumber,
+                      title: 'OFFICIAL TAX INVOICE',
+                      date: new Date().toLocaleDateString(),
+                      customer: {
+                        name: customer.name,
+                        companyName: customer.companyName,
+                        phone: customer.phone,
+                        kraPin: customer.kraPin,
+                        tier: customer.tier,
+                        type: customer.type,
+                      },
+                      items: cartItems.length > 0 ? cartItems.map(it => ({
+                        partNumber: it.sku,
+                        name: it.name,
+                        quantity: it.quantity,
+                        unitPrice: it.price,
+                        totalPrice: it.price * it.quantity,
+                      })) : [
+                        { name: 'Counter Sale Parts', quantity: 1, unitPrice: taxableBase, totalPrice: taxableBase }
+                      ],
+                      subtotal: taxableBase,
+                      vatAmount: vatAmount,
+                      vatRate: settings.vatRate,
+                      totalAmount: totalAmount,
+                      paidAmount: actualTendered,
+                      paymentMethod: paymentMethod,
+                      paymentReference: mpesaRef || bankRef || undefined,
+                      eTimsSignature: etimsSignature,
+                    };
+                    downloadDocumentPdf(printableDoc, 'a4', settings);
+                    setActionNotice('Downloaded Official A4 PDF');
+                    setTimeout(() => setActionNotice(null), 3000);
+                  }}
+                  className="py-2.5 px-2 bg-slate-800/80 hover:bg-slate-750 text-slate-200 rounded-xl font-semibold font-sans text-xs flex items-center justify-center gap-1.5 cursor-pointer border border-slate-700"
+                >
+                  <Download className="w-3.5 h-3.5 text-brand-orange" />
+                  <span>Download PDF</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsPrintModalOpen(true)}
+                  className="py-2.5 px-2 bg-slate-800/80 hover:bg-slate-750 text-slate-200 rounded-xl font-semibold font-sans text-xs flex items-center justify-center gap-1.5 cursor-pointer border border-slate-700"
+                >
+                  <Eye className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Preview & Export</span>
+                </button>
+              </div>
+
+              {/* FINALIZE BUTTON */}
+              <button 
+                onClick={finalizeSale}
+                className="w-full py-3 bg-brand-orange hover:bg-brand-orange/90 text-white rounded-xl font-bold font-sans text-sm tracking-wider uppercase shadow-md cursor-pointer mt-1"
+              >
+                Done & Next Customer
+              </button>
             </div>
+
+            {/* INTERACTIVE PRINT & PREVIEW MODAL */}
+            {isPrintModalOpen && (
+              <DocumentPrintModal
+                isOpen={isPrintModalOpen}
+                onClose={() => setIsPrintModalOpen(false)}
+                defaultFormat="80mm"
+                document={{
+                  type: 'receipt',
+                  docNumber: invoiceNumber,
+                  title: 'OFFICIAL TAX INVOICE / RECEIPT',
+                  date: new Date().toLocaleString(),
+                  customer: {
+                    name: customer.name,
+                    companyName: customer.companyName,
+                    phone: customer.phone,
+                    kraPin: customer.kraPin,
+                    tier: customer.tier,
+                    type: customer.type,
+                  },
+                  items: cartItems.length > 0 ? cartItems.map(it => ({
+                    partNumber: it.sku,
+                    name: it.name,
+                    quantity: it.quantity,
+                    unitPrice: it.price,
+                    totalPrice: it.price * it.quantity,
+                  })) : [
+                    { name: 'POS Counter Checkout', quantity: 1, unitPrice: taxableBase, totalPrice: taxableBase }
+                  ],
+                  subtotal: taxableBase,
+                  vatAmount: vatAmount,
+                  vatRate: settings.vatRate,
+                  totalAmount: totalAmount,
+                  paidAmount: actualTendered,
+                  balanceDue: changeDue > 0 ? 0 : Math.max(0, totalAmount - actualTendered),
+                  paymentMethod: paymentMethod,
+                  paymentReference: mpesaRef || bankRef || undefined,
+                  eTimsSignature: etimsSignature,
+                  eTimsDeviceSerial: settings.deviceSerial,
+                }}
+              />
+            )}
           </div>
         )}
       </div>

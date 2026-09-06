@@ -4,14 +4,67 @@ import Tabs from '../components/shared/Tabs';
 import Table, { TableRowAction } from '../components/shared/Table';
 import { MOCK_SALE_ORDERS, MOCK_CUSTOMERS, MOCK_PRODUCTS } from '../data/mockData';
 import type { SaleOrder, Customer, Product, SalesReturn } from '../types';
-import { X, RefreshCw, FileText, ClipboardList, Printer, Eye, ArrowRight, Copy } from 'lucide-react';
+import { X, RefreshCw, FileText, ClipboardList, Printer, Eye, ArrowRight, Copy, Download, Receipt, FileSpreadsheet } from 'lucide-react';
 import { useSystemSettings } from '../contexts/SettingsContext';
+import {
+  PrintableDocument,
+  printDocument,
+  downloadDocumentPdf,
+  downloadDocumentCsv
+} from '../utils/documentPrinter';
+import DocumentPrintModal from '../components/shared/DocumentPrintModal';
+import PrintActionDropdown from '../components/shared/PrintActionDropdown';
 
 const Sales: React.FC = () => {
   const { settings, formatPrice } = useSystemSettings();
   const tabs = ["Quotes", "Orders", "Invoices", "Returns"];
   const [salesOrders, setSalesOrders] = useState<SaleOrder[]>(MOCK_SALE_ORDERS);
   const [selectedOrder, setSelectedOrder] = useState<SaleOrder | null>(null);
+  const [printModalDoc, setPrintModalDoc] = useState<PrintableDocument | null>(null);
+  
+  const saleOrderToPrintableDoc = (order: SaleOrder): PrintableDocument => {
+    const isInvoice = order.status === 'Invoiced';
+    const isQuote = order.status === 'Quote';
+    const docType = isInvoice ? 'invoice' : (isQuote ? 'quotation' : 'receipt');
+    const title = isInvoice ? 'OFFICIAL TAX INVOICE' : (isQuote ? 'PRO-FORMA QUOTATION' : 'SALES ORDER RECEIPT');
+    
+    const rate = settings.vatRate || 16;
+    const taxableSubtotal = +(order.total / (1 + rate / 100)).toFixed(2);
+    const vatAmount = +(order.total - taxableSubtotal).toFixed(2);
+
+    return {
+      type: docType,
+      docNumber: order.id,
+      title,
+      date: order.date,
+      customer: {
+        name: order.customer.name,
+        companyName: order.customer.name,
+        phone: order.customer.phone || '+254 722 000 000',
+        email: order.customer.email,
+        kraPin: order.customer.kraPin || 'P051982341Z',
+        tier: order.customer.tier,
+        type: order.customer.type,
+      },
+      items: (order.items || []).map(item => ({
+        partNumber: 'MS-PART',
+        name: item.productName,
+        quantity: item.quantity,
+        unitPrice: item.price,
+        totalPrice: item.price * item.quantity,
+      })),
+      subtotal: taxableSubtotal,
+      vatAmount: vatAmount,
+      vatRate: rate,
+      totalAmount: order.total,
+      paidAmount: order.status === 'Invoiced' ? order.total : 0,
+      balanceDue: order.status === 'Invoiced' ? 0 : order.total,
+      status: order.status,
+      eTimsSignature: `FSC-KRA-${order.id.replace(/[^0-9]/g, '').slice(-6) || '991023'}`,
+      eTimsDeviceSerial: settings.deviceSerial,
+      branch: settings.defaultOutlet,
+    };
+  };
   
   // Quote Preparation States
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -394,13 +447,18 @@ const Sales: React.FC = () => {
     {
       header: 'Interactive Control',
       accessor: (item: SaleOrder) => (
-        <div className="flex gap-2 justify-center">
+        <div className="flex gap-2 justify-center items-center">
            <button 
              onClick={() => setSelectedOrder(item)}
              className="px-2.5 py-1 text-xs bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-slate-700 dark:text-slate-200 rounded font-bold"
            >
              View Document
            </button>
+           <PrintActionDropdown
+             variant="compact"
+             document={saleOrderToPrintableDoc(item)}
+             onOpenPreview={() => setPrintModalDoc(saleOrderToPrintableDoc(item))}
+           />
            {item.status === 'Quote' && (
              <button 
                onClick={() => handleConvertToInvoice(item.id)}
@@ -623,13 +681,47 @@ const Sales: React.FC = () => {
 
                  {/* Modal bottom action button */}
                  <div className="pt-6 border-t border-slate-150 dark:border-slate-700 space-y-2 no-print">
-                     <button
-                       onClick={() => window.print()}
-                       className="w-full py-2.5 bg-slate-900 hover:bg-slate-950 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all font-mono flex items-center justify-center gap-2 cursor-pointer"
-                     >
-                       <Printer className="w-4 h-4 text-brand-orange" />
-                       <span>Print Official Document Invoice</span>
-                     </button>
+                     <div className="grid grid-cols-2 gap-2">
+                       <button
+                         type="button"
+                         onClick={() => printDocument(saleOrderToPrintableDoc(selectedOrder), '80mm', settings)}
+                         className="py-2.5 bg-slate-900 hover:bg-slate-950 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all font-mono flex items-center justify-center gap-1.5 cursor-pointer"
+                         title="Print POS 80mm thermal receipt"
+                       >
+                         <Receipt className="w-3.5 h-3.5 text-emerald-400" />
+                         <span>POS 80mm</span>
+                       </button>
+
+                       <button
+                         type="button"
+                         onClick={() => printDocument(saleOrderToPrintableDoc(selectedOrder), 'a4', settings)}
+                         className="py-2.5 bg-slate-900 hover:bg-slate-950 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-md transition-all font-mono flex items-center justify-center gap-1.5 cursor-pointer"
+                         title="Print A4 official tax invoice letterhead"
+                       >
+                         <Printer className="w-3.5 h-3.5 text-blue-400" />
+                         <span>A4 Sheet</span>
+                       </button>
+
+                       <button
+                         type="button"
+                         onClick={() => downloadDocumentPdf(saleOrderToPrintableDoc(selectedOrder), 'a4', settings)}
+                         className="py-2.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-650 text-slate-800 dark:text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all font-mono flex items-center justify-center gap-1.5 cursor-pointer"
+                         title="Download PDF"
+                       >
+                         <Download className="w-3.5 h-3.5 text-brand-orange" />
+                         <span>PDF Doc</span>
+                       </button>
+
+                       <button
+                         type="button"
+                         onClick={() => setPrintModalDoc(saleOrderToPrintableDoc(selectedOrder))}
+                         className="py-2.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-650 text-slate-800 dark:text-white font-bold text-xs uppercase tracking-wider rounded-xl transition-all font-mono flex items-center justify-center gap-1.5 cursor-pointer"
+                         title="Interactive Preview, CSV & Options"
+                       >
+                         <Eye className="w-3.5 h-3.5 text-slate-400" />
+                         <span>Preview</span>
+                       </button>
+                     </div>
 
                      {selectedOrder.status === 'Quote' && (
                         <button 
@@ -1082,6 +1174,15 @@ const Sales: React.FC = () => {
                  </form>
              </div>
          </div>
+      )}
+      {/* DOCUMENT PRINT & EXPORT MODAL */}
+      {printModalDoc && (
+        <DocumentPrintModal
+          isOpen={!!printModalDoc}
+          onClose={() => setPrintModalDoc(null)}
+          document={printModalDoc}
+          defaultFormat="a4"
+        />
       )}
     </div>
   );

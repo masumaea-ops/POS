@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import PageHeader from '../components/shared/PageHeader';
 import ThemeToggle from '../components/layout/ThemeToggle';
 import LanguageSwitcher from '../components/shared/LanguageSwitcher';
@@ -6,6 +7,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useSystemSettings } from '../contexts/SettingsContext';
 import { useLanguage } from '../contexts/LanguageContext';
 import Card from '../components/shared/Card';
+import UserManagementSection from '../components/settings/UserManagementSection';
 import { 
   ShieldCheck, 
   Lock, 
@@ -29,7 +31,8 @@ import {
   HardDrive,
   Terminal,
   Copy,
-  Play
+  Play,
+  Users
 } from 'lucide-react';
 import { 
   verifyPassword, 
@@ -148,7 +151,24 @@ const Settings: React.FC = () => {
   const { theme } = useTheme();
   const { settings, updateSettings } = useSystemSettings();
   const { language, setLanguage, t } = useLanguage();
-  const [activeTab, setActiveTab] = useState<'general' | 'security' | 'localization' | 'database'>('general');
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = searchParams.get('tab');
+  const validTabs = ['general', 'security', 'users', 'localization', 'database'];
+  const [activeTab, setActiveTab] = useState<'general' | 'security' | 'users' | 'localization' | 'database'>(
+    initialTab && validTabs.includes(initialTab) ? (initialTab as any) : 'general'
+  );
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam && validTabs.includes(tabParam) && tabParam !== activeTab) {
+      setActiveTab(tabParam as any);
+    }
+  }, [searchParams]);
+
+  const handleTabChange = (tab: 'general' | 'security' | 'users' | 'localization' | 'database') => {
+    setActiveTab(tab);
+    setSearchParams({ tab });
+  };
 
   // Database Management State
   const [dbStatus, setDbStatus] = useState<any>(null);
@@ -510,14 +530,14 @@ const Settings: React.FC = () => {
         <div className="flex gap-4 md:gap-8 overflow-x-auto text-xs md:text-sm">
           <button 
             type="button"
-            onClick={() => setActiveTab('general')}
+            onClick={() => handleTabChange('general')}
             className={`py-4 font-bold border-b-2 transition-colors whitespace-nowrap cursor-pointer ${activeTab === 'general' ? 'border-brand-orange text-brand-orange' : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}`}
           >
             📋 {t('settings.generalTab', 'General ERP Settings')}
           </button>
           <button 
             type="button"
-            onClick={() => setActiveTab('security')}
+            onClick={() => handleTabChange('security')}
             className={`py-4 font-bold border-b-2 transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${activeTab === 'security' ? 'border-brand-orange text-brand-orange' : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}`}
           >
             <ShieldCheck className="w-4 h-4 text-emerald-500" />
@@ -525,7 +545,15 @@ const Settings: React.FC = () => {
           </button>
           <button 
             type="button"
-            onClick={() => setActiveTab('localization')}
+            onClick={() => handleTabChange('users')}
+            className={`py-4 font-bold border-b-2 transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${activeTab === 'users' ? 'border-brand-orange text-brand-orange' : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}`}
+          >
+            <Users className="w-4 h-4 text-amber-500" />
+            <span>Users & Access Control</span>
+          </button>
+          <button 
+            type="button"
+            onClick={() => handleTabChange('localization')}
             className={`py-4 font-bold border-b-2 transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${activeTab === 'localization' ? 'border-brand-orange text-brand-orange' : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}`}
           >
             <Globe className="w-4 h-4 text-blue-500" />
@@ -533,7 +561,7 @@ const Settings: React.FC = () => {
           </button>
           <button 
             type="button"
-            onClick={() => setActiveTab('database')}
+            onClick={() => handleTabChange('database')}
             className={`py-4 font-bold border-b-2 transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${activeTab === 'database' ? 'border-brand-orange text-brand-orange' : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}`}
           >
             <Database className="w-4 h-4 text-indigo-500" />
@@ -1053,6 +1081,11 @@ const Settings: React.FC = () => {
           </div>
 
         </div>
+      )}
+
+      {/* TAB: SYSTEM USERS & ACCESS CONTROL */}
+      {activeTab === 'users' && (
+        <UserManagementSection />
       )}
 
       {/* TAB 3: LANGUAGE & REGIONAL LOCALIZATION */}

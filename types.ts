@@ -390,6 +390,18 @@ export interface CustomerFeedback {
   createdAt: string;
 }
 
+export type SystemUserRole = 'admin' | 'manager' | 'cashier' | 'workshop' | 'accountant';
 
-
-
+export interface SystemUser {
+  id: string | number;
+  username: string;
+  email: string;
+  fullName: string;
+  role: SystemUserRole;
+  pinCode?: string;
+  phone?: string;
+  branch?: string;
+  isActive: boolean;
+  lastLogin?: string;
+  createdAt?: string;
+}

@@ -10,9 +10,18 @@ import {
   AlertCircle,
   FileText,
   X,
-  CreditCard
+  CreditCard,
+  FileSpreadsheet
 } from 'lucide-react';
 import { useSystemSettings } from '../contexts/SettingsContext';
+import {
+  PrintableDocument,
+  printDocument,
+  downloadDocumentPdf,
+  downloadDocumentCsv
+} from '../utils/documentPrinter';
+import DocumentPrintModal from '../components/shared/DocumentPrintModal';
+import PrintActionDropdown from '../components/shared/PrintActionDropdown';
 
 interface InvoiceRecord {
   invoiceNumber: string;
@@ -118,10 +127,51 @@ const SAMPLE_INVOICES: InvoiceRecord[] = [
 ];
 
 export const Invoices: React.FC = () => {
-  const { formatPrice } = useSystemSettings();
+  const { settings, formatPrice } = useSystemSettings();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [selectedInvoice, setSelectedInvoice] = useState<InvoiceRecord | null>(null);
+  const [printModalDoc, setPrintModalDoc] = useState<PrintableDocument | null>(null);
+
+  const invoiceToPrintableDoc = (inv: InvoiceRecord): PrintableDocument => {
+    const rate = settings.vatRate || 16;
+    const taxableSubtotal = +(inv.amount / (1 + rate / 100)).toFixed(2);
+    const vatAmount = +(inv.amount - taxableSubtotal).toFixed(2);
+    return {
+      type: 'invoice',
+      docNumber: inv.invoiceNumber,
+      title: 'OFFICIAL TAX INVOICE',
+      date: inv.date,
+      dueDate: inv.dueDate,
+      customer: {
+        name: inv.customer,
+        companyName: inv.customer,
+        phone: '+254 722 000 000',
+        kraPin: 'P051982341Z',
+        tier: 'Wholesale A',
+        type: 'Credit',
+      },
+      items: [
+        {
+          partNumber: 'MS-AUTO-PARTS',
+          name: `Japanese / Korean Spare Parts (${inv.channel})`,
+          quantity: 1,
+          unitPrice: taxableSubtotal,
+          totalPrice: taxableSubtotal,
+        }
+      ],
+      subtotal: taxableSubtotal,
+      vatAmount: vatAmount,
+      vatRate: rate,
+      totalAmount: inv.amount,
+      paidAmount: inv.paidAmount,
+      balanceDue: Math.max(0, inv.amount - inv.paidAmount),
+      status: inv.status,
+      eTimsSignature: inv.eTimsFsc,
+      eTimsDeviceSerial: settings.deviceSerial,
+      branch: settings.defaultOutlet,
+    };
+  };
 
   const filteredInvoices = SAMPLE_INVOICES.filter(inv => {
     const matchSearch = inv.invoiceNumber.toLowerCase().includes(search.toLowerCase()) ||
@@ -226,14 +276,21 @@ export const Invoices: React.FC = () => {
                     {inv.eTimsFsc}
                   </td>
                   <td className="py-4 px-5 text-center">
-                    <button
-                      type="button"
-                      onClick={() => setSelectedInvoice(inv)}
-                      className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-750 transition cursor-pointer"
-                      title="Inspect Invoice"
-                    >
-                      <Eye className="w-4 h-4" />
-                    </button>
+                    <div className="flex items-center justify-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedInvoice(inv)}
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-750 transition cursor-pointer"
+                        title="Inspect Invoice"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <PrintActionDropdown
+                        variant="compact"
+                        document={invoiceToPrintableDoc(inv)}
+                        onOpenPreview={() => setPrintModalDoc(invoiceToPrintableDoc(inv))}
+                      />
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -288,15 +345,46 @@ export const Invoices: React.FC = () => {
               </div>
             </div>
 
-            <div className="mt-6 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => window.print()}
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold flex items-center gap-1.5 cursor-pointer"
-              >
-                <Printer className="w-3.5 h-3.5" />
-                <span>Print Invoice</span>
-              </button>
+            <div className="mt-6 flex flex-wrap justify-between items-center gap-2 border-t border-slate-800 pt-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => printDocument(invoiceToPrintableDoc(selectedInvoice), '80mm', settings)}
+                  className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 font-semibold flex items-center gap-1.5 cursor-pointer border border-slate-700"
+                  title="Print POS 80mm thermal receipt"
+                >
+                  <Receipt className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>POS 80mm</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => printDocument(invoiceToPrintableDoc(selectedInvoice), 'a4', settings)}
+                  className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 font-semibold flex items-center gap-1.5 cursor-pointer border border-slate-700"
+                  title="Print A4 official tax invoice letterhead"
+                >
+                  <Printer className="w-3.5 h-3.5 text-blue-400" />
+                  <span>A4 Print</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => downloadDocumentPdf(invoiceToPrintableDoc(selectedInvoice), 'a4', settings)}
+                  className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 font-semibold flex items-center gap-1.5 cursor-pointer border border-slate-700"
+                  title="Download A4 PDF"
+                >
+                  <Download className="w-3.5 h-3.5 text-brand-orange" />
+                  <span>PDF</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPrintModalDoc(invoiceToPrintableDoc(selectedInvoice))}
+                  className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-slate-200 font-semibold flex items-center gap-1.5 cursor-pointer border border-slate-700"
+                  title="Interactive Preview & Setup"
+                >
+                  <Eye className="w-3.5 h-3.5 text-slate-400" />
+                  <span>Preview</span>
+                </button>
+              </div>
+
               <button
                 type="button"
                 onClick={() => setSelectedInvoice(null)}
@@ -307,6 +395,16 @@ export const Invoices: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* DOCUMENT PRINT & EXPORT MODAL */}
+      {printModalDoc && (
+        <DocumentPrintModal
+          isOpen={!!printModalDoc}
+          onClose={() => setPrintModalDoc(null)}
+          document={printModalDoc}
+          defaultFormat="a4"
+        />
       )}
 
     </div>

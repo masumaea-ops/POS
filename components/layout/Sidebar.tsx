@@ -347,10 +347,24 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
       {/* FOOTER NAVIGATION: System Settings, Profile & Logout */}
       <div className="p-3 border-t border-slate-800 space-y-1">
         <NavLink
+          to="/settings?tab=users"
+          className={() =>
+            `flex items-center gap-3 px-3.5 py-2 rounded-xl text-sm font-medium transition-colors ${
+              location.pathname === '/settings' && location.search.includes('tab=users')
+                ? 'bg-[#ff5000] text-white font-semibold shadow-sm'
+                : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+            }`
+          }
+        >
+          <Users className="w-5 h-5 shrink-0 text-amber-400" />
+          <span>Users & Staff</span>
+        </NavLink>
+
+        <NavLink
           to="/settings"
           className={({ isActive }) =>
-            `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-              isActive
+            `flex items-center gap-3 px-3.5 py-2 rounded-xl text-sm font-medium transition-colors ${
+              isActive && !location.search.includes('tab=users')
                 ? 'bg-[#ff5000] text-white font-semibold shadow-sm'
                 : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
             }`
@@ -363,7 +377,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
         <NavLink
           to="/profile"
           className={({ isActive }) =>
-            `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+            `flex items-center gap-3 px-3.5 py-2 rounded-xl text-sm font-medium transition-colors ${
               isActive
                 ? 'bg-[#ff5000] text-white font-semibold shadow-sm'
                 : 'text-slate-300 hover:text-white hover:bg-slate-800/60'

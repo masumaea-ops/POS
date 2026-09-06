@@ -403,6 +403,7 @@ const Cart: React.FC<CartProps> = ({
                 totalAmount={total}
                 onPaymentSuccess={handleSaleComplete}
                 customer={customer}
+                cartItems={cartItems}
             />
             <DiscountModal 
                 isOpen={isDiscountModalOpen}
