@@ -4,7 +4,7 @@ import Table, { TableRowAction } from '../components/shared/Table';
 import { useSystemSettings } from '../contexts/SettingsContext';
 import type { Shipment, Customer, SaleOrder } from '../types';
 import { MOCK_SALE_ORDERS, MOCK_CUSTOMERS } from '../data/mockData';
-import { X, Package, Truck, CheckCircle2, AlertTriangle, FileText, Eye, Printer, Copy, Tag } from 'lucide-react';
+import { X, Package, Truck, CheckCircle2, AlertTriangle, FileText, Eye, Printer, Copy, Tag, MapPin } from 'lucide-react';
 
 const COURIER_PARTNERS = [
   { id: 'dhl', name: 'DHL Express Kenya' },
@@ -239,7 +239,7 @@ const Shipping: React.FC = () => {
           onClick={() => setSelectedShipment(item)}
           className="font-mono font-black text-brand-orange hover:underline text-left block"
         >
-          🚚 {item.id}
+          <span className="inline-flex items-center gap-1.5"><Truck className="w-3.5 h-3.5 text-brand-orange shrink-0" /><span>{item.id}</span></span>
         </button>
       )
     },
@@ -301,7 +301,7 @@ const Shipping: React.FC = () => {
             className="px-2 py-1 text-[11px] bg-brand-orange/10 hover:bg-brand-orange/20 text-brand-orange rounded font-bold"
             title="Generate thermal barcoded label for delivery package"
           >
-            🏷️ Print Label
+            <span className="inline-flex items-center gap-1"><Tag className="w-3 h-3 shrink-0" /><span>Print Label</span></span>
           </button>
         </div>
       )
@@ -470,17 +470,17 @@ const Shipping: React.FC = () => {
                 </div>
 
                 <div className="col-span-2 border-t border-slate-200 dark:border-slate-750 pt-2 text-[10px] text-slate-650 dark:text-slate-350 space-y-1">
-                  <div>🚚 <span className="font-bold">Courier Name:</span> {selectedShipment.courierName}</div>
+                  <div className="flex items-center gap-1.5"><Truck className="w-3.5 h-3.5 text-slate-400 shrink-0" /><span className="font-bold">Courier Name:</span> {selectedShipment.courierName}</div>
                   {selectedShipment.trackingNumber && (
-                    <div>🏷️ <span className="font-bold">Waybill Ref / Airbill:</span> <span className="font-mono text-xs text-brand-orange font-bold">{selectedShipment.trackingNumber}</span></div>
+                    <div className="flex items-center gap-1.5"><Tag className="w-3.5 h-3.5 text-brand-orange shrink-0" /><span className="font-bold">Waybill Ref / Airbill:</span> <span className="font-mono text-xs text-brand-orange font-bold">{selectedShipment.trackingNumber}</span></div>
                   )}
                   {selectedShipment.customer.kraPin && (
-                    <div>🏷️ <span className="font-bold">Client KRA PIN:</span> <span className="font-mono text-slate-700 dark:text-slate-350 font-bold">{selectedShipment.customer.kraPin}</span></div>
+                    <div className="flex items-center gap-1.5"><Tag className="w-3.5 h-3.5 text-amber-500 shrink-0" /><span className="font-bold">Client KRA PIN:</span> <span className="font-mono text-slate-700 dark:text-slate-350 font-bold">{selectedShipment.customer.kraPin}</span></div>
                   )}
-                  <div>📍 <span className="font-bold">Shipping Destination Address:</span> <span className="font-semibold text-slate-800 dark:text-white">{selectedShipment.customer.shippingAddress || 'Nairobi Counter Pickup'}</span></div>
+                  <div className="flex items-center gap-1.5"><MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" /><span className="font-bold">Shipping Destination Address:</span> <span className="font-semibold text-slate-800 dark:text-white">{selectedShipment.customer.shippingAddress || 'Nairobi Counter Pickup'}</span></div>
                   {selectedShipment.notes && (
                     <div className="bg-white dark:bg-slate-850 p-2 rounded border border-slate-100 dark:border-slate-800 italic text-slate-500 mt-1">
-                      📝 "{selectedShipment.notes}"
+                      <span className="flex items-start gap-1.5"><FileText className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" /><span>"{selectedShipment.notes}"</span></span>
                     </div>
                   )}
                 </div>
@@ -492,7 +492,7 @@ const Shipping: React.FC = () => {
                 onClick={() => setIsPrintLabelOpen(true)}
                 className="w-full py-2.5 mb-5 bg-brand-orange/10 text-brand-orange hover:bg-brand-orange/20 rounded-xl font-extrabold uppercase tracking-wider text-center select-none flex items-center justify-center gap-2 border border-brand-orange/20"
               >
-                <span>🏷️</span>
+                <Tag className="w-4 h-4 text-brand-orange shrink-0" />
                 <span>Generate Thermal Shipping Label</span>
               </button>
 
@@ -546,7 +546,7 @@ const Shipping: React.FC = () => {
                     type="submit"
                     className="w-full py-2 bg-slate-900 hover:bg-slate-950 dark:bg-slate-700 dark:hover:bg-slate-650 text-white rounded font-bold uppercase text-[10px] tracking-wider transition-all"
                   >
-                    Post Log Scan & Transition Status ⚡
+                    Post Log Scan & Transition Status
                   </button>
                 </form>
               </div>
@@ -748,7 +748,7 @@ const Shipping: React.FC = () => {
                   type="submit"
                   className="flex-1 py-2.5 font-bold bg-brand-orange hover:bg-brand-orange/95 text-white rounded text-center shadow-md uppercase"
                 >
-                  Create Waybill Ledger ⚡
+                  Create Waybill Ledger
                 </button>
               </div>
             </form>
@@ -812,13 +812,13 @@ const Shipping: React.FC = () => {
                     {selectedShipment.customer.companyName && (
                       <span className="font-bold text-[10px] block">{selectedShipment.customer.companyName}</span>
                     )}
-                    <span className="block font-bold mt-1 text-[10px]">📍 Destination Address:</span>
+                    <span className="block font-bold mt-1 text-[10px]">Destination Address:</span>
                     <span className="block font-black text-[10px] bg-white border border-black p-1 rounded break-words uppercase">
                       {selectedShipment.customer.shippingAddress || 'Nairobi Counter Pickup'}
                     </span>
-                    <span className="block text-[9px] mt-1">📞 Contact Phone: {selectedShipment.customer.phone || 'No phone registered'}</span>
+                    <span className="block text-[9px] mt-1">Contact Phone: {selectedShipment.customer.phone || 'No phone registered'}</span>
                     {selectedShipment.customer.kraPin && (
-                      <span className="block text-[9px] font-mono font-black mt-0.5">🏷️ KRA PIN: {selectedShipment.customer.kraPin}</span>
+                      <span className="block text-[9px] font-mono font-black mt-0.5">KRA PIN: {selectedShipment.customer.kraPin}</span>
                     )}
                   </div>
                 </div>
@@ -927,7 +927,7 @@ const Shipping: React.FC = () => {
                 }}
                 className="flex-1 py-2 text-xs bg-black hover:bg-black/90 text-white rounded-xl font-black uppercase tracking-wider text-center select-none shadow-md"
               >
-                🖨️ Direct Thermal Print
+                <span className="inline-flex items-center gap-2"><Printer className="w-4 h-4 shrink-0" /><span>Direct Thermal Print</span></span>
               </button>
             </div>
           </div>

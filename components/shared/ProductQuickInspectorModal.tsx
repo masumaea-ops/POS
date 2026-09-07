@@ -142,7 +142,7 @@ export const ProductQuickInspectorModal: React.FC<ProductQuickInspectorModalProp
 
                 <div className="p-2.5 bg-slate-50 dark:bg-slate-800/80 rounded-lg border border-slate-200 dark:border-slate-700">
                   <span className="text-[9px] uppercase font-bold text-slate-400 block">Bin / Shelf Slot</span>
-                  <strong className="text-slate-800 dark:text-slate-200 text-xs">📍 {product.binLocation || 'Rack A1'}</strong>
+                  <strong className="text-slate-800 dark:text-slate-200 text-xs"><span className="inline-flex items-center gap-1"><MapPin className="w-3 h-3 text-brand-orange shrink-0" /><span>{product.binLocation || 'Rack A1'}</span></span></strong>
                 </div>
 
                 <div className="p-2.5 bg-slate-50 dark:bg-slate-800/80 rounded-lg border border-slate-200 dark:border-slate-700">

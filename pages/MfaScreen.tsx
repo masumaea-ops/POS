@@ -33,9 +33,7 @@ const MfaScreen: React.FC<MfaScreenProps> = ({ onVerify, onCancel }) => {
   const [lockoutRemaining, setLockoutRemaining] = useState<number>(0);
   const [resendCooldown, setResendCooldown] = useState<number>(30);
   
-  // Simulated OTP preview for staging testing
-  const [currentOtp, setCurrentOtp] = useState<string>('839201');
-  const [showOtpPreview, setShowOtpPreview] = useState(true);
+  const [currentOtp, setCurrentOtp] = useState<string>('');
 
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
@@ -129,7 +127,6 @@ const MfaScreen: React.FC<MfaScreenProps> = ({ onVerify, onCancel }) => {
     if (resendCooldown > 0) return;
     const { code } = generateTimedOTP(adminEmail);
     setCurrentOtp(code);
-    setShowOtpPreview(true);
     setResendCooldown(45);
     setDigits(['', '', '', '', '', '']);
     setError('');
@@ -225,30 +222,7 @@ const MfaScreen: React.FC<MfaScreenProps> = ({ onVerify, onCancel }) => {
       <div className="absolute top-0 left-0 w-80 h-80 bg-brand-orange/5 rounded-full filter blur-3xl -translate-y-1/2 -translate-x-1/2"></div>
       <div className="absolute bottom-0 right-0 w-96 h-96 bg-indigo-500/5 rounded-full filter blur-3xl translate-y-1/3 translate-x-1/3"></div>
 
-      {/* Staging Simulator OTP Popup HUD */}
-      {showOtpPreview && (
-        <div className="absolute top-4 left-1/2 transform -translate-x-1/2 z-50 w-full max-w-sm bg-indigo-950 border border-indigo-800 text-indigo-300 p-4 rounded-2xl shadow-2xl animate-fade-in flex flex-col gap-1.5">
-          <div className="flex justify-between items-center">
-            <span className="font-mono text-[10px] uppercase tracking-wider text-indigo-400 font-bold flex items-center gap-1.5">
-              <Smartphone className="w-3.5 h-3.5" />
-              Hardware Token / Authenticator Simulation
-            </span>
-            <button onClick={() => setShowOtpPreview(false)} className="text-indigo-400 hover:text-white font-bold text-xs p-1">✕</button>
-          </div>
-          <p className="text-xs text-indigo-200">
-            Current TOTP token for <strong>{adminEmail}</strong>:
-          </p>
-          <div className="flex items-center justify-between bg-indigo-900/60 p-2 rounded-xl border border-indigo-700/50 mt-1">
-            <span className="font-mono font-black text-xl text-white tracking-widest">{currentOtp}</span>
-            <span className="text-[10px] font-mono text-indigo-300 flex items-center gap-1">
-              <Clock className="w-3 h-3" />
-              Valid 5m
-            </span>
-          </div>
-        </div>
-      )}
-
-      <div className="w-full max-w-md p-8 bg-white dark:bg-gray-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl relative z-10">
+      <div className="w-full max-w-md p-5 sm:p-8 bg-white dark:bg-gray-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl relative z-10 mx-auto">
         <div className="text-center mb-6">
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-brand-orange/10 text-brand-orange mb-3">
             <KeyRound className="w-6 h-6" />

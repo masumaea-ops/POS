@@ -834,10 +834,10 @@ export const MechanicSchedulingTab: React.FC = () => {
                   onChange={e => setShiftForm(prev => ({ ...prev, status: e.target.value as any }))}
                   className="w-full p-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-gray-900 font-bold"
                 >
-                  <option value="Clocked In">🟢 Clocked In (Active Duty)</option>
+                  <option value="Clocked In">Clocked In (Active Duty)</option>
                   <option value="On Duty">On Duty (In Workshop)</option>
-                  <option value="On Break">☕ On Break / Lunch</option>
-                  <option value="Off Duty">🔴 Off Duty / On Leave</option>
+                  <option value="On Break">On Break / Lunch</option>
+                  <option value="Off Duty">Off Duty / On Leave</option>
                 </select>
               </div>
 

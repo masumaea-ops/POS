@@ -25,7 +25,9 @@ import {
   Check,
   Zap,
   Printer,
-  PenTool
+  PenTool,
+  Lock,
+  MapPin
 } from 'lucide-react';
 
 const STAGE_BADGES: Record<JobCard['status'], { label: string; color: string }> = {
@@ -358,7 +360,7 @@ export const JobCardsTab: React.FC = () => {
                           {jc.id}
                         </div>
                         <div className="text-[10px] text-slate-400 flex items-center gap-1 mt-0.5">
-                          <span>📍 {jc.branchName}</span>
+                          <span className="inline-flex items-center gap-1"><MapPin className="w-3 h-3 text-slate-400 shrink-0" /><span>{jc.branchName}</span></span>
                         </div>
                       </td>
 
@@ -510,7 +512,7 @@ export const JobCardsTab: React.FC = () => {
                   </div>
                 ) : (
                   <span className="text-slate-400 text-[11px]">
-                    🔒 Only Techs & Managers can advance job stages
+                    <span className="inline-flex items-center gap-1"><Lock className="w-3 h-3 text-slate-400 shrink-0" /><span>Only Techs & Managers can advance job stages</span></span>
                   </span>
                 )}
               </div>

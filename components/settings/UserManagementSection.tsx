@@ -30,6 +30,7 @@ import {
   Unlock
 } from 'lucide-react';
 import { SystemUser, SystemUserRole } from '../../types';
+import { useAuth } from '../../contexts/AuthContext';
 
 const PRESET_BRANCHES = [
   'Nairobi HQ & Central Warehouse',
@@ -152,6 +153,11 @@ const DEFAULT_USERS: SystemUser[] = [
 ];
 
 export const UserManagementSection: React.FC = () => {
+  const { hasPermission, userRole } = useAuth();
+  const canCreateUser = hasPermission('users', 'create');
+  const canUpdateUser = hasPermission('users', 'update');
+  const canDeleteUser = hasPermission('users', 'delete');
+
   const [users, setUsers] = useState<SystemUser[]>(() => {
     try {
       const cached = localStorage.getItem('masuma_system_users');
@@ -512,16 +518,33 @@ export const UserManagementSection: React.FC = () => {
               <span>Sync</span>
             </button>
 
-            <button
-              type="button"
-              onClick={() => setIsAddModalOpen(true)}
-              className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-brand-orange hover:bg-orange-600 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition cursor-pointer"
-            >
-              <UserPlus className="w-4 h-4" />
-              <span>+ Add System User</span>
-            </button>
+            {canCreateUser && (
+              <button
+                type="button"
+                onClick={() => setIsAddModalOpen(true)}
+                className="flex-1 sm:flex-none px-4 py-2.5 rounded-xl bg-brand-orange hover:bg-orange-600 text-white text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition cursor-pointer"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>+ Add System User</span>
+              </button>
+            )}
           </div>
         </div>
+
+        {/* Audit Mode Notice for Non-Admins */}
+        {!canUpdateUser && (
+          <div className="mt-4 p-3 bg-slate-950/80 border border-slate-800 rounded-xl flex items-center justify-between text-xs text-slate-300">
+            <div className="flex items-center gap-2">
+              <Shield className="w-4 h-4 text-amber-400 shrink-0" />
+              <span>
+                Staff directory is displayed in <strong className="text-white">Audit & Compliance Read-Only Mode</strong>. Super Administrator privileges are required to create staff, reset credentials, or adjust access roles.
+              </span>
+            </div>
+            <span className="text-[10px] uppercase font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20 shrink-0">
+              Read-Only
+            </span>
+          </div>
+        )}
 
         {/* METRICS ROW */}
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 mt-6 pt-6 border-t border-slate-800/80">
@@ -709,13 +732,19 @@ export const UserManagementSection: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => handleToggleActive(user)}
-                      disabled={isPrimaryAdmin}
-                      title={isPrimaryAdmin ? 'Primary admin cannot be deactivated' : 'Click to toggle status'}
+                      disabled={isPrimaryAdmin || !canUpdateUser}
+                      title={
+                        !canUpdateUser 
+                          ? 'Modifying status requires Administrator role'
+                          : isPrimaryAdmin 
+                          ? 'Primary admin cannot be deactivated' 
+                          : 'Click to toggle status'
+                      }
                       className={`text-xs px-2.5 py-1 rounded-full font-bold flex items-center gap-1.5 transition ${
                         user.isActive 
                           ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20' 
                           : 'bg-rose-500/10 text-rose-400 border border-rose-500/30 hover:bg-rose-500/20'
-                      } ${isPrimaryAdmin ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'}`}
+                      } ${isPrimaryAdmin || !canUpdateUser ? 'cursor-not-allowed opacity-80' : 'cursor-pointer'}`}
                     >
                       {user.isActive ? (
                         <>
@@ -733,41 +762,52 @@ export const UserManagementSection: React.FC = () => {
 
                   {/* ACTIONS GROUP */}
                   <div className="flex items-center gap-1.5 self-end md:self-center shrink-0 border-t md:border-t-0 pt-2 md:pt-0 border-slate-800 w-full md:w-auto justify-end">
-                    <button
-                      type="button"
-                      onClick={() => setEditingUser(user)}
-                      className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition cursor-pointer"
-                      title="Edit User Profile"
-                    >
-                      <Edit3 className="w-4 h-4" />
-                    </button>
+                    {canUpdateUser ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setEditingUser(user)}
+                          className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition cursor-pointer"
+                          title="Edit User Profile"
+                        >
+                          <Edit3 className="w-4 h-4" />
+                        </button>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setResettingUser(user);
-                        setNewPassword('');
-                        setConfirmNewPassword('');
-                      }}
-                      className="p-1.5 text-slate-400 hover:text-amber-400 hover:bg-slate-800 rounded-lg transition cursor-pointer"
-                      title="Reset User Password"
-                    >
-                      <Lock className="w-4 h-4" />
-                    </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setResettingUser(user);
+                            setNewPassword('');
+                            setConfirmNewPassword('');
+                          }}
+                          className="p-1.5 text-slate-400 hover:text-amber-400 hover:bg-slate-800 rounded-lg transition cursor-pointer"
+                          title="Reset User Password"
+                        >
+                          <Lock className="w-4 h-4" />
+                        </button>
+                      </>
+                    ) : (
+                      <span className="text-[11px] text-slate-500 flex items-center gap-1 font-mono px-2 py-1 bg-slate-950 rounded border border-slate-800">
+                        <Lock className="w-3 h-3 text-slate-600" />
+                        <span>Protected</span>
+                      </span>
+                    )}
 
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteUser(user)}
-                      disabled={isPrimaryAdmin}
-                      className={`p-1.5 rounded-lg transition ${
-                        isPrimaryAdmin 
-                          ? 'text-slate-600 cursor-not-allowed' 
-                          : 'text-slate-400 hover:text-rose-400 hover:bg-rose-950/40 cursor-pointer'
-                      }`}
-                      title={isPrimaryAdmin ? 'Primary Admin cannot be deleted' : 'Delete User Account'}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                    {canDeleteUser && (
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteUser(user)}
+                        disabled={isPrimaryAdmin}
+                        className={`p-1.5 rounded-lg transition ${
+                          isPrimaryAdmin 
+                            ? 'text-slate-600 cursor-not-allowed' 
+                            : 'text-slate-400 hover:text-rose-400 hover:bg-rose-950/40 cursor-pointer'
+                        }`}
+                        title={isPrimaryAdmin ? 'Primary Admin cannot be deleted' : 'Delete User Account'}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
                   </div>
                 </div>
               );

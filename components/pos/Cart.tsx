@@ -8,6 +8,7 @@ import PaymentModal from './PaymentModal';
 import DiscountModal from './DiscountModal';
 import ApprovalModal from './ApprovalModal';
 import { useSystemSettings } from '../../contexts/SettingsContext';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface CartProps {
     cartItems: CartItem[];
@@ -31,6 +32,8 @@ const Cart: React.FC<CartProps> = ({
     onShowQuickAddCustomer
 }) => {
     const { settings, formatPrice } = useSystemSettings();
+    const { hasPermission, userRole } = useAuth();
+    const canCreateOrder = hasPermission('pos', 'create');
     const [isPaymentModalOpen, setPaymentModalOpen] = useState(false);
     const [isDiscountModalOpen, setDiscountModalOpen] = useState(false);
     const [isApprovalModalOpen, setApprovalModalOpen] = useState(false);
@@ -379,6 +382,10 @@ const Cart: React.FC<CartProps> = ({
 
                     <button 
                         onClick={() => {
+                            if (!canCreateOrder) {
+                                alert(`🔒 Checkout is disabled in Read-Only inquiry mode for role '${userRole}'.`);
+                                return;
+                            }
                             if (hasCreditLimitExceeded) {
                                 alert("WARNING: Credit Limit Exceeded! Requiring manager passcode override to proceed.");
                                 setApprovalModalOpen(true);
@@ -386,13 +393,20 @@ const Cart: React.FC<CartProps> = ({
                                 setPaymentModalOpen(true);
                             }
                         }} 
+                        disabled={!canCreateOrder}
                         className={`w-full py-3.5 text-base font-bold text-white rounded-lg transition-all shadow-md ${
-                            hasCreditLimitExceeded 
+                            !canCreateOrder
+                            ? 'bg-slate-700 cursor-not-allowed opacity-60 text-slate-400'
+                            : hasCreditLimitExceeded 
                             ? 'bg-red-600 hover:bg-red-700 cursor-pointer animate-pulse' 
-                            : 'bg-brand-orange hover:bg-brand-orange/95'
+                            : 'bg-brand-orange hover:bg-brand-orange/95 cursor-pointer'
                         }`}
                     >
-                        {hasCreditLimitExceeded ? "Override Credit Guard & Pay" : `Charge ${formatPrice(total)}`}
+                        {!canCreateOrder
+                            ? `Checkout Disabled (${userRole} Mode)`
+                            : hasCreditLimitExceeded 
+                            ? "Override Credit Guard & Pay" 
+                            : `Charge ${formatPrice(total)}`}
                     </button>
                 </div>
             )}

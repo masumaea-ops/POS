@@ -147,7 +147,7 @@ export const RbacTab: React.FC = () => {
             <span>Role-Based Permission Matrix Configuration</span>
           </h3>
           <span className="text-xs text-slate-400 font-mono">
-            {canManageRbac ? '✏️ Click checkboxes to toggle permissions' : '🔒 View Only Mode'}
+            {canManageRbac ? 'Click checkboxes to toggle permissions' : 'View Only Mode'}
           </span>
         </div>
 

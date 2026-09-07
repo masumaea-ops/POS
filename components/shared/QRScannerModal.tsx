@@ -4,7 +4,7 @@ import type { Product, SaleOrder, PurchaseOrder } from '../../types';
 import { 
   X, Camera, Flashlight, RefreshCw, Upload, Search, 
   CheckCircle2, AlertTriangle, FileText, Package, 
-  ShoppingCart, ShieldCheck, Printer, Zap, Sparkles, Layers, SlidersHorizontal
+  ShoppingCart, ShieldCheck, Printer, Zap, Sparkles, Layers, SlidersHorizontal, Tag
 } from 'lucide-react';
 import { useSystemSettings } from '../../contexts/SettingsContext';
 import { generateQRCodeDataURL } from '../../utils/qrCodeGenerator';
@@ -935,7 +935,7 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({
                 {salesOrders.length > 0 && (
                   <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-700">
                     <span className="text-[10px] font-black uppercase tracking-wider text-indigo-500 block">
-                      📋 Test Sales Orders for Verification
+                      <span className="inline-flex items-center gap-1.5"><FileText className="w-3.5 h-3.5" /><span>Test Sales Orders for Verification</span></span>
                     </span>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {salesOrders.slice(0, 4).map((order) => {
@@ -971,7 +971,7 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({
                 {/* PRODUCT LIST GRID */}
                 <div className="space-y-2 pt-2 border-t border-slate-200 dark:border-slate-700">
                   <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block">
-                    🏷️ Product QR Badges
+                    <span className="inline-flex items-center gap-1.5"><Tag className="w-3.5 h-3.5" /><span>Product QR Badges</span></span>
                   </span>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[320px] overflow-y-auto pr-1">
                     {filteredProducts.map((p) => {

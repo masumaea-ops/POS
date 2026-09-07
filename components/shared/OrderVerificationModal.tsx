@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { SaleOrder, CartItem } from '../../types';
-import { X, CheckCircle2, AlertCircle, Printer, ShoppingCart, Truck, ShieldCheck, Box, PackageCheck } from 'lucide-react';
+import { X, CheckCircle2, AlertCircle, Printer, ShoppingCart, Truck, ShieldCheck, Box, PackageCheck, MapPin } from 'lucide-react';
 import { useSystemSettings } from '../../contexts/SettingsContext';
 import { generateQRCodeDataURL } from '../../utils/qrCodeGenerator';
 
@@ -141,7 +141,7 @@ export const OrderVerificationModal: React.FC<OrderVerificationModalProps> = ({
                     <p className="text-[11px] text-slate-400 font-mono">KRA PIN: {currentOrder.customer.kraPin}</p>
                   )}
                   {currentOrder.customer.shippingAddress && (
-                    <p className="text-[11px] text-slate-500 mt-1 italic">📍 {currentOrder.customer.shippingAddress}</p>
+                    <p className="text-[11px] text-slate-500 mt-1 italic"><span className="inline-flex items-center gap-1"><MapPin className="w-3 h-3 text-slate-400 shrink-0" /><span>{currentOrder.customer.shippingAddress}</span></span></p>
                   )}
                 </div>
                 <div className="text-right">

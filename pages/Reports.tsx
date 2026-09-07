@@ -8,7 +8,15 @@ import {
   Users as UsersIcon, 
   FileText as FileTextIcon, 
   ChevronDown as ChevronDownIcon,
-  Search as SearchIcon
+  Search as SearchIcon,
+  Layers as LayersIcon,
+  Scale as ScaleIcon,
+  MessageSquare as MessageSquareIcon,
+  Mail as MailIcon,
+  Smartphone as SmartphoneIcon,
+  CheckCircle2 as CheckCircle2Icon,
+  ShieldCheck as ShieldCheckIcon,
+  Info as InfoIcon
 } from 'lucide-react';
 import { MOCK_PRODUCTS, MOCK_CUSTOMERS, MOCK_SUPPLIERS, MOCK_PURCHASE_ORDERS, MOCK_SALE_ORDERS } from '../data/mockData';
 import { useSystemSettings } from '../contexts/SettingsContext';
@@ -920,7 +928,7 @@ const Reports: React.FC = () => {
       {alertMessage && (
         <div id="alert_toast" className="max-w-4xl mx-auto mt-4 mx-4 p-4 bg-emerald-50 dark:bg-emerald-950 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-200 rounded-xl flex items-center justify-between shadow-lg">
           <div className="flex items-center gap-3">
-            <span className="text-xl">✅</span>
+            <CheckCircle2Icon className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0" />
             <span className="text-sm font-semibold">{alertMessage}</span>
           </div>
           <button onClick={() => setAlertMessage(null)} className="text-emerald-600 hover:text-emerald-800 text-sm font-bold">dismiss</button>
@@ -970,7 +978,7 @@ const Reports: React.FC = () => {
 
           <div className="space-y-4">
             <h2 className="text-lg font-bold text-ink dark:text-gray-100 flex items-center gap-2">
-              <span>🗂️</span> Choose a Detailed Analytical Report to Load
+              <LayersIcon className="w-5 h-5 text-brand-orange shrink-0" /><span>Choose a Detailed Analytical Report to Load</span>
             </h2>
             <p className="text-sm text-gray-500 dark:text-gray-400">
               Each report is built with 100% interactive controls, filtering capabilities, custom visualizations, and functional exports matching strict accounting audit requirements.
@@ -1015,7 +1023,7 @@ const Reports: React.FC = () => {
           <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-surface-2 dark:border-gray-750 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
             <div className="space-y-1">
               <h4 className="font-bold text-sm text-ink dark:text-gray-100 flex items-center gap-2">
-                <span>🔐</span> Compliance & Audit Log Enabled
+                <ShieldCheckIcon className="w-4 h-4 text-brand-orange shrink-0" /><span>Compliance & Audit Log Enabled</span>
               </h4>
               <p className="text-xs text-gray-500 dark:text-gray-400 max-w-xl">
                 All metrics correspond structurally with Masuma ERP ledgers. Exports generate timestamped, cryptographic signatures matching East Africa revenue guidelines (KRA eTIMS aligned format).
@@ -1339,7 +1347,7 @@ const Reports: React.FC = () => {
                 <div className="p-6 bg-white dark:bg-gray-800 rounded-xl border border-surface-2 dark:border-gray-700/65 flex flex-col justify-between">
                   <div>
                     <h5 className="font-bold text-sm text-ink dark:text-white flex items-center gap-1">
-                      <span>💡</span> Costing Insights
+                      <InfoIcon className="w-4 h-4 text-brand-orange shrink-0" /><span>Costing Insights</span>
                     </h5>
                     <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed mt-3">
                       Your selection is currently configured to compute valuation on a <strong className="text-brand-orange">{valuationMethod}</strong> basis.
@@ -1817,7 +1825,7 @@ const Reports: React.FC = () => {
                     onClick={() => setShowBalancingForm(true)}
                     className="bg-brand-orange hover:bg-orange-600 text-white font-bold text-xs uppercase tracking-wider px-4 py-2 rounded-lg"
                   >
-                    ⚖️ Perform Cash-Up Balancing Count
+                    <span className="inline-flex items-center gap-1.5"><ScaleIcon className="w-3.5 h-3.5 shrink-0" /><span>Perform Cash-Up Balancing Count</span></span>
                   </button>
                 </div>
               </div>
@@ -1827,7 +1835,7 @@ const Reports: React.FC = () => {
                 <div id="balancing_form_modal" className="bg-slate-50 dark:bg-gray-800/90 border border-brand-orange/40 rounded-xl p-6 shadow-xl space-y-6 animate-pulseOnce">
                   <div className="flex justify-between items-center border-b border-surface-2 dark:border-gray-700 pb-3">
                     <h4 className="font-bold text-base text-brand-orange flex items-center gap-1.5">
-                      <span>⚖️</span> POS Till physical Balancing Board
+                      <ScaleIcon className="w-4 h-4 text-brand-orange shrink-0" /><span>POS Till Physical Balancing Board</span>
                     </h4>
                     <button 
                       onClick={() => setShowBalancingForm(false)}
@@ -2110,7 +2118,7 @@ const Reports: React.FC = () => {
                           : 'border-surface-2 dark:border-gray-750 text-slate-550 dark:text-gray-300'
                       }`}
                     >
-                      {channel === 'SMS' ? '📱 Mobile SMS' : channel === 'WhatsApp' ? '💬 WhatsApp' : '📧 SMTP Email'}
+                      {channel === 'SMS' ? 'Mobile SMS' : channel === 'WhatsApp' ? 'WhatsApp Message' : 'SMTP Email'}
                     </button>
                   ))}
                 </div>

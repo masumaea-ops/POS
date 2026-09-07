@@ -32,7 +32,11 @@ import {
   Terminal,
   Copy,
   Play,
-  Users
+  Users,
+  Sliders,
+  Network,
+  ShieldAlert,
+  MapPin
 } from 'lucide-react';
 import { 
   verifyPassword, 
@@ -533,7 +537,7 @@ const Settings: React.FC = () => {
             onClick={() => handleTabChange('general')}
             className={`py-4 font-bold border-b-2 transition-colors whitespace-nowrap cursor-pointer ${activeTab === 'general' ? 'border-brand-orange text-brand-orange' : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}`}
           >
-            📋 {t('settings.generalTab', 'General ERP Settings')}
+            <Sliders className="w-4 h-4 text-brand-orange shrink-0" /><span>{t('settings.generalTab', 'General ERP Settings')}</span>
           </button>
           <button 
             type="button"
@@ -794,7 +798,7 @@ const Settings: React.FC = () => {
           {/* SEC METRIC BLOCKS */}
           <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
             <div className="p-4 bg-white dark:bg-gray-800 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center gap-4 shadow-sm">
-              <span className="text-2xl">🛡️</span>
+              <ShieldCheck className="w-7 h-7 text-emerald-500 shrink-0" />
               <div>
                 <span className="text-[10px] text-slate-400 uppercase font-black tracking-wider block">Security Integrity</span>
                 <p className="font-black text-slate-900 dark:text-white mt-0.5">{stats.healthRating}</p>
@@ -802,7 +806,7 @@ const Settings: React.FC = () => {
             </div>
 
             <div className="p-4 bg-white dark:bg-gray-800 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center gap-4 shadow-sm">
-              <span className="text-2xl text-rose-500">🚫</span>
+              <Ban className="w-7 h-7 text-rose-500 shrink-0" />
               <div>
                 <span className="text-[10px] text-slate-400 uppercase font-black tracking-wider block">Failed Login Blocks</span>
                 <p className="font-black text-slate-900 dark:text-white mt-0.5 font-mono">{stats.failedCount} Incidents</p>
@@ -810,7 +814,7 @@ const Settings: React.FC = () => {
             </div>
 
             <div className="p-4 bg-white dark:bg-gray-800 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center gap-4 shadow-sm">
-              <span className="text-2xl text-teal-500">🌐</span>
+              <Network className="w-7 h-7 text-teal-500 shrink-0" />
               <div>
                 <span className="text-[10px] text-slate-400 uppercase font-black tracking-wider block">Active Whitelisted IPs</span>
                 <p className="font-black text-slate-900 dark:text-white mt-0.5 font-mono">{stats.uniqueIPs} Source Nodes</p>
@@ -818,7 +822,7 @@ const Settings: React.FC = () => {
             </div>
 
             <div className="p-4 bg-white dark:bg-gray-800 rounded-2xl border border-slate-200 dark:border-slate-800 flex items-center gap-4 shadow-sm">
-              <span className="text-2xl text-amber-500">🚨</span>
+              <AlertTriangle className="w-7 h-7 text-amber-500 shrink-0" />
               <div>
                 <span className="text-[10px] text-slate-400 uppercase font-black tracking-wider block">WAF Blocks Intercepted</span>
                 <p className="font-black text-slate-900 dark:text-white mt-0.5 font-mono">{stats.criticalCount} Threat Blocks</p>
@@ -880,7 +884,7 @@ const Settings: React.FC = () => {
 
                   {passError && (
                     <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-300 text-xs rounded-lg font-medium">
-                      ⚠️ {passError}
+                      <span className="flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5 shrink-0" /><span>{passError}</span></span>
                     </div>
                   )}
 
@@ -951,7 +955,7 @@ const Settings: React.FC = () => {
               {/* SECURITY SIMULATOR */}
               <Card className="border border-indigo-100 dark:border-indigo-950 bg-indigo-50/5">
                 <div className="border-b border-indigo-100 dark:border-indigo-900 pb-2 mb-3">
-                  <h3 className="text-xs font-black text-indigo-700 dark:text-indigo-400 uppercase tracking-wider">💥 Penetration & Threat Simulator</h3>
+                  <h3 className="text-xs font-black text-indigo-700 dark:text-indigo-400 uppercase tracking-wider flex items-center gap-1.5"><ShieldAlert className="w-4 h-4 text-indigo-600 shrink-0" /><span>Penetration & Threat Simulator</span></h3>
                   <p className="text-[11px] text-slate-400 mt-0.5">Test real-time defense interceptions.</p>
                 </div>
 
@@ -1031,12 +1035,12 @@ const Settings: React.FC = () => {
                       'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900/40';
 
                     const badgeName = 
-                      log.event === 'FAILED_LOGIN' ? '🚫 Credentials Fail' :
-                      log.event === 'SUCCESSFUL_LOGIN' ? '🟢 Authed OK' :
-                      log.event === 'PASSWORD_RESET' ? '🔑 OTP Override' :
-                      log.event === 'PASSWORD_CHANGE' ? '🔩 Config Override' :
-                      log.event === 'IP_BLOCK_ALERT' ? '🔥 Firewall Block' :
-                      log.event === 'EMERGENCY_LOCKDOWN' ? '🚨 Lockdown Event' :
+                      log.event === 'FAILED_LOGIN' ? 'Credentials Fail' :
+                      log.event === 'SUCCESSFUL_LOGIN' ? 'Authed OK' :
+                      log.event === 'PASSWORD_RESET' ? 'OTP Override' :
+                      log.event === 'PASSWORD_CHANGE' ? 'Config Override' :
+                      log.event === 'IP_BLOCK_ALERT' ? 'Firewall Block' :
+                      log.event === 'EMERGENCY_LOCKDOWN' ? 'Lockdown Event' :
                       '🔌 Halted session';
 
                     return (
@@ -1059,7 +1063,7 @@ const Settings: React.FC = () => {
                         </p>
 
                         <div className="flex flex-wrap items-center justify-between gap-1 text-[9px] text-slate-400 border-t border-slate-100 dark:border-slate-800/50 pt-2 font-mono">
-                          <span>📍 Location: <strong className="text-slate-600 dark:text-slate-350">{log.location}</strong></span>
+                          <span className="flex items-center gap-1"><MapPin className="w-3 h-3 text-slate-400 shrink-0" /><span>Location: <strong className="text-slate-600 dark:text-slate-350">{log.location}</strong></span></span>
                           <span className="truncate max-w-[200px] hover:max-w-none transition-all cursor-default" title={log.userAgent}>
                             UA: {log.userAgent}
                           </span>

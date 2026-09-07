@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X } from 'lucide-react';
+import { X, Lock } from 'lucide-react';
 
 interface ApprovalModalProps {
     isOpen: boolean;
@@ -22,7 +22,7 @@ const ApprovalModal: React.FC<ApprovalModalProps> = ({ isOpen, onClose, onApprov
             setPin('');
             onApprove();
         } else {
-            setError('🔴 Access Denied: Invalid Manager PIN. (Use 1234 or 9999 for demo)');
+            setError('Access Denied: Invalid Manager PIN. (Use 1234 or 9999 for demo)');
         }
     };
     
@@ -35,7 +35,7 @@ const ApprovalModal: React.FC<ApprovalModalProps> = ({ isOpen, onClose, onApprov
                     </button>
                 </div>
                 <div className="w-12 h-12 bg-amber-500/10 text-amber-600 dark:text-amber-400 rounded-full flex items-center justify-center mx-auto mb-3">
-                    <span className="text-xl font-bold">🔒</span>
+                    <Lock className="w-6 h-6" />
                 </div>
                 <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">Supervisor Override</h2>
                 <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">

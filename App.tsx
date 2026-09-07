@@ -21,6 +21,8 @@ import Garage from './pages/Garage';
 import LoginScreen from './pages/LoginScreen';
 import MfaScreen from './pages/MfaScreen';
 import { TerminalLockModal } from './components/shared/TerminalLockModal';
+import { AuthProvider } from './contexts/AuthContext';
+import { RoleGuard } from './components/shared/RoleGuard';
 import { X } from 'lucide-react';
 
 const INACTIVITY_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
@@ -138,42 +140,45 @@ const App: React.FC = () => {
 
   if (!isAuthenticated) {
     return (
+      <AuthProvider onLogoutExternal={handleLogout}>
         <Router>
-            <Routes>
-                {needsMfa 
-                    ? <Route path="*" element={<MfaScreen onVerify={handleMfa} onCancel={() => setNeedsMfa(false)} />} />
-                    : <Route path="*" element={<LoginScreen onLogin={handleLogin} />} />
-                }
-            </Routes>
+          <Routes>
+            {needsMfa 
+              ? <Route path="*" element={<MfaScreen onVerify={handleMfa} onCancel={() => setNeedsMfa(false)} />} />
+              : <Route path="*" element={<LoginScreen onLogin={handleLogin} />} />
+            }
+          </Routes>
         </Router>
+      </AuthProvider>
     );
   }
 
   return (
-    <Router>
+    <AuthProvider onLogoutExternal={handleLogout}>
+      <Router>
         <MainLayout onLogout={handleLogout} onLockTerminal={handleLockTerminal}>
           <Routes>
             {/* Streamlined Core Routes */}
             <Route path="/" element={<Dashboard />} />
-            <Route path="/pos" element={<POS />} />
-            <Route path="/inventory" element={<Inventory />} />
-            <Route path="/sales" element={<Sales />} />
-            <Route path="/sales-history" element={<Sales />} />
-            <Route path="/quotations" element={<Quotations />} />
-            <Route path="/invoices" element={<Invoices />} />
-            <Route path="/shipping" element={<Shipping />} />
-            <Route path="/vin-picker" element={<VinPicker />} />
+            <Route path="/pos" element={<RoleGuard resource="pos"><POS /></RoleGuard>} />
+            <Route path="/inventory" element={<RoleGuard resource="inventory"><Inventory /></RoleGuard>} />
+            <Route path="/sales" element={<RoleGuard resource="sales"><Sales /></RoleGuard>} />
+            <Route path="/sales-history" element={<RoleGuard resource="sales"><Sales /></RoleGuard>} />
+            <Route path="/quotations" element={<RoleGuard resource="quotations"><Quotations /></RoleGuard>} />
+            <Route path="/invoices" element={<RoleGuard resource="invoices"><Invoices /></RoleGuard>} />
+            <Route path="/shipping" element={<RoleGuard resource="shipping"><Shipping /></RoleGuard>} />
+            <Route path="/vin-picker" element={<RoleGuard resource="inventory"><VinPicker /></RoleGuard>} />
             <Route path="/profile" element={<Profile />} />
-            <Route path="/customers" element={<Contacts />} />
+            <Route path="/customers" element={<RoleGuard resource="contacts"><Contacts /></RoleGuard>} />
 
-            {/* Enterprise & Financial Systems */}
-            <Route path="/purchasing" element={<Purchasing />} />
-            <Route path="/contacts" element={<Contacts />} />
-            <Route path="/reports" element={<Reports />} />
-            <Route path="/accounting" element={<Accounting />} />
-            <Route path="/garage" element={<Garage />} />
-            <Route path="/integrations" element={<Integrations />} />
-            <Route path="/settings" element={<Settings />} />
+            {/* Enterprise & Restricted Operational Modules */}
+            <Route path="/purchasing" element={<RoleGuard resource="purchasing"><Purchasing /></RoleGuard>} />
+            <Route path="/contacts" element={<RoleGuard resource="contacts"><Contacts /></RoleGuard>} />
+            <Route path="/reports" element={<RoleGuard resource="reports"><Reports /></RoleGuard>} />
+            <Route path="/accounting" element={<RoleGuard resource="accounting"><Accounting /></RoleGuard>} />
+            <Route path="/garage" element={<RoleGuard resource="garage"><Garage /></RoleGuard>} />
+            <Route path="/integrations" element={<RoleGuard resource="integrations"><Integrations /></RoleGuard>} />
+            <Route path="/settings" element={<RoleGuard resource="settings"><Settings /></RoleGuard>} />
 
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" />} />
@@ -186,7 +191,8 @@ const App: React.FC = () => {
           onUnlock={handleUnlockTerminal}
           onLogout={handleLogout}
         />
-    </Router>
+      </Router>
+    </AuthProvider>
   );
 };
 

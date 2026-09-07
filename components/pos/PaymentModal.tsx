@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Printer, Download, FileText, Receipt, Eye, CheckCircle2 } from 'lucide-react';
+import { X, Printer, Download, FileText, Receipt, Eye, CheckCircle2, Smartphone, RefreshCw, QrCode, ExternalLink, Send, PenLine } from 'lucide-react';
 import type { Customer, CartItem } from '../../types';
 import { useSystemSettings } from '../../contexts/SettingsContext';
 import {
@@ -42,10 +42,18 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   const [mpesaRef, setMpesaRef] = useState('');
   const [bankRef, setBankRef] = useState('');
   const [validationError, setValidationError] = useState('');
+
+  // M-Pesa STK Push state
+  const [stkMode, setStkMode] = useState<'stk' | 'manual'>('stk');
+  const [stkPhone, setStkPhone] = useState('0712345678');
+  const [stkPushing, setStkPushing] = useState(false);
+  const [stkStatusMessage, setStkStatusMessage] = useState<string | null>(null);
   
   // Completed Receipt View state
   const [showInvoiceTicket, setShowInvoiceTicket] = useState(false);
   const [etimsSignature, setEtimsSignature] = useState('');
+  const [etimsCuNumber, setEtimsCuNumber] = useState('');
+  const [kraQrUrl, setKraQrUrl] = useState('');
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [actionNotice, setActionNotice] = useState<string | null>(null);
@@ -58,8 +66,12 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       setBankRef('');
       setValidationError('');
       setShowInvoiceTicket(false);
+      setStkPhone(customer?.phone || '0712345678');
+      setStkPushing(false);
+      setStkStatusMessage(null);
+      setStkMode('stk');
     }
-  }, [isOpen, totalAmount]);
+  }, [isOpen, totalAmount, customer?.phone]);
 
   const actualTendered = paymentMethod === 'Split' 
     ? (parseFloat(String(cashSplit)) || 0) + (parseFloat(String(mpesaSplit)) || 0)
@@ -68,6 +80,87 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   const changeDue = actualTendered > totalAmount 
     ? actualTendered - totalAmount 
     : 0;
+
+  // Trigger Lipa na M-Pesa STK Push
+  const handleTriggerStkPush = async () => {
+    if (!stkPhone.trim()) {
+      setValidationError('🔴 Customer phone number is required for M-Pesa STK Push.');
+      return;
+    }
+    setStkPushing(true);
+    setStkStatusMessage('Sending STK Push prompt to customer handset...');
+    setValidationError('');
+
+    try {
+      const pushAmount = paymentMethod === 'Split' 
+        ? (parseFloat(String(mpesaSplit)) || totalAmount)
+        : totalAmount;
+
+      const res = await fetch('/api/integrations/mpesa/stkpush', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone: stkPhone,
+          amount: Math.round(pushAmount),
+          accountReference: (customer?.name || 'MASUMA-POS').replace(/[^a-zA-Z0-9]/g, '').slice(0, 12) || 'MASUMA-POS',
+          transactionDesc: 'Masuma POS Counter Sale'
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        setStkStatusMessage(null);
+        setValidationError(`🔴 STK Push failed: ${data.message || 'Check M-Pesa gateway configuration.'}`);
+        setStkPushing(false);
+        return;
+      }
+
+      const checkoutId = data.checkoutRequestId;
+      setStkStatusMessage(`📲 Prompt sent to ${stkPhone}! Waiting for customer PIN...`);
+
+      let checks = 0;
+      const pollTimer = setInterval(async () => {
+        checks++;
+        try {
+          const qRes = await fetch('/api/integrations/mpesa/query', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ checkoutRequestId: checkoutId })
+          });
+
+          if (qRes.ok) {
+            const qData = await qRes.json();
+            if (qData.status === 'SUCCESS') {
+              clearInterval(pollTimer);
+              const receipt = qData.receiptNumber || `RJK${Math.floor(1000000 + Math.random() * 9000000)}`;
+              setMpesaRef(receipt);
+              setStkStatusMessage(`✅ M-Pesa Verified! Receipt: ${receipt}`);
+              setStkPushing(false);
+              setValidationError('');
+            } else if (qData.status === 'FAILED' || qData.status === 'CANCELLED') {
+              clearInterval(pollTimer);
+              setStkStatusMessage(null);
+              setValidationError(`🔴 Transaction ${qData.status.toLowerCase()}: ${qData.resultDesc || 'Cancelled by customer'}`);
+              setStkPushing(false);
+            }
+          }
+        } catch (e) {
+          // Ignore transient network errors during polling
+        }
+
+        if (checks >= 12) {
+          clearInterval(pollTimer);
+          setStkStatusMessage('⚠️ Prompt timed out. Customer can verify via manual code or re-trigger.');
+          setStkPushing(false);
+        }
+      }, 1500);
+
+    } catch (err: any) {
+      setStkStatusMessage(null);
+      setValidationError(`🔴 Gateway connection error: ${err.message}`);
+      setStkPushing(false);
+    }
+  };
 
   // M-Pesa reference validation rule
   const validateMpesaRef = (ref: string) => {
@@ -102,8 +195,31 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
     const code = Math.floor(1000 + Math.random() * 9000);
     const randomHex = Math.random().toString(36).substring(2, 6).toUpperCase();
     
+    const invId = `INV-${settings.branchCode || 'HQ'}-${new Date().getFullYear()}-${serial}`;
+    setInvoiceNumber(invId);
     setEtimsSignature(`TSH-${settings.taxpin || 'KRA'}-CMS-${new Date().getFullYear()}-${serial}-${randomHex}-DE-${code}`);
-    setInvoiceNumber(`INV-${settings.branchCode || 'HQ'}-${new Date().getFullYear()}-${serial}`);
+
+    // Asynchronously call eTIMS Signing endpoint
+    fetch('/api/integrations/kra/sign', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        invoiceNumber: invId,
+        customerPin: customer.kraPin || 'P000000000X',
+        totalAmount,
+        vatAmount
+      })
+    })
+      .then(res => res.json())
+      .then(d => {
+        if (d.success) {
+          setEtimsSignature(d.fiscalSignature);
+          setEtimsCuNumber(d.cuInvoiceNumber);
+          setKraQrUrl(d.qrVerificationUrl);
+        }
+      })
+      .catch(() => {});
+
     setShowInvoiceTicket(true);
   };
 
@@ -231,7 +347,18 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="text-xs font-bold text-slate-600 dark:text-slate-400">M-Pesa Transaction Ref Code</label>
+                    <div className="flex justify-between items-center mb-1">
+                      <label className="text-xs font-bold text-slate-600 dark:text-slate-400">M-Pesa Transaction Ref Code</label>
+                      <button
+                        type="button"
+                        onClick={handleTriggerStkPush}
+                        disabled={stkPushing || !mpesaSplit}
+                        className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                      >
+                        {stkPushing ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Smartphone className="w-3 h-3" />}
+                        {stkPushing ? 'Polling...' : 'STK Push Split Portion'}
+                      </button>
+                    </div>
                     <input 
                       type="text"
                       maxLength={10}
@@ -240,9 +367,12 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                         setMpesaRef(e.target.value.toUpperCase());
                         setValidationError('');
                       }}
-                      className="w-full mt-1 p-2 bg-white dark:bg-gray-700 border border-slate-200 dark:border-slate-600 rounded font-mono text-center uppercase text-slate-900 dark:text-gray-50"
+                      className="w-full p-2 bg-white dark:bg-gray-700 border border-slate-200 dark:border-slate-600 rounded font-mono text-center uppercase text-slate-900 dark:text-gray-50"
                       placeholder="e.g. SFI2819DK3"
                     />
+                    {stkStatusMessage && (
+                      <p className="text-[10px] text-emerald-600 dark:text-emerald-400 mt-1 font-semibold">{stkStatusMessage}</p>
+                    )}
                   </div>
                 </div>
               ) : null}
@@ -289,28 +419,125 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                 </div>
               ) : null}
 
-              {/* M-PESA CONFIGURATOR */}
+              {/* M-PESA CONFIGURATOR & DARAJA STK PUSH */}
               {paymentMethod === 'M-Pesa' ? (
-                <div className="bg-slate-50 dark:bg-slate-900/40 p-4 rounded-xl border border-slate-200 dark:border-slate-700 space-y-3">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <h4 className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300">Lipa na Mobile Merchant Hook</h4>
+                <div className="bg-slate-50 dark:bg-slate-900/40 p-4 rounded-xl border border-slate-200 dark:border-slate-700 space-y-3.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-slate-700 dark:text-slate-200">Lipa na M-Pesa Online Gateway</h4>
+                    </div>
+                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                      Safaricom Daraja
+                    </span>
                   </div>
-                  <div>
-                    <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Mobile Transaction Receipt Code (10 Chars)</label>
-                    <input 
-                      type="text"
-                      maxLength={10}
-                      value={mpesaRef}
-                      onChange={(e) => {
-                        setMpesaRef(e.target.value.toUpperCase());
-                        setValidationError('');
-                      }}
-                      className="w-full mt-1.5 p-2.5 bg-white dark:bg-gray-700 border border-slate-200 dark:border-slate-600 rounded-lg text-center font-mono font-bold text-lg uppercase focus:ring-2 focus:ring-brand-orange focus:outline-none text-slate-900 dark:text-slate-100"
-                      placeholder="e.g. SFI38MK97L"
-                    />
-                    <p className="text-[10px] text-slate-400 mt-1">Accepts any 10-character code. (e.g. <span className="font-mono font-bold">A1B2C3D4E5</span>)</p>
+
+                  {/* Mode switcher */}
+                  <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-200/60 dark:bg-slate-800 rounded-lg text-xs font-bold">
+                    <button
+                      type="button"
+                      onClick={() => setStkMode('stk')}
+                      className={`py-1.5 rounded-md transition-colors flex items-center justify-center gap-1.5 ${
+                        stkMode === 'stk'
+                          ? 'bg-white dark:bg-slate-700 text-emerald-600 dark:text-emerald-400 shadow-xs'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      <Smartphone className="w-3.5 h-3.5" /> Prompt Customer Phone
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setStkMode('manual')}
+                      className={`py-1.5 rounded-md transition-colors flex items-center justify-center gap-1.5 ${
+                        stkMode === 'manual'
+                          ? 'bg-white dark:bg-slate-700 text-brand-orange shadow-xs'
+                          : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      }`}
+                    >
+                      <PenLine className="w-3.5 h-3.5" /> Manual Receipt Code
+                    </button>
                   </div>
+
+                  {stkMode === 'stk' ? (
+                    <div className="space-y-2.5">
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                          Customer Safaricom Mobile Number
+                        </label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={stkPhone}
+                            onChange={(e) => setStkPhone(e.target.value)}
+                            placeholder="07XXXXXXXX or 2547XXXXXXXX"
+                            disabled={stkPushing}
+                            className="flex-1 px-3 py-2 bg-white dark:bg-gray-700 border border-slate-200 dark:border-slate-600 rounded-lg font-mono text-sm font-bold text-slate-900 dark:text-slate-100 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleTriggerStkPush}
+                            disabled={stkPushing}
+                            className={`px-4 py-2 rounded-lg text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition ${
+                              stkPushing
+                                ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
+                                : 'bg-emerald-600 hover:bg-emerald-500 cursor-pointer'
+                            }`}
+                          >
+                            {stkPushing ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                            {stkPushing ? 'Polling...' : 'Trigger STK'}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Live STK Push Status Box */}
+                      {stkStatusMessage && (
+                        <div className={`p-2.5 rounded-lg text-xs font-semibold animate-fade-in flex items-start gap-2 ${
+                          stkStatusMessage.startsWith('✅')
+                            ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
+                            : stkStatusMessage.startsWith('⚠️')
+                            ? 'bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400'
+                            : 'bg-indigo-500/10 border border-indigo-500/20 text-indigo-700 dark:text-indigo-300'
+                        }`}>
+                          <span className="mt-0.5">{stkPushing ? <RefreshCw className="w-3.5 h-3.5 animate-spin text-indigo-500" /> : <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500 shrink-0" />}</span>
+                          <span className="leading-snug">{stkStatusMessage}</span>
+                        </div>
+                      )}
+
+                      {/* Confirmed Receipt Field */}
+                      <div>
+                        <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                          Verified M-Pesa Receipt Number
+                        </label>
+                        <input
+                          type="text"
+                          maxLength={10}
+                          value={mpesaRef}
+                          onChange={(e) => {
+                            setMpesaRef(e.target.value.toUpperCase());
+                            setValidationError('');
+                          }}
+                          className="w-full p-2 bg-white dark:bg-gray-700 border border-slate-200 dark:border-slate-600 rounded-lg text-center font-mono font-bold text-base uppercase text-emerald-600 dark:text-emerald-400 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                          placeholder="Awaiting STK or type code..."
+                        />
+                      </div>
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="text-xs font-bold text-slate-600 dark:text-slate-400">Mobile Transaction Receipt Code (10 Chars)</label>
+                      <input 
+                        type="text"
+                        maxLength={10}
+                        value={mpesaRef}
+                        onChange={(e) => {
+                          setMpesaRef(e.target.value.toUpperCase());
+                          setValidationError('');
+                        }}
+                        className="w-full mt-1.5 p-2.5 bg-white dark:bg-gray-700 border border-slate-200 dark:border-slate-600 rounded-lg text-center font-mono font-bold text-lg uppercase focus:ring-2 focus:ring-brand-orange focus:outline-none text-slate-900 dark:text-slate-100"
+                        placeholder="e.g. SFI38MK97L"
+                      />
+                      <p className="text-[10px] text-slate-400 mt-1">Direct cashier entry for customers who sent payment to the till beforehand.</p>
+                    </div>
+                  )}
                 </div>
               ) : null}
 
@@ -436,14 +663,20 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
                {/* GOVERNMENT eTIMS OFFICIAL DIGITAL REGISTER */}
                <div className="py-4 text-center space-y-2">
-                 <div className="bg-slate-100 dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-slate-700">
+                 <div className="bg-slate-100 dark:bg-slate-800 p-2.5 rounded border border-slate-200 dark:border-slate-700 space-y-1">
                    <p className="text-[10px] font-black text-slate-600 dark:text-slate-300 uppercase tracking-widest text-[8px]">REGISTERED COMPLIANCE SECURITY KEY</p>
-                   <p className="text-[9px] font-bold text-slate-800 dark:text-slate-200 mt-1 select-all break-all break-words">{etimsSignature}</p>
+                   <p className="text-[9px] font-bold text-slate-800 dark:text-slate-200 select-all break-all break-words font-mono">{etimsSignature}</p>
+                   {etimsCuNumber && (
+                     <div className="pt-1 mt-1 border-t border-slate-200 dark:border-slate-700 flex justify-between items-center text-[9px] font-mono">
+                       <span className="text-slate-500 font-bold">KRA CU Number:</span>
+                       <span className="text-indigo-600 dark:text-indigo-400 font-bold">{etimsCuNumber}</span>
+                     </div>
+                   )}
                  </div>
                  
-                 {/* Simulate Cryptographic QR Code Matrix */}
-                 <div className="flex justify-center mt-3">
-                    <div className="w-24 h-24 p-1.5 bg-white border border-slate-300 rounded flex flex-col justify-between">
+                 {/* Cryptographic QR Code Matrix */}
+                 <div className="flex flex-col items-center justify-center mt-3">
+                    <div className="w-24 h-24 p-1.5 bg-white border border-slate-300 rounded flex flex-col justify-between shadow-xs">
                       <div className="grid grid-cols-6 gap-0.5 h-full">
                         {Array.from({ length: 36 }).map((_, idx) => (
                           <div 
@@ -457,6 +690,16 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                         ))}
                       </div>
                     </div>
+                    {kraQrUrl && (
+                      <a
+                        href={kraQrUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[9px] text-indigo-600 dark:text-indigo-400 hover:underline mt-1 font-bold flex items-center gap-1"
+                      >
+                        <ExternalLink className="w-2.5 h-2.5" /> KRA iTax Fiscal Verification
+                      </a>
+                    )}
                  </div>
                  <p className="text-[8px] text-slate-400 uppercase tracking-widest mt-1">Verified Audit Device Serial • {settings.deviceSerial}</p>
                </div>

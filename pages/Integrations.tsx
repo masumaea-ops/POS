@@ -1,8 +1,34 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { 
+  Layers, 
+  Smartphone, 
+  Key, 
+  Webhook as WebhookIcon, 
+  Terminal, 
+  Activity, 
+  CreditCard, 
+  Building2, 
+  BookOpen, 
+  ShieldCheck, 
+  ShieldAlert, 
+  CheckCircle2, 
+  Copy, 
+  Send, 
+  Trash2, 
+  Check, 
+  Radio, 
+  Play, 
+  AlertCircle, 
+  Info, 
+  Search,
+  Lock,
+  ShoppingBag
+} from 'lucide-react';
 import PageHeader from '../components/shared/PageHeader';
 import Card from '../components/shared/Card';
 import { useSystemSettings } from '../contexts/SettingsContext';
+import MpesaKraIntegrationHub from '../components/integrations/MpesaKraIntegrationHub';
 
 interface ApiKey {
   id: string;
@@ -128,8 +154,8 @@ const API_ENDPOINTS = [
 const Integrations: React.FC = () => {
   const { settings, formatPrice } = useSystemSettings();
   const [searchParams] = useSearchParams();
-  const tabParam = searchParams.get('tab') as 'overview' | 'api-keys' | 'webhooks' | 'playground' | 'logs' | null;
-  const [activeTab, setActiveTab] = useState<'overview' | 'api-keys' | 'webhooks' | 'playground' | 'logs'>(() => tabParam || 'overview');
+  const tabParam = searchParams.get('tab') as 'overview' | 'mpesa-kra' | 'api-keys' | 'webhooks' | 'playground' | 'logs' | null;
+  const [activeTab, setActiveTab] = useState<'overview' | 'mpesa-kra' | 'api-keys' | 'webhooks' | 'playground' | 'logs'>(() => tabParam || 'overview');
 
   useEffect(() => {
     if (tabParam) {
@@ -382,42 +408,59 @@ const Integrations: React.FC = () => {
       <PageHeader title="API Gateway & B2B Integrations" showSearch={false} />
 
       {/* Navigation tabs */}
-      <div className="bg-white dark:bg-gray-800 border-b border-surface-2 dark:border-gray-700 px-4 md:px-8 mt-0.5 shrink-0">
-        <div className="flex gap-4 md:gap-8 overflow-x-auto text-xs md:text-sm">
+      <div className="bg-white dark:bg-gray-800 border-b border-surface-2 dark:border-gray-700 px-3 sm:px-6 md:px-8 mt-0.5 shrink-0">
+        <div className="flex gap-1 md:gap-3 overflow-x-auto text-xs md:text-sm scrollbar-none py-1">
           <button 
             onClick={() => setActiveTab('overview')}
-            className={`py-4 font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'overview' ? 'border-brand-orange text-brand-orange' : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}`}
+            className={`py-3 px-3.5 font-bold border-b-2 transition-colors whitespace-nowrap flex items-center gap-2 shrink-0 ${activeTab === 'overview' ? 'border-brand-orange text-brand-orange bg-brand-orange/5 rounded-t-lg' : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}`}
           >
-            📋 API Integration Blueprint
+            <Layers className="w-4 h-4 shrink-0" />
+            <span>API Blueprint</span>
+          </button>
+          <button 
+            onClick={() => setActiveTab('mpesa-kra')}
+            className={`py-3 px-3.5 font-bold border-b-2 transition-colors whitespace-nowrap flex items-center gap-2 shrink-0 ${activeTab === 'mpesa-kra' ? 'border-brand-orange text-brand-orange bg-brand-orange/5 rounded-t-lg' : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}`}
+          >
+            <Smartphone className="w-4 h-4 shrink-0" />
+            <span>M-Pesa & KRA eTIMS</span>
           </button>
           <button 
             onClick={() => setActiveTab('api-keys')}
-            className={`py-4 font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'api-keys' ? 'border-brand-orange text-brand-orange' : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}`}
+            className={`py-3 px-3.5 font-bold border-b-2 transition-colors whitespace-nowrap flex items-center gap-2 shrink-0 ${activeTab === 'api-keys' ? 'border-brand-orange text-brand-orange bg-brand-orange/5 rounded-t-lg' : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}`}
           >
-            🔑 Secure API Credentials
+            <Key className="w-4 h-4 shrink-0" />
+            <span>API Credentials</span>
           </button>
           <button 
             onClick={() => setActiveTab('webhooks')}
-            className={`py-4 font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'webhooks' ? 'border-brand-orange text-brand-orange' : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}`}
+            className={`py-3 px-3.5 font-bold border-b-2 transition-colors whitespace-nowrap flex items-center gap-2 shrink-0 ${activeTab === 'webhooks' ? 'border-brand-orange text-brand-orange bg-brand-orange/5 rounded-t-lg' : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}`}
           >
-            ⚡ Webhook Push Subscriptions
+            <WebhookIcon className="w-4 h-4 shrink-0" />
+            <span>Webhooks</span>
           </button>
           <button 
             onClick={() => setActiveTab('playground')}
-            className={`py-4 font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'playground' ? 'border-brand-orange text-brand-orange' : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}`}
+            className={`py-3 px-3.5 font-bold border-b-2 transition-colors whitespace-nowrap flex items-center gap-2 shrink-0 ${activeTab === 'playground' ? 'border-brand-orange text-brand-orange bg-brand-orange/5 rounded-t-lg' : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}`}
           >
-            🧪 Developer Try-out Playground
+            <Terminal className="w-4 h-4 shrink-0" />
+            <span>REST Playground</span>
           </button>
           <button 
             onClick={() => setActiveTab('logs')}
-            className={`py-4 font-bold border-b-2 transition-colors whitespace-nowrap ${activeTab === 'logs' ? 'border-brand-orange text-brand-orange' : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}`}
+            className={`py-3 px-3.5 font-bold border-b-2 transition-colors whitespace-nowrap flex items-center gap-2 shrink-0 ${activeTab === 'logs' ? 'border-brand-orange text-brand-orange bg-brand-orange/5 rounded-t-lg' : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}`}
           >
-            🕵️ Telemetry Request Logs
+            <Activity className="w-4 h-4 shrink-0" />
+            <span>Telemetry Logs</span>
           </button>
         </div>
       </div>
 
       <div className="p-4 md:p-8 max-w-6xl mx-auto w-full space-y-6">
+
+        {/* TAB 0: M-PESA DARAJA & KRA eTIMS ZERO-HARDCODED HUB */}
+        {activeTab === 'mpesa-kra' && (
+          <MpesaKraIntegrationHub />
+        )}
 
         {/* TAB 1: OVERVIEW BLUEPRINT */}
         {activeTab === 'overview' && (
@@ -430,37 +473,37 @@ const Integrations: React.FC = () => {
                 </p>
               </div>
               <span className="bg-brand-orange text-white text-[10px] uppercase font-black tracking-wider px-3 py-1.5 rounded-lg shrink-0">
-                🚀 SDK v3.12 Compliant
+                SDK v3.12 Compliant
               </span>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Card>
-                <h4 className="text-xs font-black text-brand-orange uppercase tracking-wider border-b pb-2 mb-3">🛠️ Supported ERP Core Connectors</h4>
+                <h4 className="text-xs font-black text-brand-orange uppercase tracking-wider border-b pb-2 mb-3">Supported ERP Core Connectors</h4>
                 <div className="space-y-4 text-xs">
                   <div className="flex gap-3 align-top">
-                    <span className="text-base">🏬</span>
+                    <ShoppingBag className="w-5 h-5 text-brand-orange shrink-0 mt-0.5" />
                     <div>
                       <h5 className="font-bold text-slate-800 dark:text-slate-200">E-Commerce Sync (Shopify & WooCommerce)</h5>
                       <p className="text-slate-400 mt-1">Bi-directional product catalogs, high-temperature part interchange lists, and real-time stock deductions immediately upon physical sales.</p>
                     </div>
                   </div>
                   <div className="flex gap-3 align-top">
-                    <span className="text-base">💳</span>
+                    <CreditCard className="w-5 h-5 text-brand-orange shrink-0 mt-0.5" />
                     <div>
                       <h5 className="font-bold text-slate-800 dark:text-slate-200">Cash Transfer Handshakes (M-Pesa & Card Gateways)</h5>
                       <p className="text-slate-400 mt-1">Instant invoice status clearance and cashier shift balance checks via automated payment receipt transaction ID matching.</p>
                     </div>
                   </div>
                   <div className="flex gap-3 align-top">
-                    <span className="text-base">🇰🇪</span>
+                    <ShieldCheck className="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
                     <div>
                       <h5 className="font-bold text-slate-800 dark:text-slate-200">KRA eTIMS Live Fiscal Compliance</h5>
                       <p className="text-slate-400 mt-1">Direct cryptographic signing, secure SSL gateway handshake, and real-time sales uploading reporting compliance logs without local hardware VSDs.</p>
                     </div>
                   </div>
                   <div className="flex gap-3 align-top">
-                    <span className="text-base">📒</span>
+                    <BookOpen className="w-5 h-5 text-indigo-500 shrink-0 mt-0.5" />
                     <div>
                       <h5 className="font-bold text-slate-800 dark:text-slate-200">Corporate Ledgers, CRM & SAP Sync</h5>
                       <p className="text-slate-400 mt-1">Exposes REST end-points for CRM accounting syncs, automated purchase orders, and wholesale dunning credit ledger tracking.</p>
@@ -471,7 +514,7 @@ const Integrations: React.FC = () => {
 
               <Card className="flex flex-col justify-between">
                 <div>
-                  <h4 className="text-xs font-black text-brand-orange uppercase tracking-wider border-b pb-2 mb-3">🔒 Developer Security Protocols</h4>
+                  <h4 className="text-xs font-black text-brand-orange uppercase tracking-wider border-b pb-2 mb-3">Developer Security Protocols</h4>
                   <p className="text-xs text-slate-400 leading-relaxed mb-4">
                     All server requests are isolated, logged, and authorized via high-entropy digital tokens following strict enterprise design protocols:
                   </p>
@@ -513,8 +556,8 @@ const Integrations: React.FC = () => {
             {/* Quick stats on integrations */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-xs">
               <div className="p-4 bg-white dark:bg-gray-800 rounded-xl border border-slate-205 dark:border-slate-705 flex items-center gap-4">
-                <div className="w-10 h-10 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 text-indigo-500 font-black text-lg flex items-center justify-center">
-                  🔑
+                <div className="w-10 h-10 rounded-lg bg-indigo-50 dark:bg-indigo-900/20 text-indigo-500 flex items-center justify-center">
+                  <Key className="w-5 h-5" />
                 </div>
                 <div>
                   <span className="font-mono text-slate-450 uppercase block text-[9px] tracking-wider">Active Authorized Keys</span>
@@ -523,8 +566,8 @@ const Integrations: React.FC = () => {
               </div>
 
               <div className="p-4 bg-white dark:bg-gray-800 rounded-xl border border-slate-205 dark:border-slate-755 flex items-center gap-4">
-                <div className="w-10 h-10 rounded-lg bg-teal-50 dark:bg-teal-900/20 text-teal-500 font-black text-lg flex items-center justify-center">
-                  ⚡
+                <div className="w-10 h-10 rounded-lg bg-teal-50 dark:bg-teal-900/20 text-teal-500 flex items-center justify-center">
+                  <Radio className="w-5 h-5" />
                 </div>
                 <div>
                   <span className="font-mono text-slate-450 uppercase block text-[9px] tracking-wider">Live Webhook Endpoints</span>
@@ -533,8 +576,8 @@ const Integrations: React.FC = () => {
               </div>
 
               <div className="p-4 bg-white dark:bg-gray-800 rounded-xl border border-slate-205 dark:border-slate-755 flex items-center gap-4">
-                <div className="w-10 h-10 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-500 font-black text-lg flex items-center justify-center">
-                  📊
+                <div className="w-10 h-10 rounded-lg bg-amber-50 dark:bg-amber-900/20 text-amber-500 flex items-center justify-center">
+                  <Activity className="w-5 h-5" />
                 </div>
                 <div>
                   <span className="font-mono text-slate-450 uppercase block text-[9px] tracking-wider">Total Handshakes Logged</span>
@@ -589,14 +632,14 @@ const Integrations: React.FC = () => {
                   </div>
 
                   <div className="p-3 bg-slate-100 dark:bg-slate-850 rounded-lg space-y-1 block text-[11px] leading-relaxed">
-                    <strong>⚠️ SECURITY ENFORCED NOTICE:</strong> Secret keys are shown exactly <strong>once</strong> upon generation. Masked keys are permanently hashed for database safety. Do not share raw staging variables.
+                    <div className="flex items-center gap-1.5 font-bold text-amber-700 dark:text-amber-400 mb-1"><AlertCircle className="w-3.5 h-3.5 shrink-0" /><span>Security Enforced Notice</span></div> Secret keys are shown exactly <strong>once</strong> upon generation. Masked keys are permanently hashed for database safety. Do not share raw staging variables.
                   </div>
 
                   <button 
                     type="submit"
                     className="w-full py-3 bg-brand-orange hover:bg-brand-orange/95 text-white font-black text-xs uppercase tracking-wider rounded-lg transition"
                   >
-                    🔑 Authorize New Secret Key
+                    Authorize New Secret Key
                   </button>
                 </div>
               </Card>
@@ -708,14 +751,14 @@ const Integrations: React.FC = () => {
                   </div>
 
                   <div className="p-3 bg-brand-orange/5 border border-brand-orange/10 rounded-lg text-[10.5px] leading-relaxed text-slate-600 dark:text-slate-300">
-                    ⚡ <strong>Secure Webhook Signatures:</strong> All dispatched events contain a cryptographic <code>X-Masuma-Signature</code> derived as an HMAC of the payload using your listener secret. Your client application must authenticate this header to verify the origin securely.
+                    <strong className="text-slate-800 dark:text-slate-200">Secure Webhook Signatures:</strong> All dispatched events contain a cryptographic <code>X-Masuma-Signature</code> derived as an HMAC of the payload using your listener secret. Your client application must authenticate this header to verify the origin securely.
                   </div>
 
                   <button 
                     type="submit"
                     className="w-full py-3 bg-brand-orange hover:bg-brand-orange/95 text-white font-black text-xs uppercase tracking-wider rounded-lg transition"
                   >
-                    ⚡ Register Live Endpoint Listener
+                    Register Live Endpoint Listener
                   </button>
                 </div>
               </Card>
@@ -749,7 +792,7 @@ const Integrations: React.FC = () => {
                             onClick={() => handleDeleteWebhook(wh.id, wh.url)}
                             className="p-1 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/20 rounded-lg transition text-xs font-bold"
                           >
-                            🗑️ Delete
+                            Delete
                           </button>
                         </div>
                       </div>
@@ -782,7 +825,7 @@ const Integrations: React.FC = () => {
               {webhooks.length > 0 && (
                 <Card className="border border-indigo-100 dark:border-indigo-950 bg-indigo-50/5">
                   <div className="border-b border-indigo-100 dark:border-indigo-950 pb-2 mb-4">
-                    <h3 className="text-xs font-black text-indigo-700 dark:text-indigo-400 uppercase tracking-wider">⚡ Dispatch Hook Manual Simulator</h3>
+                    <h3 className="text-xs font-black text-indigo-700 dark:text-indigo-400 uppercase tracking-wider">Dispatch Hook Manual Simulator</h3>
                     <p className="text-xs text-slate-400 mt-1">Manually synthesize and fire any push event payload to verify client integrations.</p>
                   </div>
 
@@ -827,7 +870,7 @@ const Integrations: React.FC = () => {
                           Emitting signed JSON payload...
                         </>
                       ) : (
-                        '🚀 Fire Test Webhook Post'
+                        'Fire Test Webhook Post'
                       )}
                     </button>
                   </div>
@@ -875,7 +918,7 @@ const Integrations: React.FC = () => {
                 </div>
 
                 <div className="p-3 bg-slate-50 dark:bg-slate-900/40 rounded-xl space-y-1 block leading-relaxed text-[10px] text-slate-400 mt-6">
-                  <strong>ℹ️ HEADS UP:</strong> Use the live try-it sandbox to simulate request handshakes and observe structural JSON fields returned, mimicking actual live integrations perfectly.
+                  <strong className="text-slate-700 dark:text-slate-300">Heads Up:</strong> Use the live try-it sandbox to simulate request handshakes and observe structural JSON fields returned, mimicking actual live integrations perfectly.
                 </div>
               </Card>
             </div>
@@ -906,7 +949,7 @@ const Integrations: React.FC = () => {
                                 Executing cURL...
                               </>
                             ) : (
-                              <>🧪 Try Endpoint Out</>
+                              <>Try Endpoint Out</>
                             )}
                           </button>
                         </div>
@@ -945,13 +988,13 @@ const Integrations: React.FC = () => {
 
                 {/* Simulated Console output terminal */}
                 <div className="space-y-1.5 mt-5">
-                  <span className="text-[10px] font-mono block text-slate-450 uppercase font-black tracking-wider">🖥️ Playground sandbox transmission terminal</span>
+                  <span className="text-[10px] font-mono block text-slate-450 uppercase font-black tracking-wider">Playground sandbox transmission terminal</span>
                   <div className="w-full bg-slate-950 p-4 rounded-xl font-mono text-[10.5px] leading-relaxed text-slate-300 min-h-64 border/20 max-h-96 overflow-y-auto flex flex-col justify-end">
                     {playgroundLogs ? (
                       <pre className="whitespace-pre-wrap font-mono select-text selection:bg-brand-orange selection:text-white">{playgroundLogs}</pre>
                     ) : (
                       <div className="text-center text-slate-500 py-16 font-sans">
-                        <span className="text-2xl block mb-2">🔭</span>
+                        <Terminal className="w-8 h-8 text-slate-500 mx-auto mb-2 opacity-60" />
                         No activities run yet. Click "Try Endpoint Out" above to execute signed Sandbox request simulations instantly.
                       </div>
                     )}
@@ -1025,7 +1068,7 @@ const Integrations: React.FC = () => {
         <div className="fixed inset-0 bg-slate-950/70 z-50 flex items-center justify-center p-4 backdrop-blur-sm animate-fade-in">
           <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl border dark:border-gray-700 space-y-4">
             <div className="flex items-center gap-3 border-b pb-3 text-emerald-600">
-              <span className="text-xl">🔑</span>
+              <Key className="w-5 h-5 text-emerald-500 shrink-0" />
               <h4 className="text-sm font-black uppercase tracking-wider">Secret API Credential Token Key Generated</h4>
             </div>
 
@@ -1038,7 +1081,7 @@ const Integrations: React.FC = () => {
               <button 
                 onClick={() => {
                   navigator.clipboard.writeText(generatedKeyMsg);
-                  alert('🔑 Token copied to system clipboard successfully!');
+                  alert('Token copied to system clipboard successfully!');
                 }}
                 className="bg-slate-800 hover:bg-slate-700 text-white text-[10.5px] px-3 py-1.5 rounded-lg shrink-0 font-bold select-none"
               >

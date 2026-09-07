@@ -5,12 +5,15 @@ import ProductGrid from '../components/pos/ProductGrid';
 import Cart from '../components/pos/Cart';
 import { 
     Search, Users, Plus, Scan, Tag, ShoppingBag, ShoppingCart, 
-    AlertCircle, CheckCircle2, Zap, ShieldCheck 
+    AlertCircle, CheckCircle2, Zap, ShieldCheck, Lock 
 } from 'lucide-react';
 import { QRScannerModal } from '../components/shared/QRScannerModal';
 import { OrderVerificationModal } from '../components/shared/OrderVerificationModal';
+import { useAuth } from '../contexts/AuthContext';
 
 const POS: React.FC = () => {
+    const { hasPermission, userRole } = useAuth();
+    const canCreateOrder = hasPermission('pos', 'create');
     const [activeTab, setActiveTab] = useState<'catalog' | 'cart'>('catalog');
     const [products, setProducts] = useState<Product[]>(() => {
         const saved = localStorage.getItem('masuma_products');
@@ -221,6 +224,11 @@ const POS: React.FC = () => {
     };
 
     const handleAddToCart = (productToAdd: Product) => {
+        if (!canCreateOrder) {
+            triggerToast(`🔒 Read-Only Inquiry: Role '${userRole}' cannot create cart orders.`, true);
+            return;
+        }
+
         if (productToAdd.stock === 0) {
             triggerToast("⚠️ OUT OF STOCK: This product is currently unavailable.", true);
             return;
@@ -379,18 +387,34 @@ const POS: React.FC = () => {
                                      </option>
                                  ))}
                              </select>
-                             <button
-                                 type="button"
-                                 onClick={() => setShowQuickAddCustomer(true)}
-                                 className="px-2 py-1 bg-brand-orange text-white hover:bg-brand-orange/90 rounded text-[10px] font-black uppercase tracking-wider transition-all select-none flex items-center gap-1 active:scale-95 shadow-xs"
-                                 title="Quick-register new client profile"
-                             >
-                                 <Plus className="w-3.5 h-3.5" />
-                                 <span>Add Client</span>
-                             </button>
+                             {canCreateOrder && (
+                               <button
+                                   type="button"
+                                   onClick={() => setShowQuickAddCustomer(true)}
+                                   className="px-2 py-1 bg-brand-orange text-white hover:bg-brand-orange/90 rounded text-[10px] font-black uppercase tracking-wider transition-all select-none flex items-center gap-1 active:scale-95 shadow-xs cursor-pointer"
+                                   title="Quick-register new client profile"
+                               >
+                                   <Plus className="w-3.5 h-3.5" />
+                                   <span>Add Client</span>
+                               </button>
+                             )}
                         </div>
                     </div>
                 </header>
+
+                {!canCreateOrder && (
+                  <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 text-xs text-amber-300 flex items-center justify-between font-mono shrink-0">
+                    <div className="flex items-center gap-2">
+                      <Lock className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                      <span>
+                        Terminal in <strong>Read-Only Pricing Mode</strong> ({userRole}). Registering sales & checkouts require Cashier or Manager credentials.
+                      </span>
+                    </div>
+                    <span className="text-[10px] px-2 py-0.5 rounded bg-amber-500/20 text-amber-300">
+                      View-Only
+                    </span>
+                  </div>
+                )}
 
                 {/* Sub-HUD: Interactive Instruction to scanning */}
                 <div className="bg-slate-900 text-slate-450 text-[10px] sm:text-[11px] px-4 py-1.5 font-mono flex items-center justify-between border-b border-slate-800 shrink-0 select-none">
@@ -643,7 +667,7 @@ const POS: React.FC = () => {
                                     type="submit"
                                     className="flex-1 py-2.5 bg-brand-orange hover:bg-brand-orange/90 text-white rounded-xl font-extrabold uppercase tracking-wider transition-all text-center select-none shadow-md shadow-brand-orange/15"
                                 >
-                                    Save & Select ⚡
+                                    Save & Select Customer
                                 </button>
                             </div>
                         </form>

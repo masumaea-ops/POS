@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { Product } from '../../types';
-import { X, Search } from 'lucide-react';
+import { X, Search, Camera, Keyboard, Printer, Tag, Zap } from 'lucide-react';
 import { useSystemSettings } from '../../contexts/SettingsContext';
 
 interface ScanLogEntry {
@@ -248,7 +248,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
         {/* MODAL HEADER */}
         <header className="p-4 border-b border-slate-150 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-850 shrink-0">
           <div className="flex items-center gap-2">
-            <span className="text-xl">🏷️</span>
+            <Tag className="w-5 h-5 text-brand-orange shrink-0" />
             <div>
               <h2 className="text-sm font-black uppercase tracking-wider text-slate-900 dark:text-white">
                 Fast Barcode & Label Scantron Platform
@@ -276,7 +276,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                 : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
             }`}
           >
-            📹 Digital Webcam Scanner
+            <Camera className="w-3.5 h-3.5 inline mr-1.5 shrink-0" />Digital Webcam Scanner
           </button>
           <button
             onClick={() => setActiveTab('hardware')}
@@ -286,7 +286,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                 : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
             }`}
           >
-            🔌 Keyboard Handheld Wedge (Standby)
+            <Keyboard className="w-3.5 h-3.5 inline mr-1.5 shrink-0" />Keyboard Wedge (Standby)
           </button>
           <button
             onClick={() => setActiveTab('labels')}
@@ -296,7 +296,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                 : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
             }`}
           >
-            🖨️ Simulated Barcode Sheet
+            <Printer className="w-3.5 h-3.5 inline mr-1.5 shrink-0" />Simulated Barcode Sheet
           </button>
         </div>
 
@@ -359,7 +359,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                   ) : (
                     <div className="p-6 text-center text-slate-400 space-y-4 max-w-sm">
                       <div className="w-16 h-16 bg-slate-800/80 rounded-full flex items-center justify-center mx-auto border border-slate-700">
-                        <span className="text-2xl text-slate-400">📷</span>
+                        <Camera className="w-8 h-8 text-slate-400" />
                       </div>
                       <div className="space-y-1">
                         <p className="text-xs font-bold text-slate-200">
@@ -581,7 +581,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
 
                       {/* Action status bar click helper */}
                       <div className="p-1.5 py-2 text-center text-[9px] uppercase font-bold bg-slate-50 dark:bg-slate-700/60 font-mono flex items-center justify-center gap-1 border-t border-slate-100 dark:border-slate-700 text-slate-500 dark:text-gray-300 group-hover:text-brand-orange group-hover:bg-brand-orange/5 transition">
-                        <span>⚡</span>
+                        <Zap className="w-3 h-3 text-brand-orange shrink-0" />
                         <span>Click barcode area to trigger Scan Laser</span>
                         {p.stock === 0 && <span className="text-red-500 font-bold ml-1">• OUT OF STOCK</span>}
                       </div>

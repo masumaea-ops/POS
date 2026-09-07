@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Bell, ChevronDown, LogOut, Lock, ShieldCheck, Menu } from 'lucide-react';
+import { Bell, ChevronDown, LogOut, Lock, ShieldCheck, Menu, UserCheck, Shield, ShoppingBag, Wrench, FileSpreadsheet } from 'lucide-react';
 import { useSystemSettings } from '../../contexts/SettingsContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { NavLink } from 'react-router-dom';
 
 interface HeaderProps {
@@ -15,14 +16,21 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleMobileMenu
 }) => {
   const { settings, setSettings } = useSystemSettings();
+  const { currentUser, userRole, getRoleBadge, switchRole, allPersonas } = useAuth();
   const [currencyMenuOpen, setCurrencyMenuOpen] = useState(false);
   const [branchMenuOpen, setBranchMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [personaMenuOpen, setPersonaMenuOpen] = useState(false);
 
-  // Active user profile details
-  const userName = 'Titus Mbaru';
-  const userRole = 'Sales Staff';
-  const userInitials = 'TM';
+  const badge = getRoleBadge(userRole);
+
+  const userInitials = (currentUser.fullName || currentUser.username || 'SU')
+    .split(' ')
+    .filter(Boolean)
+    .map(n => n[0])
+    .slice(0, 2)
+    .join('')
+    .toUpperCase() || 'SA';
 
   const branches = [
     'Masuma Autoparts EA Ltd',
@@ -197,20 +205,108 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </div>
 
-        {/* User Avatar Chip */}
-        <NavLink
-          to="/profile"
-          className="flex items-center gap-2.5 px-2 py-1 rounded-xl hover:bg-slate-800/70 transition cursor-pointer"
-          title="View Staff Profile"
-        >
-          <div className="w-9 h-9 rounded-full bg-[#ff5000] text-white font-black text-xs flex items-center justify-center shadow-xs shrink-0 tracking-wider">
-            {userInitials}
-          </div>
-          <div className="hidden lg:flex flex-col text-left">
-            <span className="text-xs font-bold text-white leading-tight">{userName}</span>
-            <span className="text-[10px] text-slate-400 font-medium leading-none mt-0.5">{userRole}</span>
-          </div>
-        </NavLink>
+        {/* User Avatar Chip & Role Persona Selector */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => {
+              setPersonaMenuOpen(!personaMenuOpen);
+              setNotificationsOpen(false);
+              setCurrencyMenuOpen(false);
+              setBranchMenuOpen(false);
+            }}
+            className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl hover:bg-slate-800/80 border border-slate-750 hover:border-slate-600 transition cursor-pointer"
+            title="Active User Profile & Role Switcher"
+          >
+            <div className={`w-8 h-8 rounded-full ${badge.bg} ${badge.color} border ${badge.border} font-black text-xs flex items-center justify-center shadow-xs shrink-0 tracking-wider`}>
+              {userInitials}
+            </div>
+            <div className="hidden lg:flex flex-col text-left">
+              <span className="text-xs font-bold text-white leading-tight truncate max-w-[130px]">
+                {currentUser.fullName || currentUser.username}
+              </span>
+              <span className={`text-[10px] font-bold uppercase tracking-wider ${badge.color} leading-none mt-0.5`}>
+                {badge.label}
+              </span>
+            </div>
+            <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden sm:block" />
+          </button>
+
+          {/* Role Persona Switcher & Profile Dropdown */}
+          {personaMenuOpen && (
+            <div className="absolute right-0 mt-2 w-72 bg-[#111c33] border border-slate-750 rounded-xl shadow-2xl p-3 z-50 animate-in fade-in zoom-in-95 text-xs space-y-3">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                <div>
+                  <p className="font-bold text-white">{currentUser.fullName}</p>
+                  <p className="text-[11px] text-slate-400">{currentUser.email || currentUser.username}</p>
+                </div>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${badge.bg} ${badge.color} border ${badge.border}`}>
+                  {userRole}
+                </span>
+              </div>
+
+              {/* Instant Role Switching for Verification */}
+              <div>
+                <div className="flex items-center justify-between text-[11px] font-bold text-slate-300 mb-2">
+                  <span className="flex items-center gap-1 text-brand-orange">
+                    <UserCheck className="w-3.5 h-3.5" />
+                    <span>Switch Role Persona</span>
+                  </span>
+                  <span className="text-[9px] text-slate-500">Live Granular Test</span>
+                </div>
+                <div className="space-y-1">
+                  {allPersonas.map((persona) => {
+                    const isSelected = persona.role === userRole;
+                    const pBadge = getRoleBadge(persona.role);
+                    return (
+                      <button
+                        key={persona.id}
+                        type="button"
+                        onClick={() => {
+                          switchRole(persona.role);
+                          setPersonaMenuOpen(false);
+                        }}
+                        className={`w-full flex items-center justify-between p-2 rounded-lg text-left transition cursor-pointer ${
+                          isSelected
+                            ? 'bg-brand-orange/20 border border-brand-orange text-white'
+                            : 'hover:bg-slate-800/80 text-slate-300'
+                        }`}
+                      >
+                        <div className="flex flex-col min-w-0 pr-2">
+                          <span className="font-bold text-[11px] text-white truncate">{persona.fullName}</span>
+                          <span className="text-[10px] text-slate-400">{persona.branch?.split(' ')[0] || 'Central'}</span>
+                        </div>
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded uppercase font-bold tracking-wider ${pBadge.bg} ${pBadge.color} border ${pBadge.border} shrink-0`}>
+                          {persona.role}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-slate-800 flex gap-2">
+                <NavLink
+                  to="/profile"
+                  onClick={() => setPersonaMenuOpen(false)}
+                  className="flex-1 py-1.5 bg-slate-800 hover:bg-slate-700 text-center rounded-lg text-slate-300 font-bold transition"
+                >
+                  My Profile
+                </NavLink>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPersonaMenuOpen(false);
+                    onLogout();
+                  }}
+                  className="flex-1 py-1.5 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 text-center rounded-lg font-bold transition border border-rose-600/30"
+                >
+                  Sign Out
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Lock Terminal Action */}
         {onLockTerminal && (

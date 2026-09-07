@@ -3,11 +3,15 @@ import PageHeader from '../components/shared/PageHeader';
 import Table, { TableRowAction } from '../components/shared/Table';
 import { MOCK_PURCHASE_ORDERS, MOCK_SUPPLIERS, MOCK_PRODUCTS } from '../data/mockData';
 import type { PurchaseOrder, Supplier, Product } from '../types';
-import { X, ClipboardList, FileText, Eye, PackageCheck, Printer, Copy } from 'lucide-react';
+import { X, ClipboardList, FileText, Eye, PackageCheck, Printer, Copy, Lock, Shield } from 'lucide-react';
 import { useSystemSettings } from '../contexts/SettingsContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const Purchasing: React.FC = () => {
     const { settings, formatPrice } = useSystemSettings();
+    const { hasPermission, userRole } = useAuth();
+    const canCreate = hasPermission('purchasing', 'create');
+    const canUpdate = hasPermission('purchasing', 'update');
     const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>(MOCK_PURCHASE_ORDERS);
     const [selectedPO, setSelectedPO] = useState<PurchaseOrder | null>(null);
     
@@ -135,10 +139,10 @@ const Purchasing: React.FC = () => {
               >
                  Inspect Lines
               </button>
-              {item.status === 'Sent' && (
+              {canUpdate && item.status === 'Sent' && (
                  <button 
                     onClick={() => handleTransitionStatus(item.id, 'Received')}
-                    className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs rounded font-bold transition-all"
+                    className="px-2 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-xs rounded font-bold transition-all cursor-pointer"
                  >
                     Receive Stock
                  </button>
@@ -154,12 +158,12 @@ const Purchasing: React.FC = () => {
         icon: Eye,
         onClick: (po) => setSelectedPO(po),
       },
-      {
+      ...(canUpdate ? [{
         label: 'Receive Inbound Stock (GRN)',
         icon: PackageCheck,
-        hidden: (po) => po.status !== 'Sent',
-        onClick: (po) => handleTransitionStatus(po.id, 'Received'),
-      },
+        hidden: (po: PurchaseOrder) => po.status !== 'Sent',
+        onClick: (po: PurchaseOrder) => handleTransitionStatus(po.id, 'Received'),
+      }] : []),
       {
         label: 'Print Purchase Order Document',
         icon: Printer,
@@ -181,8 +185,22 @@ const Purchasing: React.FC = () => {
         <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 pb-12">
             <PageHeader
                 title="B2B Reorder Procurement Panel"
-                primaryAction={{ label: "Prepare Supply PO Order", onClick: () => setIsCreateOpen(true) }}
+                primaryAction={canCreate ? { label: "Prepare Supply PO Order", onClick: () => setIsCreateOpen(true) } : undefined}
             />
+
+            {!canCreate && (
+              <div className="mx-4 md:mx-8 mt-2 px-4 py-2 bg-slate-800/80 border border-slate-700 rounded-xl flex items-center justify-between text-xs text-slate-300">
+                <div className="flex items-center gap-2">
+                  <Lock className="w-3.5 h-3.5 text-amber-400" />
+                  <span>
+                    Procurement in <strong className="text-white">Read-Only Mode</strong> ({userRole}). Purchase requisition generation and stock receipt require Manager or Admin authorization.
+                  </span>
+                </div>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-slate-700 text-slate-400 font-mono">
+                  RBAC Active
+                </span>
+              </div>
+            )}
             
             <div className="p-4 md:p-8">
                 <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700">

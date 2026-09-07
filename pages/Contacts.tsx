@@ -4,7 +4,7 @@ import PageHeader from '../components/shared/PageHeader';
 import Table, { TableRowAction } from '../components/shared/Table';
 import { MOCK_CUSTOMERS, MOCK_SUPPLIERS } from '../data/mockData';
 import type { Customer, Supplier } from '../types';
-import { X, Search, Edit3, Copy, Phone, Mail, FileText } from 'lucide-react';
+import { X, Search, Edit3, Copy, Phone, Mail, FileText, Building2, Tag, Truck, Eye, AlertCircle, Users, Factory, FolderArchive, Upload } from 'lucide-react';
 import { useSystemSettings } from '../contexts/SettingsContext';
 
 const Contacts: React.FC = () => {
@@ -539,7 +539,7 @@ const Contacts: React.FC = () => {
           <span className="font-bold text-slate-900 dark:text-slate-100 block">{item.name}</span>
           {item.companyName && (
             <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 font-bold px-1.5 py-0.5 rounded mt-1 inline-block border border-slate-200 dark:border-slate-700">
-              🏢 {item.companyName}
+              <span className="inline-flex items-center gap-1"><Building2 className="w-3 h-3 text-slate-400 shrink-0" /><span>{item.companyName}</span></span>
             </span>
           )}
         </div>
@@ -572,7 +572,7 @@ const Contacts: React.FC = () => {
           {item.kraPin ? (
             <div>
               <span className="text-[10px] font-mono font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded border border-amber-500/20">
-                🏷️ KRA: {item.kraPin}
+                <span className="inline-flex items-center gap-1"><Tag className="w-2.5 h-2.5 text-amber-500 shrink-0" /><span>KRA: {item.kraPin}</span></span>
               </span>
             </div>
           ) : (
@@ -580,7 +580,7 @@ const Contacts: React.FC = () => {
           )}
           {item.shippingAddress ? (
             <p className="text-slate-600 dark:text-slate-400 leading-tight text-[10px] truncate" title={item.shippingAddress}>
-              🚚 {item.shippingAddress}
+              <span className="inline-flex items-center gap-1"><Truck className="w-3 h-3 text-slate-400 shrink-0" /><span>{item.shippingAddress}</span></span>
             </p>
           ) : (
             <p className="text-[9px] text-slate-400 italic">No address registered</p>
@@ -717,7 +717,7 @@ const Contacts: React.FC = () => {
             <span className="text-xl font-black text-slate-900 dark:text-white mt-1 block font-mono">{customers.length} Accounts</span>
             <span className="text-[11px] text-slate-405 mt-2 block hover:underline text-indigo-600">Active credit ledgers & custom markups</span>
           </div>
-          <span className="text-3xl">👥</span>
+          <Users className="w-8 h-8 text-indigo-500 shrink-0" />
         </button>
 
         {/* Active Tab Supplier Box */}
@@ -730,7 +730,7 @@ const Contacts: React.FC = () => {
             <span className="text-xl font-black text-slate-900 dark:text-white mt-1 block font-mono">{suppliers.length} Factories</span>
             <span className="text-[11px] text-slate-405 mt-2 block hover:underline text-brand-orange">Supply chain dispatch & parts sourcing</span>
           </div>
-          <span className="text-3xl">🏭</span>
+          <Factory className="w-8 h-8 text-brand-orange shrink-0" />
         </button>
 
       </div>
@@ -1035,7 +1035,7 @@ const Contacts: React.FC = () => {
           <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden border border-slate-200 dark:border-gray-700 font-sans text-xs text-slate-600 dark:text-slate-300">
             <div className="flex justify-between items-center p-5 border-b border-slate-100 dark:border-slate-700">
               <div>
-                <h3 className="text-lg font-black text-slate-950 dark:text-white uppercase tracking-wider">📥 Seamless B2B {activeTab} Directory Importer</h3>
+                <h3 className="text-lg font-black text-slate-950 dark:text-white uppercase tracking-wider flex items-center gap-2"><Upload className="w-5 h-5 text-brand-orange shrink-0" /><span>Seamless B2B {activeTab} Directory Importer</span></h3>
                 <p className="text-[11px] text-slate-400 mt-1">Deploy bulk credit ledgers, map aliases, and update contacts data recursively into local cache storage.</p>
               </div>
               <button 
@@ -1067,7 +1067,7 @@ const Contacts: React.FC = () => {
                   onClick={handleDownloadTemplate}
                   className="py-1.5 px-3 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 font-bold rounded border border-indigo-100 dark:border-indigo-900/30 whitespace-nowrap text-[10px]"
                 >
-                  📥 Download Template
+                  Download Template
                 </button>
               </div>
 
@@ -1079,7 +1079,7 @@ const Contacts: React.FC = () => {
                 onDrop={handleDrop}
                 className={`border-2 border-dashed rounded-2xl p-8 text-center flex flex-col items-center justify-center transition-all ${dragActive ? 'border-brand-orange bg-orange-50/10' : 'border-slate-300 dark:border-slate-700 hover:border-slate-450'}`}
               >
-                <span className="text-4xl mb-2">📁</span>
+                <FolderArchive className="w-10 h-10 text-slate-400 mb-2" />
                 <span className="font-bold text-slate-800 dark:text-slate-200 text-sm">Drag and drop your B2B {activeTab.toLowerCase()} csv list here</span>
                 <span className="text-slate-400 mt-1 block">or manually select from local storage files</span>
 
@@ -1110,7 +1110,7 @@ const Contacts: React.FC = () => {
               {/* Mapped Row Previews - Customers list */}
               {activeTab === 'Customers' && importPreviewCustomers.length > 0 && (
                 <div className="space-y-2">
-                  <span className="font-extrabold uppercase text-slate-450 tracking-wider text-[10px] block">👁️ Corporate Accounts Loaded (dry-run):</span>
+                  <span className="font-extrabold uppercase text-slate-450 tracking-wider text-[10px] block">Corporate Accounts Loaded (dry-run):</span>
                   <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden overflow-x-auto max-h-48">
                     <table className="w-full text-left font-sans text-[11px]">
                       <thead className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 text-slate-500 font-extrabold">
@@ -1146,7 +1146,7 @@ const Contacts: React.FC = () => {
               {/* Mapped Row Previews - Suppliers list */}
               {activeTab === 'Suppliers' && importPreviewSuppliers.length > 0 && (
                 <div className="space-y-2">
-                  <span className="font-extrabold uppercase text-slate-450 tracking-wider text-[10px] block">👁️ Sourcing Factories Loaded (dry-run):</span>
+                  <span className="font-extrabold uppercase text-slate-450 tracking-wider text-[10px] block">Sourcing Factories Loaded (dry-run):</span>
                   <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden overflow-x-auto max-h-48">
                     <table className="w-full text-left font-sans text-[11px]">
                       <thead className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 text-slate-500 font-extrabold">

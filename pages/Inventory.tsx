@@ -3,8 +3,9 @@ import { MOCK_PRODUCTS, MOCK_SALE_ORDERS } from '../data/mockData';
 import PageHeader from '../components/shared/PageHeader';
 import Table, { TableRowAction } from '../components/shared/Table';
 import type { Product, SaleOrder } from '../types';
-import { Search, X, Package, AlertTriangle, Coins, Zap, BarChart2, Download, FileText, Printer, Scan, Camera, ShieldCheck, CheckCircle2, Eye, Edit3, Trash2, Copy, TrendingUp } from 'lucide-react';
+import { Search, X, Package, AlertTriangle, Coins, Zap, BarChart2, Download, FileText, Printer, Scan, Camera, ShieldCheck, CheckCircle2, Eye, Edit3, Trash2, Copy, TrendingUp, ShieldAlert, Lock, Link2, MapPin, Upload, FolderArchive } from 'lucide-react';
 import { useSystemSettings } from '../contexts/SettingsContext';
+import { useAuth } from '../contexts/AuthContext';
 import { exportToPDF, exportToCSV as generateCSV } from '../utils/exportUtils';
 import ExportDropdown from '../components/shared/ExportDropdown';
 import { QRScannerModal } from '../components/shared/QRScannerModal';
@@ -14,6 +15,13 @@ import { ProductPriceTrendSection } from '../components/inventory/ProductPriceTr
 
 const Inventory: React.FC = () => {
   const { settings, formatPrice } = useSystemSettings();
+  const { hasPermission, userRole, getRoleBadge } = useAuth();
+
+  const canCreate = hasPermission('inventory', 'create');
+  const canUpdate = hasPermission('inventory', 'update');
+  const canDelete = hasPermission('inventory', 'delete');
+  const canExport = hasPermission('inventory', 'export');
+  const canPO = hasPermission('purchasing', 'create');
   
   // State for active sales history view & active hub tab
   const [selectedProductHistory, setSelectedProductHistory] = useState<Product | null>(null);
@@ -574,7 +582,7 @@ const Inventory: React.FC = () => {
         <div className="font-mono text-xs">
           {item.oemCode ? (
              <span className="bg-slate-100 dark:bg-slate-700 text-slate-800 dark:text-slate-200 px-2 py-1 rounded font-bold border border-slate-200 dark:border-slate-600">
-               🔗 {item.oemCode}
+               <span className="inline-flex items-center gap-1.5"><Link2 className="w-3 h-3 text-slate-400 shrink-0" /><span>{item.oemCode}</span></span>
              </span>
           ) : (
              <span className="text-slate-450 italic">- None -</span>
@@ -586,7 +594,7 @@ const Inventory: React.FC = () => {
       header: 'Distribution Slot (Shelf Bin)', 
       accessor: (item: Product) => (
         <span className="font-bold font-mono text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded text-xs border border-indigo-100 dark:border-indigo-900/30">
-          📍 {item.binLocation || 'UN-SLOTTED'}
+          <span className="inline-flex items-center gap-1.5"><MapPin className="w-3 h-3 text-indigo-500 shrink-0" /><span>{item.binLocation || 'UN-SLOTTED'}</span></span>
         </span>
       ) 
     },
@@ -605,35 +613,39 @@ const Inventory: React.FC = () => {
       header: 'Operations', 
       accessor: (item: Product) => (
         <div className="flex gap-2 items-center text-xs">
-          <button 
-             onClick={() => setInspectedProduct(item)}
-             className="px-2.5 py-1 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/50 rounded font-bold transition-all flex items-center gap-1 border border-amber-200 dark:border-amber-800/40"
-             title="Quick physical stock count adjustment & print shelf QR tag"
-          >
-             <Scan className="w-3.5 h-3.5" />
-             <span>Audit / QR</span>
-          </button>
+          {canUpdate && (
+            <button 
+               onClick={() => setInspectedProduct(item)}
+               className="px-2.5 py-1 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-900/50 rounded font-bold transition-all flex items-center gap-1 border border-amber-200 dark:border-amber-800/40 cursor-pointer"
+               title="Quick physical stock count adjustment & print shelf QR tag"
+            >
+               <Scan className="w-3.5 h-3.5" />
+               <span>Audit / QR</span>
+            </button>
+          )}
           <button 
              onClick={() => {
                setSelectedProductHistory(item);
                setHubTab('trends');
              }}
-             className="px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded font-bold transition-all flex items-center gap-1 border border-indigo-200 dark:border-indigo-800/40"
+             className="px-2.5 py-1 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 rounded font-bold transition-all flex items-center gap-1 border border-indigo-200 dark:border-indigo-800/40 cursor-pointer"
              title="View Price Trends, Gross Margin & Procurement Analytics"
           >
              <BarChart2 className="w-3.5 h-3.5" />
              <span>Trends & Sales</span>
           </button>
-          <button 
-             onClick={() => handleEditProductClick(item)}
-             className="px-2.5 py-1 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded font-bold transition-all"
-          >
-             Modify
-          </button>
-          {item.stock <= (item.minStockLevel || 10) && (
+          {canUpdate && (
+            <button 
+               onClick={() => handleEditProductClick(item)}
+               className="px-2.5 py-1 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 rounded font-bold transition-all cursor-pointer"
+            >
+               Modify
+            </button>
+          )}
+          {canPO && item.stock <= (item.minStockLevel || 10) && (
             <button 
                onClick={() => triggerDraftPO(item)}
-               className="px-2 py-1 bg-brand-orange hover:bg-brand-orange/90 text-white rounded font-bold hover:scale-105 transition-all text-[11px] flex items-center gap-1"
+               className="px-2 py-1 bg-brand-orange hover:bg-brand-orange/90 text-white rounded font-bold hover:scale-105 transition-all text-[11px] flex items-center gap-1 cursor-pointer"
             >
                <Zap className="w-3 h-3 fill-current" />
                <span>Auto-PO</span>
@@ -650,11 +662,11 @@ const Inventory: React.FC = () => {
       icon: Eye,
       onClick: (p) => setInspectedProduct(p),
     },
-    {
+    ...(canUpdate ? [{
       label: 'Modify Product & Stock',
       icon: Edit3,
-      onClick: (p) => handleEditProductClick(p),
-    },
+      onClick: (p: Product) => handleEditProductClick(p),
+    }] : []),
     {
       label: 'Sales Trends & History',
       icon: TrendingUp,
@@ -670,30 +682,49 @@ const Inventory: React.FC = () => {
         navigator.clipboard?.writeText(p.sku || p.name);
       },
     },
-    {
+    ...(canDelete ? [{
       label: 'Delete Product',
       icon: Trash2,
-      variant: 'danger',
-      onClick: (p) => {
+      variant: 'danger' as const,
+      onClick: (p: Product) => {
         if (window.confirm(`Are you sure you want to remove "${p.name}" from inventory?`)) {
           setProducts(prev => prev.filter(item => item.id !== p.id));
         }
       },
-    },
+    }] : []),
   ];
 
   return (
     <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-900 pb-12">
       <PageHeader
         title="Automotive Parts Catalog"
-        primaryAction={{ label: "Add Product Spec", onClick: handleAddProductClick }}
+        primaryAction={canCreate ? { label: "Add Product Spec", onClick: handleAddProductClick } : undefined}
         secondaryActions={[
-          { label: "📷 QR Scanner", onClick: () => setIsScannerOpen(true) },
-          { label: "📄 Export PDF", onClick: handleExportInventoryPDF },
-          { label: "📊 Export CSV", onClick: handleExportInventoryCSV },
-          { label: "📥 Import CSV (Bulk)", onClick: () => setIsImportModalOpen(true) }
+          { label: "QR Scanner", onClick: () => setIsScannerOpen(true) },
+          ...(canExport ? [
+            { label: "Export PDF", onClick: handleExportInventoryPDF },
+            { label: "Export CSV", onClick: handleExportInventoryCSV },
+          ] : []),
+          ...(canCreate ? [
+            { label: "Import CSV (Bulk)", onClick: () => setIsImportModalOpen(true) }
+          ] : [])
         ]}
       />
+
+      {/* Role Access Notice for Staff */}
+      {!canCreate && (
+        <div className="mx-4 md:mx-8 mt-2 px-4 py-2 bg-slate-800/80 border border-slate-700 rounded-xl flex items-center justify-between text-xs text-slate-300">
+          <div className="flex items-center gap-2">
+            <Lock className="w-3.5 h-3.5 text-amber-400" />
+            <span>
+              Catalog operates in <strong className="text-white">Read-Only Search Mode</strong> for your role (<strong className="text-amber-400 capitalize">{userRole}</strong>). Specification additions and deletions are restricted.
+            </span>
+          </div>
+          <span className="text-[10px] px-2 py-0.5 rounded bg-slate-700 text-slate-400 font-mono">
+            RBAC Enforced
+          </span>
+        </div>
+      )}
 
       {/* QUICK INVENTORY ACTIONS HUD */}
       <div className="px-4 md:px-8 mt-4 grid grid-cols-1 sm:grid-cols-4 gap-4">
@@ -960,7 +991,7 @@ const Inventory: React.FC = () => {
           <div className="bg-white dark:bg-gray-800 rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden border border-slate-200 dark:border-gray-700 font-sans text-xs text-slate-600 dark:text-slate-300">
             <div className="flex justify-between items-center p-5 border-b border-slate-100 dark:border-slate-700">
               <div>
-                <h3 className="text-lg font-black text-slate-950 dark:text-white uppercase tracking-wider">📥 Seamless Parts Catalog CSV Importer</h3>
+                <h3 className="text-lg font-black text-slate-950 dark:text-white uppercase tracking-wider flex items-center gap-2"><Upload className="w-5 h-5 text-brand-orange shrink-0" /><span>Seamless Parts Catalog CSV Importer</span></h3>
                 <p className="text-[11px] text-slate-400 mt-1">Ingest physical inventory catalogs, map columns dynamically, and resolve duplicate records with absolute accuracy.</p>
               </div>
               <button 
@@ -987,7 +1018,7 @@ const Inventory: React.FC = () => {
                   onClick={handleDownloadTemplate}
                   className="py-1.5 px-3 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/50 text-indigo-700 dark:text-indigo-300 font-bold rounded border border-indigo-100 dark:border-indigo-900/30 whitespace-nowrap text-[10px]"
                 >
-                  📥 Get Sample CSV
+                  Get Sample CSV
                 </button>
               </div>
 
@@ -999,7 +1030,7 @@ const Inventory: React.FC = () => {
                 onDrop={handleDrop}
                 className={`border-2 border-dashed rounded-2xl p-8 text-center flex flex-col items-center justify-center transition-all ${dragActive ? 'border-brand-orange bg-orange-50/10' : 'border-slate-300 dark:border-slate-700 hover:border-slate-450'}`}
               >
-                <span className="text-4xl mb-2">📁</span>
+                <FolderArchive className="w-10 h-10 text-slate-400 mb-2" />
                 <span className="font-bold text-slate-800 dark:text-slate-200 text-sm">Drag and drop your parts CSV catalog here</span>
                 <span className="text-slate-400 mt-1 block">or manually select from local disk systems</span>
 
@@ -1030,7 +1061,7 @@ const Inventory: React.FC = () => {
               {/* Duplicate conflict resolution strategy toggle */}
               {importPreview.length > 0 && (
                 <div className="p-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl space-y-3 font-sans">
-                  <span className="font-black text-slate-800 dark:text-white uppercase tracking-wider text-[10px] block">⚔️ SKU Duplication Conflict Policy:</span>
+                  <span className="font-black text-slate-800 dark:text-white uppercase tracking-wider text-[10px] block">SKU Duplication Conflict Policy:</span>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <label className={`p-2.5 rounded-lg border-2 flex items-center gap-2 cursor-pointer transition ${duplicateMode === 'overwrite' ? 'border-brand-orange bg-orange-500/5 text-bold' : 'border-slate-200 dark:border-slate-800'}`}>
                       <input 
@@ -1083,7 +1114,7 @@ const Inventory: React.FC = () => {
               {/* Data Rows Preview Box */}
               {importPreview.length > 0 && (
                 <div className="space-y-2">
-                  <span className="font-extrabold uppercase text-slate-450 tracking-wider text-[10px] block">👁️ Snapshot dry run preview (First 5 Rows):</span>
+                  <span className="font-extrabold uppercase text-slate-450 tracking-wider text-[10px] block">Snapshot dry run preview (First 5 Rows):</span>
                   <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden overflow-x-auto max-h-48">
                     <table className="w-full text-left font-sans text-[11px]">
                       <thead className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 text-slate-500 font-extrabold">
@@ -1381,7 +1412,7 @@ const Inventory: React.FC = () => {
                                     <div className="space-y-1">
                                         <span className="text-[10px] text-slate-400 uppercase font-black block">Catalog ID</span>
                                         <span className="font-mono font-bold text-slate-800 dark:text-white">{selectedProductHistory.sku}</span>
-                                        <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold block">📍 {selectedProductHistory.binLocation || 'W1-A1'}</span>
+                                        <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold flex items-center gap-1"><MapPin className="w-3 h-3 shrink-0" /><span>{selectedProductHistory.binLocation || 'W1-A1'}</span></span>
                                     </div>
                                 </div>
                                 

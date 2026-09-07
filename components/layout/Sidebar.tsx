@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
 import { 
   LayoutDashboard,
   TrendingUp,
@@ -43,7 +44,8 @@ import {
   Settings as SettingsIcon,
   ChevronDown,
   ChevronRight,
-  LucideIcon
+  LucideIcon,
+  ShieldAlert
 } from 'lucide-react';
 
 interface SubMenuItem {
@@ -188,6 +190,23 @@ const NAV_SECTIONS: NavSectionItem[] = [
 export const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
   const location = useLocation();
   const navigate = useNavigate();
+  const { canAccessRoute, userRole, getRoleBadge, currentUser } = useAuth();
+  const badge = getRoleBadge(userRole);
+
+  // Dynamically filter sections based on granular role authorization
+  const allowedSections = useMemo(() => {
+    return NAV_SECTIONS.filter(section => {
+      const canAccessParent = canAccessRoute(section.to);
+      const hasAllowedChildren = section.children?.some(c => canAccessRoute(c.to));
+      return canAccessParent || hasAllowedChildren;
+    }).map(section => {
+      if (!section.children) return section;
+      return {
+        ...section,
+        children: section.children.filter(c => canAccessRoute(c.to))
+      };
+    });
+  }, [canAccessRoute, userRole]);
 
   // Determine which sections should be expanded initially
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>(() => {
@@ -266,7 +285,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
       {/* SCROLLABLE NAVIGATION LIST */}
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1.5 custom-scrollbar">
         <ul className="space-y-1.5 font-medium text-sm">
-          {NAV_SECTIONS.map((section) => {
+          {allowedSections.map((section) => {
             const isExpanded = !!expandedSections[section.id];
             const SectionIcon = section.icon;
             const isDirectActive = isParentDirectlyActive(section);
@@ -344,35 +363,48 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
         </ul>
       </nav>
 
-      {/* FOOTER NAVIGATION: System Settings, Profile & Logout */}
+      {/* FOOTER NAVIGATION: System Settings, Profile & Role Badge */}
       <div className="p-3 border-t border-slate-800 space-y-1">
-        <NavLink
-          to="/settings?tab=users"
-          className={() =>
-            `flex items-center gap-3 px-3.5 py-2 rounded-xl text-sm font-medium transition-colors ${
-              location.pathname === '/settings' && location.search.includes('tab=users')
-                ? 'bg-[#ff5000] text-white font-semibold shadow-sm'
-                : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-            }`
-          }
-        >
-          <Users className="w-5 h-5 shrink-0 text-amber-400" />
-          <span>Users & Staff</span>
-        </NavLink>
+        {/* Active Role Indicator Badge */}
+        <div className={`p-2 rounded-xl ${badge.bg} border ${badge.border} flex items-center justify-between mb-1 text-xs`}>
+          <div className="flex flex-col min-w-0 pr-1">
+            <span className="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Role Access</span>
+            <span className={`font-bold truncate text-[11px] ${badge.color}`}>{badge.label}</span>
+          </div>
+          <span className={`w-2 h-2 rounded-full ${userRole === 'admin' ? 'bg-indigo-400' : userRole === 'manager' ? 'bg-amber-400' : userRole === 'cashier' ? 'bg-emerald-400' : userRole === 'workshop' ? 'bg-cyan-400' : 'bg-purple-400'} animate-pulse`} />
+        </div>
 
-        <NavLink
-          to="/settings"
-          className={({ isActive }) =>
-            `flex items-center gap-3 px-3.5 py-2 rounded-xl text-sm font-medium transition-colors ${
-              isActive && !location.search.includes('tab=users')
-                ? 'bg-[#ff5000] text-white font-semibold shadow-sm'
-                : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-            }`
-          }
-        >
-          <SettingsIcon className="w-5 h-5 shrink-0" />
-          <span>System Settings</span>
-        </NavLink>
+        {canAccessRoute('/settings') && (
+          <>
+            <NavLink
+              to="/settings?tab=users"
+              className={() =>
+                `flex items-center gap-3 px-3.5 py-2 rounded-xl text-sm font-medium transition-colors ${
+                  location.pathname === '/settings' && location.search.includes('tab=users')
+                    ? 'bg-[#ff5000] text-white font-semibold shadow-sm'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                }`
+              }
+            >
+              <Users className="w-5 h-5 shrink-0 text-amber-400" />
+              <span>Users & Staff</span>
+            </NavLink>
+
+            <NavLink
+              to="/settings"
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3.5 py-2 rounded-xl text-sm font-medium transition-colors ${
+                  isActive && !location.search.includes('tab=users')
+                    ? 'bg-[#ff5000] text-white font-semibold shadow-sm'
+                    : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                }`
+              }
+            >
+              <SettingsIcon className="w-5 h-5 shrink-0" />
+              <span>System Settings</span>
+            </NavLink>
+          </>
+        )}
 
         <NavLink
           to="/profile"

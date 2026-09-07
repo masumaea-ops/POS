@@ -24,10 +24,13 @@ import {
   Bell,
   Star
 } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
 type GarageTab = 'job_cards' | 'service_history' | 'notifications' | 'customer_satisfaction' | 'diagnostics' | 'scheduling' | 'mechanic_portal' | 'outlets' | 'bays' | 'rbac';
 
 export const Garage: React.FC = () => {
+  const { userRole } = useAuth();
+  const canConfigureRbac = userRole === 'admin' || userRole === 'manager';
   const [searchParams] = useSearchParams();
   const tabParam = searchParams.get('tab') as GarageTab | null;
   const [activeTab, setActiveTab] = useState<GarageTab>(() => tabParam || 'job_cards');
@@ -154,17 +157,19 @@ export const Garage: React.FC = () => {
             <span>Lift Bays & Mechanics Layout</span>
           </button>
 
-          <button
-            onClick={() => setActiveTab('rbac')}
-            className={`px-4 py-2.5 rounded-xl font-extrabold text-xs flex items-center gap-2 transition-all whitespace-nowrap font-mono uppercase tracking-wider ${
-              activeTab === 'rbac'
-                ? 'bg-purple-700 text-white shadow-md'
-                : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
-            }`}
-          >
-            <ShieldCheck className="w-4 h-4" />
-            <span>RBAC Security Matrix</span>
-          </button>
+          {canConfigureRbac && (
+            <button
+              onClick={() => setActiveTab('rbac')}
+              className={`px-4 py-2.5 rounded-xl font-extrabold text-xs flex items-center gap-2 transition-all whitespace-nowrap font-mono uppercase tracking-wider cursor-pointer ${
+                activeTab === 'rbac'
+                  ? 'bg-purple-700 text-white shadow-md'
+                  : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700'
+              }`}
+            >
+              <ShieldCheck className="w-4 h-4" />
+              <span>RBAC Security Matrix</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -179,7 +184,7 @@ export const Garage: React.FC = () => {
         {activeTab === 'scheduling' && <MechanicSchedulingTab />}
         {activeTab === 'outlets' && <OutletsTab />}
         {activeTab === 'bays' && <BaysTechniciansTab />}
-        {activeTab === 'rbac' && <RbacTab />}
+        {activeTab === 'rbac' && canConfigureRbac && <RbacTab />}
       </div>
     </div>
   );

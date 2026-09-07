@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { MOCK_CUSTOMERS, MOCK_PRODUCTS } from '../data/mockData';
 import { useSystemSettings } from '../contexts/SettingsContext';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, TrendingUp } from 'lucide-react';
 import DailySalesVolumeChart from '../components/dashboard/DailySalesVolumeChart';
 
 const Dashboard: React.FC = () => {
@@ -94,7 +94,7 @@ const Dashboard: React.FC = () => {
              <span className="text-xs font-bold text-slate-500">{settings.currency}</span>
            </div>
            <div className="mt-2.5 flex items-center gap-1.5 text-xs text-emerald-500 font-bold">
-              <span>📈 +18.4%</span>
+              <span className="inline-flex items-center gap-1"><TrendingUp className="w-3.5 h-3.5" /><span>+18.4%</span></span>
               <span className="text-[10px] font-medium text-slate-400">vs yesterday {formatPrice(797000)}</span>
            </div>
         </div>

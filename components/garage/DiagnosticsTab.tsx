@@ -207,7 +207,7 @@ export const DiagnosticsTab: React.FC = () => {
                 <span className={`font-bold text-[11px] ${
                   selectedJobCard.diagnosticReport ? 'text-emerald-400' : 'text-amber-400'
                 }`}>
-                  {selectedJobCard.diagnosticReport ? '✓ ECU Report Ready' : '⚠️ Pending ECU Scan'}
+                  {selectedJobCard.diagnosticReport ? 'ECU Report Ready' : 'Pending ECU Scan'}
                 </span>
               </div>
               {selectedJobCard.diagnosticReport && (
@@ -433,7 +433,7 @@ export const DiagnosticsTab: React.FC = () => {
                     {activeReport.overallHealthScore} / 100%
                   </div>
                   <span className="text-[11px] text-purple-700 font-semibold">
-                    {activeReport.overallHealthScore >= 80 ? '🟢 Systems Normal' : '⚠️ Action Required — ECU Fault Codes Stored'}
+                    {activeReport.overallHealthScore >= 80 ? 'Systems Normal' : 'Action Required — ECU Fault Codes Stored'}
                   </span>
                 </div>
 
