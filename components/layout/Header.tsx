@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Bell, ChevronDown, LogOut, Lock, ShieldCheck, Menu, UserCheck, Shield, ShoppingBag, Wrench, FileSpreadsheet } from 'lucide-react';
+import { Bell, ChevronDown, LogOut, Lock, ShieldCheck, Menu, UserCheck, Sun, Moon, ShoppingBag, ShoppingCart } from 'lucide-react';
 import { useSystemSettings } from '../../contexts/SettingsContext';
 import { useAuth, getDefaultRoleHome } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
 import { NavLink, useNavigate } from 'react-router-dom';
 import RolePermissionsMatrixModal from '../shared/RolePermissionsMatrixModal';
 
@@ -19,6 +20,7 @@ export const Header: React.FC<HeaderProps> = ({
   const navigate = useNavigate();
   const { settings, setSettings } = useSystemSettings();
   const { currentUser, userRole, getRoleBadge, switchRole, allPersonas } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [currencyMenuOpen, setCurrencyMenuOpen] = useState(false);
   const [branchMenuOpen, setBranchMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -45,46 +47,56 @@ export const Header: React.FC<HeaderProps> = ({
   const currencies = ['KES', 'USD', 'TZS', 'UGX'];
 
   return (
-    <header className="h-16 bg-[#0b1324] border-b border-slate-800 text-white flex items-center justify-between px-4 sm:px-6 shrink-0 select-none z-30 sticky top-0">
+    <header className="h-15 bg-white dark:bg-slate-900 border-b border-slate-200/80 dark:border-slate-800 text-slate-800 dark:text-slate-100 flex items-center justify-between px-4 sm:px-6 shrink-0 select-none z-30 sticky top-0 transition-colors">
       
       {/* LEFT: LOGO & WELCOME GREETING */}
-      <div className="flex items-center gap-4 lg:gap-6 min-w-0">
+      <div className="flex items-center gap-3 lg:gap-5 min-w-0">
         {onToggleMobileMenu && (
           <button
             type="button"
             onClick={onToggleMobileMenu}
-            className="lg:hidden p-2 -ml-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition cursor-pointer"
-            title="Open Navigation"
+            className="lg:hidden p-1.5 -ml-1.5 rounded-lg text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer"
+            title="Toggle Navigation Menu"
           >
             <Menu className="w-5 h-5" />
           </button>
         )}
 
         {/* Corporate Brand Identity */}
-        <NavLink to={getDefaultRoleHome(userRole)} className="flex flex-col shrink-0 group focus:outline-none">
-          <div className="flex items-baseline gap-1">
-            <span className="text-2xl font-black text-[#ff5000] tracking-tighter leading-none group-hover:brightness-110 transition">
+        <NavLink to={getDefaultRoleHome(userRole)} className="flex items-center gap-2 group focus:outline-none shrink-0">
+          <div className="flex items-center gap-2">
+            <span className="text-xl font-black text-brand-orange tracking-tight leading-none group-hover:opacity-90 transition">
               MASUMA
             </span>
+            <span className="hidden sm:inline-block px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider rounded bg-orange-50 dark:bg-orange-950/50 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-800/40">
+              ERP
+            </span>
           </div>
-          <span className="text-[8px] sm:text-[9px] font-bold text-slate-300 tracking-[0.2em] uppercase leading-tight mt-0.5">
-            AUTOPARTS EAST AFRICA
-          </span>
         </NavLink>
 
-        {/* Vertical Divider */}
-        <div className="hidden md:block h-6 w-px bg-slate-800 shrink-0" />
+        {/* Subtle Divider */}
+        <div className="hidden md:block h-4 w-px bg-slate-200 dark:bg-slate-800 shrink-0" />
 
-        {/* Welcome message */}
-        <div className="hidden md:block truncate">
-          <span className="text-sm font-medium text-slate-200 truncate">
-            Welcome to {settings.corpName || 'Masuma Autoparts EA Ltd'}
+        {/* Operating Node Context */}
+        <div className="hidden md:flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400 truncate">
+          <span className="truncate font-medium">
+            {settings.corpName || 'Masuma Autoparts EA Ltd'}
           </span>
         </div>
       </div>
 
-      {/* RIGHT: CONTROLS, PROFILE & ACTIONS */}
-      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+      {/* RIGHT: CONTROLS, THEME, PROFILE & ACTIONS */}
+      <div className="flex items-center gap-2 sm:gap-2.5 shrink-0">
+
+        {/* Quick Link to POS if accessible */}
+        <NavLink
+          to="/pos"
+          className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/40 dark:hover:bg-orange-900/40 text-brand-orange border border-orange-200 dark:border-orange-800/50 transition cursor-pointer"
+          title="Open Quick POS Register"
+        >
+          <ShoppingCart className="w-3.5 h-3.5" />
+          <span>Quick POS</span>
+        </NavLink>
 
         {/* Currency Switcher Dropdown */}
         <div className="relative">
@@ -94,8 +106,9 @@ export const Header: React.FC<HeaderProps> = ({
               setCurrencyMenuOpen(!currencyMenuOpen);
               setBranchMenuOpen(false);
               setNotificationsOpen(false);
+              setPersonaMenuOpen(false);
             }}
-            className="h-9 px-3 rounded-lg bg-slate-900/90 border border-slate-750 hover:border-slate-600 text-xs font-semibold text-slate-200 flex items-center gap-1.5 transition cursor-pointer"
+            className="h-8.5 px-2.5 rounded-lg bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700/80 text-xs font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1 transition cursor-pointer"
             title="Select Currency"
           >
             <span>{settings.currency || 'KES'}</span>
@@ -103,7 +116,7 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
 
           {currencyMenuOpen && (
-            <div className="absolute right-0 mt-1 w-28 bg-[#111c33] border border-slate-700 rounded-xl shadow-2xl py-1 z-50 animate-in fade-in zoom-in-95">
+            <div className="absolute right-0 mt-1 w-28 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg py-1 z-50 animate-in fade-in zoom-in-95">
               {currencies.map((curr) => (
                 <button
                   key={curr}
@@ -114,13 +127,13 @@ export const Header: React.FC<HeaderProps> = ({
                   }}
                   className={`w-full text-left px-3 py-1.5 text-xs font-semibold flex items-center justify-between transition cursor-pointer ${
                     (settings.currency || 'KES') === curr
-                      ? 'bg-[#ff5000]/15 text-[#ff5000]'
-                      : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                      ? 'bg-orange-50 dark:bg-orange-950/40 text-brand-orange'
+                      : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/60'
                   }`}
                 >
                   <span>{curr}</span>
                   {(settings.currency || 'KES') === curr && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#ff5000]" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-brand-orange" />
                   )}
                 </button>
               ))}
@@ -128,25 +141,26 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </div>
 
-        {/* Branch / Entity Selector Dropdown */}
-        <div className="relative hidden sm:block">
+        {/* Branch Selector Dropdown */}
+        <div className="relative hidden lg:block">
           <button
             type="button"
             onClick={() => {
               setBranchMenuOpen(!branchMenuOpen);
               setCurrencyMenuOpen(false);
               setNotificationsOpen(false);
+              setPersonaMenuOpen(false);
             }}
-            className="h-9 px-3.5 rounded-lg bg-slate-900/90 border border-slate-750 hover:border-slate-600 text-xs font-semibold text-slate-200 flex items-center gap-2 transition cursor-pointer max-w-[210px]"
-            title="Select Branch"
+            className="h-8.5 px-3 rounded-lg bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700/80 text-xs font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1.5 transition cursor-pointer max-w-[200px]"
+            title="Select Operating Branch"
           >
-            <span className="truncate">{settings.corpName || 'Masuma Autoparts EA Ltd'}</span>
+            <span className="truncate">{settings.corpName?.replace('Masuma ', '') || 'Nairobi HQ'}</span>
             <ChevronDown className="w-3.5 h-3.5 text-slate-400 shrink-0" />
           </button>
 
           {branchMenuOpen && (
-            <div className="absolute right-0 mt-1 w-64 bg-[#111c33] border border-slate-700 rounded-xl shadow-2xl py-1.5 z-50 animate-in fade-in zoom-in-95">
-              <div className="px-3 py-1 text-[10px] uppercase font-bold tracking-wider text-slate-400 border-b border-slate-800">
+            <div className="absolute right-0 mt-1 w-64 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg py-1.5 z-50 animate-in fade-in zoom-in-95">
+              <div className="px-3 py-1 text-[10px] uppercase font-bold tracking-wider text-slate-400 border-b border-slate-100 dark:border-slate-700/80">
                 Operating Branch
               </div>
               {branches.map((b) => (
@@ -159,8 +173,8 @@ export const Header: React.FC<HeaderProps> = ({
                   }}
                   className={`w-full text-left px-3 py-2 text-xs transition cursor-pointer ${
                     (settings.corpName || 'Masuma Autoparts EA Ltd') === b
-                      ? 'bg-[#ff5000]/15 text-[#ff5000] font-bold'
-                      : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                      ? 'bg-orange-50 dark:bg-orange-950/40 text-brand-orange font-bold'
+                      : 'text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700/60'
                   }`}
                 >
                   {b}
@@ -170,6 +184,21 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </div>
 
+        {/* Theme Toggle (Light / Dark) */}
+        <button
+          type="button"
+          onClick={toggleTheme}
+          className="w-8.5 h-8.5 rounded-lg bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-center transition cursor-pointer"
+          title={theme === 'dark' ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
+          aria-label="Toggle Theme"
+        >
+          {theme === 'dark' ? (
+            <Sun className="w-4 h-4 text-amber-400" />
+          ) : (
+            <Moon className="w-4 h-4 text-slate-600" />
+          )}
+        </button>
+
         {/* Notification Bell */}
         <div className="relative">
           <button
@@ -178,48 +207,51 @@ export const Header: React.FC<HeaderProps> = ({
               setNotificationsOpen(!notificationsOpen);
               setCurrencyMenuOpen(false);
               setBranchMenuOpen(false);
+              setPersonaMenuOpen(false);
             }}
-            className="w-9 h-9 rounded-lg bg-slate-900/90 border border-slate-750 hover:border-slate-600 flex items-center justify-center text-slate-300 hover:text-white transition cursor-pointer relative"
+            className="w-8.5 h-8.5 rounded-lg bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700/80 flex items-center justify-center text-slate-600 dark:text-slate-300 transition cursor-pointer relative"
             title="Notifications"
           >
             <Bell className="w-4 h-4" />
-            <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-[#ff5000]" />
+            <span className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-brand-orange" />
           </button>
 
           {notificationsOpen && (
-            <div className="absolute right-0 mt-1 w-80 bg-[#111c33] border border-slate-700 rounded-xl shadow-2xl p-3 z-50 animate-in fade-in zoom-in-95 text-xs">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-800">
-                <span className="font-bold text-white">System Alerts</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 font-mono">
+            <div className="absolute right-0 mt-1.5 w-76 sm:w-80 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-lg p-3 z-50 animate-in fade-in zoom-in-95 text-xs">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-700">
+                <span className="font-bold text-slate-900 dark:text-white">System Alerts</span>
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-400 font-semibold">
                   Online
                 </span>
               </div>
               <div className="space-y-2 mt-2">
-                <div className="p-2 rounded-lg bg-slate-800/50 border border-slate-750">
-                  <p className="font-semibold text-slate-200">Quotation QUO-1787297966229</p>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Approved & converted to Tax Invoice for Lydia.</p>
+                <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-750 border border-slate-200/80 dark:border-slate-700/60">
+                  <p className="font-semibold text-slate-800 dark:text-slate-200">Quotation QUO-1787297966229</p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">Approved & ready for dispatch invoice.</p>
                 </div>
-                <div className="p-2 rounded-lg bg-slate-800/50 border border-slate-750">
-                  <p className="font-semibold text-slate-200">KRA eTIMS Synchronized</p>
-                  <p className="text-[11px] text-slate-400 mt-0.5">FSC device ready for automated fiscal signature generation.</p>
+                <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-750 border border-slate-200/80 dark:border-slate-700/60">
+                  <p className="font-semibold text-slate-800 dark:text-slate-200">eTIMS Sync Verified</p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">FSC device ready for automated fiscal validation.</p>
                 </div>
               </div>
             </div>
           )}
         </div>
 
-        {/* Quick RBAC Permissions Matrix Trigger Button */}
-        <button
-          type="button"
-          onClick={() => setRbacMatrixOpen(true)}
-          className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-750 hover:border-indigo-500/50 text-indigo-300 text-xs font-bold transition cursor-pointer"
-          title="Inspect Granular RBAC Permissions Matrix"
-        >
-          <ShieldCheck className="w-4 h-4 text-indigo-400" />
-          <span>RBAC Matrix</span>
-        </button>
+        {/* RBAC Matrix Quick Trigger - Admin Only */}
+        {userRole === 'admin' && (
+          <button
+            type="button"
+            onClick={() => setRbacMatrixOpen(true)}
+            className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-800/40 text-indigo-700 dark:text-indigo-300 text-xs font-bold transition cursor-pointer"
+            title="Inspect Granular RBAC Permissions Matrix"
+          >
+            <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />
+            <span>RBAC Matrix</span>
+          </button>
+        )}
 
-        {/* User Avatar Chip & Role Persona Selector */}
+        {/* User Avatar & Profile Dropdown */}
         <div className="relative">
           <button
             type="button"
@@ -229,95 +261,102 @@ export const Header: React.FC<HeaderProps> = ({
               setCurrencyMenuOpen(false);
               setBranchMenuOpen(false);
             }}
-            className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl hover:bg-slate-800/80 border border-slate-750 hover:border-slate-600 transition cursor-pointer"
-            title="Active User Profile & Role Switcher"
+            className="flex items-center gap-2 p-1 sm:px-2 sm:py-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 transition cursor-pointer"
+            title="Active User Profile"
           >
-            <div className={`w-8 h-8 rounded-full ${badge.bg} ${badge.color} border ${badge.border} font-black text-xs flex items-center justify-center shadow-xs shrink-0 tracking-wider`}>
+            <div className={`w-8 h-8 rounded-full ${badge.bg} ${badge.color} border ${badge.border} font-bold text-xs flex items-center justify-center shrink-0`}>
               {userInitials}
             </div>
-            <div className="hidden lg:flex flex-col text-left">
-              <span className="text-xs font-bold text-white leading-tight truncate max-w-[130px]">
+            <div className="hidden sm:flex flex-col text-left">
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 leading-tight truncate max-w-[110px]">
                 {currentUser.fullName || currentUser.username}
               </span>
-              <span className={`text-[10px] font-bold uppercase tracking-wider ${badge.color} leading-none mt-0.5`}>
+              <span className={`text-[10px] font-semibold uppercase tracking-wider ${badge.color} leading-none mt-0.5`}>
                 {badge.label}
               </span>
             </div>
             <ChevronDown className="w-3.5 h-3.5 text-slate-400 hidden sm:block" />
           </button>
 
-          {/* Role Persona Switcher & Profile Dropdown */}
+          {/* Profile Dropdown */}
           {personaMenuOpen && (
-            <div className="absolute right-0 mt-2 w-72 bg-[#111c33] border border-slate-750 rounded-xl shadow-2xl p-3 z-50 animate-in fade-in zoom-in-95 text-xs space-y-3">
-              <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+            <div className="absolute right-0 mt-1.5 w-72 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-750 rounded-xl shadow-lg p-3 z-50 animate-in fade-in zoom-in-95 text-xs space-y-3">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-700">
                 <div>
-                  <p className="font-bold text-white">{currentUser.fullName}</p>
-                  <p className="text-[11px] text-slate-400">{currentUser.email || currentUser.username}</p>
+                  <p className="font-bold text-slate-900 dark:text-white">{currentUser.fullName}</p>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">{currentUser.email || currentUser.username}</p>
                 </div>
                 <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase ${badge.bg} ${badge.color} border ${badge.border}`}>
                   {userRole}
                 </span>
               </div>
 
-              {/* Instant Role Switching for Verification */}
-              <div>
-                <div className="flex items-center justify-between text-[11px] font-bold text-slate-300 mb-2">
-                  <span className="flex items-center gap-1 text-brand-orange">
-                    <UserCheck className="w-3.5 h-3.5" />
-                    <span>Switch Role Persona</span>
-                  </span>
-                  <span className="text-[9px] text-slate-500">Live Granular Test</span>
-                </div>
-                <div className="space-y-1">
-                  {allPersonas.map((persona) => {
-                    const isSelected = persona.role === userRole;
-                    const pBadge = getRoleBadge(persona.role);
-                    return (
-                      <button
-                        key={persona.id}
-                        type="button"
-                        onClick={() => {
-                          switchRole(persona.role);
-                          setPersonaMenuOpen(false);
-                          navigate(getDefaultRoleHome(persona.role));
-                        }}
-                        className={`w-full flex items-center justify-between p-2 rounded-lg text-left transition cursor-pointer ${
-                          isSelected
-                            ? 'bg-brand-orange/20 border border-brand-orange text-white'
-                            : 'hover:bg-slate-800/80 text-slate-300'
-                        }`}
-                      >
-                        <div className="flex flex-col min-w-0 pr-2">
-                          <span className="font-bold text-[11px] text-white truncate">{persona.fullName}</span>
-                          <span className="text-[10px] text-slate-400">{persona.branch?.split(' ')[0] || 'Central'}</span>
-                        </div>
-                        <span className={`text-[9px] px-1.5 py-0.5 rounded uppercase font-bold tracking-wider ${pBadge.bg} ${pBadge.color} border ${pBadge.border} shrink-0`}>
-                          {persona.role}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
+              {/* Outlet info */}
+              <div className="p-2 bg-slate-50 dark:bg-slate-750 rounded-lg border border-slate-200/80 dark:border-slate-700/60 text-[11px] flex items-center justify-between">
+                <span className="text-slate-500 dark:text-slate-400">Branch Node:</span>
+                <span className="font-semibold text-slate-800 dark:text-slate-200">{currentUser.branch || 'Nairobi Central'}</span>
               </div>
 
-              <div className="pt-2 border-t border-slate-800 space-y-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPersonaMenuOpen(false);
-                    setRbacMatrixOpen(true);
-                  }}
-                  className="w-full py-1.5 px-2 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 border border-indigo-500/30 cursor-pointer"
-                >
-                  <ShieldCheck className="w-4 h-4 text-indigo-400" />
-                  <span>Inspect Full RBAC Matrix</span>
-                </button>
+              {/* Admin Persona Simulation */}
+              {userRole === 'admin' && allPersonas.length > 1 && (
+                <div>
+                  <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+                    <span className="flex items-center gap-1 text-brand-orange">
+                      <UserCheck className="w-3.5 h-3.5" />
+                      <span>Role Simulation</span>
+                    </span>
+                    <span className="text-[9px] text-slate-400">Admin Only</span>
+                  </div>
+                  <div className="space-y-1">
+                    {allPersonas.map((persona) => {
+                      const isSelected = persona.role === userRole;
+                      const pBadge = getRoleBadge(persona.role);
+                      return (
+                        <button
+                          key={persona.id}
+                          type="button"
+                          onClick={() => {
+                            switchRole(persona.role);
+                            setPersonaMenuOpen(false);
+                            navigate(getDefaultRoleHome(persona.role));
+                          }}
+                          className={`w-full flex items-center justify-between p-1.5 rounded-lg text-left transition cursor-pointer ${
+                            isSelected
+                              ? 'bg-orange-50 dark:bg-orange-950/40 border border-brand-orange/40 text-brand-orange font-bold'
+                              : 'hover:bg-slate-100 dark:hover:bg-slate-700/60 text-slate-700 dark:text-slate-300'
+                          }`}
+                        >
+                          <span className="font-semibold text-[11px] truncate">{persona.fullName}</span>
+                          <span className={`text-[9px] px-1.5 py-0.5 rounded uppercase font-bold tracking-wider ${pBadge.bg} ${pBadge.color} border ${pBadge.border} shrink-0`}>
+                            {persona.role}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <div className="pt-2 border-t border-slate-100 dark:border-slate-700 space-y-2">
+                {userRole === 'admin' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPersonaMenuOpen(false);
+                      setRbacMatrixOpen(true);
+                    }}
+                    className="w-full py-1.5 px-2 bg-indigo-50 dark:bg-indigo-950/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 border border-indigo-200 dark:border-indigo-800/40 cursor-pointer"
+                  >
+                    <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />
+                    <span>Inspect RBAC Matrix</span>
+                  </button>
+                )}
 
                 <div className="flex gap-2">
                   <NavLink
                     to="/profile"
                     onClick={() => setPersonaMenuOpen(false)}
-                    className="flex-1 py-1.5 bg-slate-800 hover:bg-slate-700 text-center rounded-lg text-slate-300 font-bold transition"
+                    className="flex-1 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-center rounded-lg text-slate-700 dark:text-slate-200 font-bold transition"
                   >
                     My Profile
                   </NavLink>
@@ -327,7 +366,7 @@ export const Header: React.FC<HeaderProps> = ({
                       setPersonaMenuOpen(false);
                       onLogout();
                     }}
-                    className="flex-1 py-1.5 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 text-center rounded-lg font-bold transition border border-rose-600/30"
+                    className="flex-1 py-1.5 bg-rose-50 dark:bg-rose-950/30 hover:bg-rose-100 dark:hover:bg-rose-900/40 text-rose-700 dark:text-rose-300 text-center rounded-lg font-bold transition border border-rose-200 dark:border-rose-800/40 cursor-pointer"
                   >
                     Sign Out
                   </button>
@@ -342,18 +381,18 @@ export const Header: React.FC<HeaderProps> = ({
           <button
             type="button"
             onClick={onLockTerminal}
-            className="hidden sm:flex w-9 h-9 rounded-lg bg-slate-900/90 border border-slate-750 hover:border-amber-600/60 text-slate-400 hover:text-amber-400 items-center justify-center transition cursor-pointer"
+            className="hidden sm:flex w-8.5 h-8.5 rounded-lg bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700/80 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white items-center justify-center transition cursor-pointer"
             title="Lock Physical Terminal"
           >
             <Lock className="w-4 h-4" />
           </button>
         )}
 
-        {/* Logout Action */}
+        {/* Sign Out Action */}
         <button
           type="button"
           onClick={onLogout}
-          className="w-9 h-9 rounded-lg bg-slate-900/90 border border-slate-750 hover:border-rose-600/60 text-slate-400 hover:text-rose-400 flex items-center justify-center transition cursor-pointer"
+          className="w-8.5 h-8.5 rounded-lg bg-slate-100 dark:bg-slate-800/80 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200/80 dark:border-slate-700/80 text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400 flex items-center justify-center transition cursor-pointer"
           title="Sign Out Session"
         >
           <LogOut className="w-4 h-4" />

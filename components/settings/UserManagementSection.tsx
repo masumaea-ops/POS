@@ -26,6 +26,7 @@ import {
   FileSpreadsheet, 
   UserCheck,
   ShieldCheck,
+  ShieldAlert,
   Clock,
   Unlock
 } from 'lucide-react';
@@ -188,6 +189,20 @@ const DEFAULT_USERS: SystemUser[] = [
 
 export const UserManagementSection: React.FC = () => {
   const { hasPermission, userRole } = useAuth();
+
+  // Strict RBAC Enforcement: Only Super Administrator can view other users or manage staff roster
+  if (userRole !== 'admin') {
+    return (
+      <div className="p-8 text-center bg-slate-900 border border-slate-800 rounded-2xl max-w-lg mx-auto my-8">
+        <ShieldAlert className="w-12 h-12 text-rose-500 mx-auto mb-3" />
+        <h3 className="text-lg font-bold text-white">Access Denied</h3>
+        <p className="text-xs text-slate-400 mt-2 leading-relaxed">
+          Staff user accounts, access credentials, and the user directory are restricted to Super Administrators only. You do not have permission to view or manage other users.
+        </p>
+      </div>
+    );
+  }
+
   const canCreateUser = hasPermission('users', 'create');
   const canUpdateUser = hasPermission('users', 'update');
   const canDeleteUser = hasPermission('users', 'delete');

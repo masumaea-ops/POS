@@ -77,40 +77,42 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
           </div>
         </div>
 
-        {/* Quick Persona Switcher for verification */}
-        <div className="p-4 bg-slate-950/60 rounded-xl border border-slate-800 text-left space-y-3">
-          <div className="flex items-center justify-between text-xs text-slate-300 font-bold">
-            <span className="flex items-center gap-1.5">
-              <UserCheck className="w-4 h-4 text-brand-orange" />
-              <span>Verify With Authorized Role Persona</span>
-            </span>
-            <span className="text-[10px] text-slate-500 font-normal">Instant Switch</span>
-          </div>
+        {/* Quick Persona Switcher strictly reserved for Super Administrator diagnostic testing */}
+        {userRole === 'admin' && allPersonas.length > 1 && (
+          <div className="p-4 bg-slate-950/60 rounded-xl border border-slate-800 text-left space-y-3">
+            <div className="flex items-center justify-between text-xs text-slate-300 font-bold">
+              <span className="flex items-center gap-1.5">
+                <UserCheck className="w-4 h-4 text-brand-orange" />
+                <span>Super Admin Role Simulation</span>
+              </span>
+              <span className="text-[10px] text-slate-500 font-normal">Diagnostic Only</span>
+            </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
-            {allPersonas.map(persona => {
-              const isCurrent = persona.role === userRole;
-              return (
-                <button
-                  key={persona.id}
-                  type="button"
-                  onClick={() => {
-                    switchRole(persona.role);
-                    navigate(getDefaultRoleHome(persona.role));
-                  }}
-                  className={`p-2 rounded-lg text-left border transition cursor-pointer flex flex-col justify-between ${
-                    isCurrent
-                      ? 'bg-brand-orange/20 border-brand-orange text-brand-orange font-bold'
-                      : 'bg-slate-900 hover:bg-slate-800 border-slate-700 text-slate-300'
-                  }`}
-                >
-                  <span className="font-bold text-[11px] truncate">{persona.fullName.split(' ')[0]}</span>
-                  <span className="text-[9px] uppercase tracking-wider opacity-75">{persona.role}</span>
-                </button>
-              );
-            })}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+              {allPersonas.map(persona => {
+                const isCurrent = persona.role === userRole;
+                return (
+                  <button
+                    key={persona.id}
+                    type="button"
+                    onClick={() => {
+                      switchRole(persona.role);
+                      navigate(getDefaultRoleHome(persona.role));
+                    }}
+                    className={`p-2 rounded-lg text-left border transition cursor-pointer flex flex-col justify-between ${
+                      isCurrent
+                        ? 'bg-brand-orange/20 border-brand-orange text-brand-orange font-bold'
+                        : 'bg-slate-900 hover:bg-slate-800 border-slate-700 text-slate-300'
+                    }`}
+                  >
+                    <span className="font-bold text-[11px] truncate">{persona.fullName.split(' ')[0]}</span>
+                    <span className="text-[9px] uppercase tracking-wider opacity-75">{persona.role}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="flex flex-col sm:flex-row gap-3 pt-2">
           <button

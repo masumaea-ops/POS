@@ -44,8 +44,8 @@ import {
   Settings as SettingsIcon,
   ChevronDown,
   ChevronRight,
-  LucideIcon,
-  ShieldAlert
+  ChevronLeft,
+  LucideIcon
 } from 'lucide-react';
 
 interface SubMenuItem {
@@ -65,6 +65,8 @@ interface NavSectionItem {
 interface SidebarProps {
   onLogout: () => void;
   onLockTerminal?: () => void;
+  isCollapsed?: boolean;
+  onToggleCollapse?: () => void;
 }
 
 const NAV_SECTIONS: NavSectionItem[] = [
@@ -75,87 +77,87 @@ const NAV_SECTIONS: NavSectionItem[] = [
     icon: LayoutDashboard,
     children: [
       { label: 'Executive Overview', to: '/', icon: LayoutDashboard },
-      { label: 'Analytics & Performance', to: '/?tab=analytics', icon: TrendingUp },
+      { label: 'Analytics & Trends', to: '/?tab=analytics', icon: TrendingUp },
     ],
   },
   {
     id: 'pos',
-    label: 'POS',
+    label: 'POS Register',
     to: '/pos',
     icon: ShoppingCart,
     children: [
       { label: 'Counter Register', to: '/pos', icon: CreditCard },
-      { label: 'Held Carts & Orders', to: '/pos?view=held', icon: Receipt },
+      { label: 'Held Orders', to: '/pos?view=held', icon: Receipt },
     ],
   },
   {
     id: 'garage',
-    label: 'Garage Chain & Diag',
+    label: 'Garage & OBD-II',
     to: '/garage',
     icon: Wrench,
     children: [
-      { label: 'Job Cards & Work Orders', to: '/garage?tab=job_cards', icon: ClipboardCheck },
-      { label: 'OBD-II Diagnostics', to: '/garage?tab=diagnostics', icon: Activity },
+      { label: 'Job Cards', to: '/garage?tab=job_cards', icon: ClipboardCheck },
+      { label: 'Diagnostics', to: '/garage?tab=diagnostics', icon: Activity },
       { label: 'Service History', to: '/garage?tab=service_history', icon: History },
-      { label: 'Customer Satisfaction', to: '/garage?tab=customer_satisfaction', icon: Star },
+      { label: 'Customer CSAT', to: '/garage?tab=customer_satisfaction', icon: Star },
     ],
   },
   {
     id: 'inventory',
-    label: 'Inventory',
+    label: 'Inventory & Parts',
     to: '/inventory',
     icon: Boxes,
     children: [
       { label: 'Parts Catalog', to: '/inventory', icon: Package },
       { label: 'VIN & Chassis Picker', to: '/vin-picker', icon: Car },
-      { label: 'Stock Alerts & Reorder', to: '/inventory?tab=alerts', icon: AlertTriangle },
+      { label: 'Stock Alerts', to: '/inventory?tab=alerts', icon: AlertTriangle },
     ],
   },
   {
     id: 'sales',
-    label: 'Sales',
+    label: 'Sales & Orders',
     to: '/sales',
     icon: BarChart2,
     children: [
       { label: 'Sales Orders', to: '/sales', icon: ShoppingBag },
       { label: 'Sales History', to: '/sales-history', icon: History },
       { label: 'Quotations', to: '/quotations', icon: FileText },
-      { label: 'Invoices & eTIMS', to: '/invoices', icon: Receipt },
+      { label: 'Tax Invoices', to: '/invoices', icon: Receipt },
     ],
   },
   {
     id: 'purchasing',
-    label: 'Purchasing',
+    label: 'Purchasing (PO/GRN)',
     to: '/purchasing',
     icon: ClipboardList,
     children: [
       { label: 'Purchase Orders', to: '/purchasing', icon: FileSpreadsheet },
-      { label: 'Supplier Deliveries (GRN)', to: '/purchasing?tab=grn', icon: PackageCheck },
+      { label: 'Deliveries (GRN)', to: '/purchasing?tab=grn', icon: PackageCheck },
     ],
   },
   {
     id: 'shipping',
-    label: 'Logistics & Shipping',
+    label: 'Dispatch & Shipping',
     to: '/shipping',
     icon: Truck,
     children: [
-      { label: 'Delivery Dispatch', to: '/shipping', icon: Send },
-      { label: 'Couriers & Tracking', to: '/shipping?tab=tracking', icon: MapPin },
+      { label: 'Dispatch', to: '/shipping', icon: Send },
+      { label: 'Tracking & Couriers', to: '/shipping?tab=tracking', icon: MapPin },
     ],
   },
   {
     id: 'contacts',
-    label: 'Contacts',
+    label: 'Contacts & B2B',
     to: '/contacts',
     icon: Users,
     children: [
-      { label: 'Corporate Customers', to: '/customers', icon: UserCheck },
+      { label: 'Corporate Clients', to: '/customers', icon: UserCheck },
       { label: 'Parts Suppliers', to: '/contacts?tab=Suppliers', icon: Building2 },
     ],
   },
   {
     id: 'reports',
-    label: 'Reports',
+    label: 'Reports & Audit',
     to: '/reports',
     icon: FileBarChart,
     children: [
@@ -170,33 +172,36 @@ const NAV_SECTIONS: NavSectionItem[] = [
     to: '/accounting',
     icon: BookOpen,
     children: [
-      { label: 'General Ledger & COA', to: '/accounting?tab=coa', icon: Calculator },
-      { label: 'Cash Flow & Balances', to: '/accounting?tab=reconciliation', icon: Coins },
+      { label: 'General Ledger', to: '/accounting?tab=coa', icon: Calculator },
+      { label: 'Cash Flow', to: '/accounting?tab=reconciliation', icon: Coins },
     ],
   },
   {
     id: 'api',
-    label: 'API',
+    label: 'Developer API',
     to: '/integrations',
     icon: Code2,
     children: [
-      { label: 'Endpoints & Docs', to: '/integrations?tab=overview', icon: Terminal },
-      { label: 'Webhooks & Logs', to: '/integrations?tab=webhooks', icon: Zap },
-      { label: 'Sandbox Playground', to: '/integrations?tab=playground', icon: Play },
+      { label: 'Documentation', to: '/integrations?tab=overview', icon: Terminal },
+      { label: 'Webhooks', to: '/integrations?tab=webhooks', icon: Zap },
+      { label: 'Sandbox', to: '/integrations?tab=playground', icon: Play },
     ],
   },
 ];
 
-export const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
+export const Sidebar: React.FC<SidebarProps> = ({
+  onLogout,
+  isCollapsed = false,
+  onToggleCollapse
+}) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const { canAccessRoute, userRole, getRoleBadge, currentUser } = useAuth();
+  const { canAccessRoute, userRole, getRoleBadge } = useAuth();
   const badge = getRoleBadge(userRole);
 
   // Dynamically filter sections based on granular role authorization
   const allowedSections = useMemo(() => {
     return NAV_SECTIONS.filter(section => {
-      // Dashboard is strictly reserved for management only (Admin & Regional Manager)
       if (section.id === 'dashboard' && userRole !== 'admin' && userRole !== 'manager') {
         return false;
       }
@@ -260,14 +265,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
       if (location.search === `?${targetQuery}`) {
         return true;
       }
-      // If user is on the base route without query, activate the default first tab
       if ((!location.search || location.search === '') && isFirstChild) {
         return true;
       }
       return false;
     }
 
-    // Target has no query string
     return !location.search || location.search === '';
   };
 
@@ -284,19 +287,46 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
   };
 
   return (
-    <aside className="w-full h-full flex flex-col bg-[#0b1324] border-r border-slate-800 text-slate-300 select-none">
+    <aside className="w-full h-full flex flex-col bg-white dark:bg-slate-900 border-r border-slate-200/80 dark:border-slate-800 text-slate-600 dark:text-slate-400 select-none transition-colors">
       
       {/* SCROLLABLE NAVIGATION LIST */}
-      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1.5 custom-scrollbar">
-        <ul className="space-y-1.5 font-medium text-sm">
+      <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-1 custom-scrollbar">
+        <ul className="space-y-1 text-xs">
           {allowedSections.map((section) => {
             const isExpanded = !!expandedSections[section.id];
             const SectionIcon = section.icon;
             const isDirectActive = isParentDirectlyActive(section);
             const hasSubActive = hasActiveSubItem(section);
 
+            // Collapsed Rail View
+            if (isCollapsed) {
+              const isActive = isDirectActive || hasSubActive;
+              return (
+                <li key={section.id}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const targetRoute = canAccessRoute(section.to) 
+                        ? section.to 
+                        : (section.children && section.children[0]?.to) || section.to;
+                      navigate(targetRoute);
+                    }}
+                    title={section.label}
+                    className={`w-full flex items-center justify-center p-2.5 rounded-lg transition cursor-pointer ${
+                      isActive
+                        ? 'bg-brand-orange text-white shadow-xs'
+                        : 'text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    <SectionIcon className="w-4 h-4" />
+                  </button>
+                </li>
+              );
+            }
+
+            // Expanded Standard View
             return (
-              <li key={section.id} className="space-y-1">
+              <li key={section.id} className="space-y-0.5">
                 {/* Main Menu Item */}
                 <div className="flex items-center">
                   <button
@@ -308,15 +338,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
                       navigate(targetRoute);
                       setExpandedSections(prev => ({ ...prev, [section.id]: true }));
                     }}
-                    className={`flex-1 flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-colors text-sm font-medium text-left cursor-pointer ${
+                    className={`flex-1 flex items-center gap-2.5 px-3 py-2 rounded-lg transition-colors text-xs font-medium text-left cursor-pointer ${
                       isDirectActive
-                        ? 'bg-[#ff5000] text-white font-semibold shadow-sm'
+                        ? 'bg-brand-orange text-white font-semibold shadow-xs'
                         : hasSubActive
-                        ? 'text-white bg-slate-800/80 font-medium'
-                        : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                        ? 'text-brand-orange bg-orange-50 dark:bg-orange-950/40 font-semibold border border-orange-200/70 dark:border-orange-800/40'
+                        : 'text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60'
                     }`}
                   >
-                    <SectionIcon className="w-5 h-5 shrink-0" />
+                    <SectionIcon className="w-4 h-4 shrink-0" />
                     <span className="flex-1 truncate">{section.label}</span>
                   </button>
 
@@ -329,12 +359,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
                         toggleSection(section.id);
                       }}
                       title={isExpanded ? `Collapse ${section.label}` : `Expand ${section.label}`}
-                      className="p-2 ml-1 text-slate-400 hover:text-white hover:bg-slate-800/60 rounded-lg transition-colors cursor-pointer"
+                      className="p-1.5 ml-0.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-md transition-colors cursor-pointer"
                     >
                       {isExpanded ? (
-                        <ChevronDown className="w-4 h-4 shrink-0 transition-transform" />
+                        <ChevronDown className="w-3.5 h-3.5 shrink-0" />
                       ) : (
-                        <ChevronRight className="w-4 h-4 shrink-0 transition-transform" />
+                        <ChevronRight className="w-3.5 h-3.5 shrink-0" />
                       )}
                     </button>
                   )}
@@ -342,7 +372,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
 
                 {/* Nested Submenu Items */}
                 {section.children && section.children.length > 0 && isExpanded && (
-                  <div className="pl-3.5 pt-0.5 pb-1 space-y-1 ml-3 border-l border-slate-800/80">
+                  <div className="pl-3 py-0.5 space-y-0.5 ml-3 border-l border-slate-200 dark:border-slate-800">
                     {section.children.map((subItem, idx) => {
                       const SubIcon = subItem.icon;
                       const isSubActive = isChildActive(subItem.to, idx === 0);
@@ -351,13 +381,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
                         <NavLink
                           key={`${section.id}-${subItem.label}`}
                           to={subItem.to}
-                          className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-colors text-sm font-medium ${
+                          className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg transition-colors text-[11px] font-medium ${
                             isSubActive
-                              ? 'bg-[#ff5000] text-white font-semibold shadow-sm'
-                              : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
+                              ? 'bg-brand-orange text-white font-semibold shadow-xs'
+                              : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/50'
                           }`}
                         >
-                          <SubIcon className="w-5 h-5 shrink-0" />
+                          <SubIcon className="w-3.5 h-3.5 shrink-0" />
                           <span className="truncate">{subItem.label}</span>
                         </NavLink>
                       );
@@ -370,70 +400,100 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
         </ul>
       </nav>
 
-      {/* FOOTER NAVIGATION: System Settings, Profile & Role Badge */}
-      <div className="p-3 border-t border-slate-800 space-y-1">
-        {/* Active Role Indicator Badge */}
-        <div className={`p-2 rounded-xl ${badge.bg} border ${badge.border} flex items-center justify-between mb-1 text-xs`}>
-          <div className="flex flex-col min-w-0 pr-1">
-            <span className="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Role Access</span>
-            <span className={`font-bold truncate text-[11px] ${badge.color}`}>{badge.label}</span>
+      {/* FOOTER: Settings, Profile, Collapse Toggle, & Logout */}
+      <div className="p-2 border-t border-slate-200/80 dark:border-slate-800 space-y-1 text-xs">
+        
+        {/* Collapse Rail Toggle */}
+        {onToggleCollapse && (
+          <button
+            type="button"
+            onClick={onToggleCollapse}
+            className="w-full hidden lg:flex items-center justify-center gap-2 py-1.5 px-2 rounded-lg text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer text-xs"
+            title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar to Compact Rail"}
+          >
+            {isCollapsed ? (
+              <ChevronRight className="w-4 h-4" />
+            ) : (
+              <>
+                <ChevronLeft className="w-3.5 h-3.5" />
+                <span className="text-[11px] font-medium">Compact View</span>
+              </>
+            )}
+          </button>
+        )}
+
+        {/* Role Badge if expanded */}
+        {!isCollapsed && (
+          <div className={`p-2 rounded-lg ${badge.bg} border ${badge.border} flex items-center justify-between text-xs`}>
+            <div className="flex flex-col min-w-0 pr-1">
+              <span className="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Role</span>
+              <span className={`font-bold truncate text-[11px] ${badge.color}`}>{badge.label}</span>
+            </div>
+            <span className={`w-2 h-2 rounded-full ${userRole === 'admin' ? 'bg-indigo-500' : userRole === 'manager' ? 'bg-amber-500' : userRole === 'cashier' ? 'bg-emerald-500' : 'bg-cyan-500'}`} />
           </div>
-          <span className={`w-2 h-2 rounded-full ${userRole === 'admin' ? 'bg-indigo-400' : userRole === 'manager' ? 'bg-amber-400' : userRole === 'cashier' ? 'bg-emerald-400' : userRole === 'workshop' ? 'bg-cyan-400' : 'bg-purple-400'} animate-pulse`} />
-        </div>
+        )}
 
         {canAccessRoute('/settings') && (
           <>
-            <NavLink
-              to="/settings?tab=users"
-              className={() =>
-                `flex items-center gap-3 px-3.5 py-2 rounded-xl text-sm font-medium transition-colors ${
-                  location.pathname === '/settings' && location.search.includes('tab=users')
-                    ? 'bg-[#ff5000] text-white font-semibold shadow-sm'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                }`
-              }
-            >
-              <Users className="w-5 h-5 shrink-0 text-amber-400" />
-              <span>Users & Staff</span>
-            </NavLink>
+            {userRole === 'admin' && (
+              <NavLink
+                to="/settings?tab=users"
+                title="Users & Staff"
+                className={() =>
+                  `flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+                    location.pathname === '/settings' && location.search.includes('tab=users')
+                      ? 'bg-brand-orange text-white font-semibold shadow-xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                  } ${isCollapsed ? 'justify-center px-0' : ''}`
+                }
+              >
+                <Users className="w-4 h-4 shrink-0 text-amber-500" />
+                {!isCollapsed && <span>Users & Staff</span>}
+              </NavLink>
+            )}
 
             <NavLink
               to="/settings"
+              title="System Settings"
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3.5 py-2 rounded-xl text-sm font-medium transition-colors ${
+                `flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                   isActive && !location.search.includes('tab=users')
-                    ? 'bg-[#ff5000] text-white font-semibold shadow-sm'
-                    : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-                }`
+                    ? 'bg-brand-orange text-white font-semibold shadow-xs'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+                } ${isCollapsed ? 'justify-center px-0' : ''}`
               }
             >
-              <SettingsIcon className="w-5 h-5 shrink-0" />
-              <span>System Settings</span>
+              <SettingsIcon className="w-4 h-4 shrink-0" />
+              {!isCollapsed && <span>Settings</span>}
             </NavLink>
           </>
         )}
 
         <NavLink
           to="/profile"
+          title="User Profile"
           className={({ isActive }) =>
-            `flex items-center gap-3 px-3.5 py-2 rounded-xl text-sm font-medium transition-colors ${
+            `flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${
               isActive
-                ? 'bg-[#ff5000] text-white font-semibold shadow-sm'
-                : 'text-slate-300 hover:text-white hover:bg-slate-800/60'
-            }`
+                ? 'bg-brand-orange text-white font-semibold shadow-xs'
+                : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+            } ${isCollapsed ? 'justify-center px-0' : ''}`
           }
         >
-          <User className="w-5 h-5 shrink-0" />
-          <span>Profile</span>
+          <User className="w-4 h-4 shrink-0" />
+          {!isCollapsed && <span>Profile</span>}
         </NavLink>
 
         <button
           type="button"
           onClick={onLogout}
-          className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium text-slate-300 hover:text-rose-400 hover:bg-slate-800/60 transition cursor-pointer text-left"
+          title="Sign Out Session"
+          className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-600 dark:text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 transition cursor-pointer ${
+            isCollapsed ? 'justify-center px-0' : ''
+          }`}
         >
-          <LogOut className="w-5 h-5 shrink-0" />
-          <span>Logout</span>
+          <LogOut className="w-4 h-4 shrink-0" />
+          {!isCollapsed && <span>Logout</span>}
         </button>
       </div>
 

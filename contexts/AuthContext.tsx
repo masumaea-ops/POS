@@ -124,7 +124,7 @@ export const ROLE_PERMISSIONS: Record<SystemUserRole, Record<AppResource, CrudAc
     garage: ['read', 'create', 'update', 'export', 'approve'],
     integrations: [], // Strictly no API key management
     settings: ['read'], // General settings view only
-    users: ['read'] // Can see staff roster, cannot create/delete
+    users: [] // Strictly no user management or staff roster viewing (Admin only)
   },
   cashier: {
     dashboard: [], // STRICTLY NO DASHBOARD - Reserved for management only
@@ -192,7 +192,7 @@ export const ROLE_PERMISSIONS: Record<SystemUserRole, Record<AppResource, CrudAc
     garage: ['read', 'export'], // Service job cards & parts billing audit
     integrations: [], // NO access
     settings: ['read'], // Can view compliance settings, cannot edit
-    users: ['read'] // Can audit staff user roster
+    users: [] // Strictly no user management or staff roster viewing (Admin only)
   }
 };
 
@@ -293,6 +293,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; onLogoutExterna
   const logout = () => {
     setIsAuthenticated(false);
     sessionStorage.removeItem('masuma_auth_active');
+    try {
+      localStorage.removeItem('masuma_current_user');
+    } catch (_) {}
     if (onLogoutExternal) {
       onLogoutExternal();
     }
@@ -310,6 +313,11 @@ const mapSystemRoleToGarageRole = (role: SystemUserRole): string => {
 };
 
   const switchUser = (user: SystemUser) => {
+    // Only Super Administrator is permitted to switch roles or test personas
+    if (currentUser.role !== 'admin') {
+      console.warn('[RBAC Security] Privilege switching and impersonation are strictly restricted to Super Administrators.');
+      return;
+    }
     setCurrentUser(user);
     localStorage.setItem('masuma_current_user', JSON.stringify(user));
     const garageRole = mapSystemRoleToGarageRole(user.role);
@@ -320,6 +328,11 @@ const mapSystemRoleToGarageRole = (role: SystemUserRole): string => {
   };
 
   const switchRole = (role: SystemUserRole) => {
+    // Only Super Administrator is permitted to switch roles or test personas
+    if (currentUser.role !== 'admin') {
+      console.warn('[RBAC Security] Privilege switching is strictly restricted to Super Administrators.');
+      return;
+    }
     const matched = SYSTEM_PERSONAS.find(p => p.role === role) || {
       ...currentUser,
       role,
@@ -351,6 +364,11 @@ const mapSystemRoleToGarageRole = (role: SystemUserRole): string => {
     // Parts Suppliers tab under contacts requires purchasing permission
     if (cleanPath === '/contacts' && queryPart && queryPart.includes('tab=Suppliers')) {
       return hasPermission('purchasing', 'read');
+    }
+
+    // Users and staff management under settings is strictly restricted to Super Administrator
+    if (cleanPath === '/settings' && queryPart && queryPart.includes('tab=users')) {
+      return currentUser.role === 'admin';
     }
 
     const resource = ROUTE_RESOURCE_MAP[cleanPath];
@@ -392,7 +410,7 @@ const mapSystemRoleToGarageRole = (role: SystemUserRole): string => {
         hasPermission,
         canAccessRoute,
         getRoleBadge,
-        allPersonas: SYSTEM_PERSONAS
+        allPersonas: currentUser.role === 'admin' ? SYSTEM_PERSONAS : [currentUser]
       }}
     >
       {children}

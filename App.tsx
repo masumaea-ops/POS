@@ -46,10 +46,21 @@ const MainLayout: React.FC<{
   onLockTerminal: () => void;
 }> = ({ children, onLogout, onLockTerminal }) => {
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() => {
+      return localStorage.getItem('masuma_sidebar_collapsed') === 'true';
+    });
+
+    const toggleSidebar = () => {
+      setIsSidebarCollapsed(prev => {
+        const next = !prev;
+        localStorage.setItem('masuma_sidebar_collapsed', String(next));
+        return next;
+      });
+    };
 
     return (
-        <div className="flex flex-col h-screen bg-[#0b1324] text-slate-100 overflow-hidden select-none">
-            {/* Full-width Top Navigation Header as in Screenshot */}
+        <div className="flex flex-col h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden select-none transition-colors antialiased">
+            {/* Full-width Top Navigation Header */}
             <Header 
               onLogout={onLogout} 
               onLockTerminal={onLockTerminal}
@@ -57,9 +68,14 @@ const MainLayout: React.FC<{
             />
 
             <div className="flex flex-1 overflow-hidden min-h-0">
-                {/* Desktop Left Sidebar (Permanent) */}
-                <div className="hidden lg:block lg:w-60 lg:shrink-0 h-full">
-                    <Sidebar onLogout={onLogout} onLockTerminal={onLockTerminal} />
+                {/* Desktop Left Sidebar with Expand/Collapse Rail Mode */}
+                <div className={`hidden lg:block ${isSidebarCollapsed ? 'lg:w-16' : 'lg:w-56'} lg:shrink-0 h-full transition-all duration-200 ease-in-out`}>
+                    <Sidebar 
+                      onLogout={onLogout} 
+                      onLockTerminal={onLockTerminal}
+                      isCollapsed={isSidebarCollapsed}
+                      onToggleCollapse={toggleSidebar}
+                    />
                 </div>
 
                 {/* Mobile/Tablet Sidebar Drawer */}
@@ -67,18 +83,18 @@ const MainLayout: React.FC<{
                     <div className="lg:hidden fixed inset-0 z-50 flex">
                         {/* Backdrop */}
                         <div 
-                            className="fixed inset-0 bg-black/70 backdrop-blur-xs transition-opacity" 
+                            className="fixed inset-0 bg-black/60 backdrop-blur-xs transition-opacity" 
                             onClick={() => setIsMobileMenuOpen(false)}
                         />
                         {/* Drawer panel */}
-                        <div className="relative flex-1 flex flex-col max-w-[260px] w-full bg-[#0b1324] shadow-2xl transition-transform duration-300 ease-in-out">
-                            <div className="absolute top-4 right-4 z-10">
+                        <div className="relative flex-1 flex flex-col max-w-[260px] w-full bg-white dark:bg-slate-900 shadow-xl border-r border-slate-200 dark:border-slate-800 transition-transform duration-300 ease-in-out">
+                            <div className="absolute top-3 right-3 z-10">
                                 <button
                                     type="button"
-                                    className="flex items-center justify-center h-8 w-8 rounded-full bg-slate-800 text-slate-400 hover:text-white focus:outline-none cursor-pointer"
+                                    className="flex items-center justify-center h-7 w-7 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:text-slate-900 dark:hover:text-white transition cursor-pointer"
                                     onClick={() => setIsMobileMenuOpen(false)}
                                 >
-                                    <X className="h-5 w-5" />
+                                    <X className="h-4 w-4" />
                                 </button>
                             </div>
                             <div className="flex-1 h-0 overflow-y-auto" onClick={() => setIsMobileMenuOpen(false)}>
@@ -89,7 +105,7 @@ const MainLayout: React.FC<{
                 )}
 
                 {/* Main Application Content Area */}
-                <main className="flex-1 flex flex-col overflow-y-auto relative bg-[#0b1324] min-w-0">
+                <main className="flex-1 flex flex-col overflow-y-auto relative bg-slate-50 dark:bg-slate-950 min-w-0 transition-colors">
                     {children}
                 </main>
             </div>

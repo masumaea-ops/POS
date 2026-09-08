@@ -713,153 +713,150 @@ const Inventory: React.FC = () => {
 
       {/* Role Access Notice for Staff */}
       {!canCreate && (
-        <div className="mx-4 md:mx-8 mt-2 px-4 py-2 bg-slate-800/80 border border-slate-700 rounded-xl flex items-center justify-between text-xs text-slate-300">
+        <div className="mx-4 md:mx-6 mt-3 px-3.5 py-2 bg-slate-100 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-800 rounded-xl flex items-center justify-between text-xs text-slate-600 dark:text-slate-300">
           <div className="flex items-center gap-2">
-            <Lock className="w-3.5 h-3.5 text-amber-400" />
+            <Lock className="w-3.5 h-3.5 text-amber-500 shrink-0" />
             <span>
-              Catalog operates in <strong className="text-white">Read-Only Search Mode</strong> for your role (<strong className="text-amber-400 capitalize">{userRole}</strong>). Specification additions and deletions are restricted.
+              Catalog in <strong className="text-slate-900 dark:text-white font-semibold">Search Mode</strong> for <span className="capitalize font-medium text-amber-600 dark:text-amber-400">{userRole}</span>. Creation and deletions restricted.
             </span>
           </div>
-          <span className="text-[10px] px-2 py-0.5 rounded bg-slate-700 text-slate-400 font-mono">
-            RBAC Enforced
+          <span className="text-[10px] px-2 py-0.5 rounded bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-mono">
+            Protected
           </span>
         </div>
       )}
 
       {/* QUICK INVENTORY ACTIONS HUD */}
-      <div className="px-4 md:px-8 mt-4 grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <div className="p-4 bg-white dark:bg-gray-800 rounded-xl border border-slate-200 dark:border-slate-700/50 shadow-sm flex items-center justify-between">
+      <div className="px-4 md:px-6 mt-4 grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="p-3.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center justify-between transition-colors">
           <div>
-            <span className="text-[10px] text-slate-400 font-extrabold uppercase block tracking-wider">Total SKUs Registered</span>
-            <span className="text-xl font-black text-slate-900 dark:text-white mt-1 block font-mono">{products.length} Items</span>
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider block">Total SKUs</span>
+            <span className="text-lg font-bold text-slate-900 dark:text-white mt-0.5 block">{products.length} Parts</span>
           </div>
-          <div className="w-10 h-10 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-600 dark:text-indigo-400 rounded-lg flex items-center justify-center">
-            <Package className="w-5 h-5" />
+          <div className="w-9 h-9 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-lg flex items-center justify-center shrink-0">
+            <Package className="w-4 h-4" />
           </div>
         </div>
-        <div className="p-4 bg-white dark:bg-gray-800 rounded-xl border border-slate-200 dark:border-slate-700/50 shadow-sm flex items-center justify-between">
+        <div className="p-3.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center justify-between transition-colors">
           <div>
-            <span className="text-[10px] text-slate-400 font-extrabold uppercase block tracking-wider">Low Level Breaches</span>
-            <span className="text-xl font-black text-amber-600 mt-1 block font-mono">{products.filter(p => p.stock <= (p.minStockLevel || 10) && p.stock > 0).length} Parts</span>
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider block">Low Stock</span>
+            <span className="text-lg font-bold text-amber-600 mt-0.5 block">{products.filter(p => p.stock <= (p.minStockLevel || 10) && p.stock > 0).length} Items</span>
           </div>
-          <div className="w-10 h-10 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-lg flex items-center justify-center">
-            <AlertTriangle className="w-5 h-5" />
+          <div className="w-9 h-9 bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 rounded-lg flex items-center justify-center shrink-0">
+            <AlertTriangle className="w-4 h-4" />
           </div>
         </div>
-        <div className="p-4 bg-white dark:bg-gray-800 rounded-xl border border-slate-200 dark:border-slate-700/50 shadow-sm flex items-center justify-between">
+        <div className="p-3.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center justify-between transition-colors">
           <div>
-            <span className="text-[10px] text-slate-400 font-extrabold uppercase block tracking-wider">Total Catalog Wealth</span>
-            <span className="text-xl font-black text-indigo-600 dark:text-indigo-400 mt-1 block font-mono">
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider block">Catalog Value</span>
+            <span className="text-lg font-bold text-slate-900 dark:text-white mt-0.5 block">
               {formatPrice(products.reduce((acc, p) => acc + (p.price * p.stock), 0))}
             </span>
           </div>
-          <div className="w-10 h-10 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-lg flex items-center justify-center">
-            <Coins className="w-5 h-5" />
+          <div className="w-9 h-9 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 rounded-lg flex items-center justify-center shrink-0">
+            <Coins className="w-4 h-4" />
           </div>
         </div>
-        <div className="p-4 bg-white dark:bg-gray-800 rounded-xl border border-slate-200 dark:border-slate-700/50 shadow-sm flex items-center justify-between">
+        <div className="p-3.5 bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs flex items-center justify-between transition-colors">
           <div>
-            <span className="text-[10px] text-slate-400 font-extrabold uppercase block tracking-wider">Universal Export</span>
+            <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-wider block">Quick Actions</span>
             <div className="mt-1 flex items-center gap-2">
               <button 
                 onClick={handleExportInventoryPDF}
-                className="text-[11px] font-black uppercase text-brand-orange hover:underline flex items-center gap-0.5"
+                className="text-xs font-semibold text-brand-orange hover:underline cursor-pointer"
               >
                 PDF
               </button>
-              <span className="text-slate-300">|</span>
+              <span className="text-slate-300 dark:text-slate-700">·</span>
               <button 
                 onClick={handleExportInventoryCSV}
-                className="text-[11px] font-black uppercase text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-0.5"
+                className="text-xs font-semibold text-slate-600 dark:text-slate-300 hover:underline cursor-pointer"
               >
                 CSV
               </button>
-              <span className="text-slate-300">|</span>
+              <span className="text-slate-300 dark:text-slate-700">·</span>
               <button 
                 onClick={() => setIsImportModalOpen(true)}
-                className="text-[11px] font-black uppercase text-slate-600 dark:text-slate-300 hover:underline"
+                className="text-xs font-semibold text-slate-600 dark:text-slate-300 hover:underline cursor-pointer"
               >
                 Import
               </button>
             </div>
           </div>
-          <div className="w-10 h-10 bg-orange-50 dark:bg-orange-950/40 text-brand-orange rounded-lg flex items-center justify-center">
-            <Download className="w-5 h-5" />
+          <div className="w-9 h-9 bg-orange-50 dark:bg-orange-950/40 text-brand-orange rounded-lg flex items-center justify-center shrink-0">
+            <Download className="w-4 h-4" />
           </div>
         </div>
       </div>
 
       {/* FILTER & STATS HUD RAIL */}
-      <div className="px-4 md:px-8 mt-5 flex flex-col md:flex-row gap-4 items-center justify-between">
-           
+      <div className="px-4 md:px-6 mt-4 flex flex-col md:flex-row gap-3 items-center justify-between">
            {/* Tab Filters */}
-           <div className="flex p-1 bg-slate-200 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-bold shrink-0 self-start md:self-auto">
+           <div className="flex p-1 bg-slate-100 dark:bg-slate-800/70 rounded-xl border border-slate-200/80 dark:border-slate-800 text-xs font-medium shrink-0 self-start md:self-auto">
              <button 
                onClick={() => setFilterTab('all')}
-               className={`px-4 py-2 rounded ${filterTab === 'all' ? 'bg-white dark:bg-slate-700 shadow-sm text-brand-orange' : 'text-slate-600 dark:text-slate-300'}`}
+               className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${filterTab === 'all' ? 'bg-white dark:bg-slate-700 shadow-xs text-slate-900 dark:text-white font-semibold' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
              >
                All Parts ({products.length})
              </button>
              <button 
                onClick={() => setFilterTab('low')}
-               className={`px-4 py-2 rounded ${filterTab === 'low' ? 'bg-white dark:bg-slate-700 shadow-sm text-amber-600' : 'text-slate-600 dark:text-slate-300'}`}
+               className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${filterTab === 'low' ? 'bg-white dark:bg-slate-700 shadow-xs text-amber-600 font-semibold' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
              >
-               Low Stock Warning ({products.filter(p => p.stock <= (p.minStockLevel || 10) && p.stock > 0).length})
+               Low Stock ({products.filter(p => p.stock <= (p.minStockLevel || 10) && p.stock > 0).length})
              </button>
              <button 
                onClick={() => setFilterTab('out')}
-               className={`px-4 py-2 rounded ${filterTab === 'out' ? 'bg-white dark:bg-slate-700 shadow-sm text-red-600' : 'text-slate-600 dark:text-slate-300'}`}
+               className={`px-3 py-1.5 rounded-lg transition cursor-pointer ${filterTab === 'out' ? 'bg-white dark:bg-slate-700 shadow-xs text-rose-600 font-semibold' : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'}`}
              >
-               Depleted Stock ({products.filter(p => p.stock === 0).length})
+               Depleted ({products.filter(p => p.stock === 0).length})
              </button>
            </div>
 
            {/* Search query box, Camera Scanner, and Export Dropdown */}
-           <div className="flex items-center gap-2.5 w-full md:w-auto justify-end">
-             <div className="relative w-full md:w-56 shrink-0">
-               <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-slate-400">
-                 <Search className="w-4 h-4"/>
+           <div className="flex items-center gap-2 w-full md:w-auto justify-end">
+             <div className="relative flex-1 md:w-56">
+               <span className="absolute inset-y-0 left-0 pl-2.5 flex items-center text-slate-400">
+                 <Search className="w-3.5 h-3.5"/>
                </span>
                <input 
                  type="text"
-                 placeholder="OEM, Name or Brand..."
+                 placeholder="Search part, OEM..."
                  value={searchTerm}
                  onChange={(e) => setSearchTerm(e.target.value)}
-                 className="w-full pl-9 pr-3 py-2 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs focus:ring-2 focus:ring-brand-orange focus:outline-none text-slate-800 dark:text-slate-100 font-bold"
+                 className="w-full pl-8 pr-3 py-1.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-lg text-xs focus:ring-1 focus:ring-brand-orange focus:outline-none text-slate-800 dark:text-slate-100 placeholder-slate-400"
                />
              </div>
 
              <button
                onClick={() => setIsScannerOpen(true)}
-               className="px-3.5 py-2 bg-brand-orange hover:bg-orange-600 text-white font-black text-xs uppercase tracking-wider rounded-lg flex items-center gap-1.5 transition-all shrink-0 select-none shadow-sm shadow-brand-orange/20"
+               className="px-3 py-1.5 bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-semibold text-xs rounded-lg flex items-center gap-1.5 hover:opacity-90 transition cursor-pointer shrink-0"
                title="Launch device camera QR & barcode scanner"
              >
-               <Scan className="w-4 h-4" />
+               <Scan className="w-3.5 h-3.5" />
                <span>Scan</span>
              </button>
 
              <ExportDropdown
-               label="Export Catalog"
-               pdfLabel="Download PDF Ledger"
-               csvLabel="Download CSV Sheet"
+               label="Export"
+               pdfLabel="PDF Document"
+               csvLabel="CSV Spreadsheet"
                onExportPDF={handleExportInventoryPDF}
                onExportCSV={handleExportInventoryCSV}
                onPrint={() => window.print()}
-               variant="primary"
-               size="md"
+               variant="secondary"
+               size="sm"
              />
            </div>
       </div>
 
-      <div className="p-4 md:p-8">
-        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700">
-          <Table 
-            columns={columns} 
-            data={filteredProducts} 
-            onRowClick={(p) => setInspectedProduct(p)}
-            rowActions={productRowActions}
-          />
-        </div>
+      <div className="p-4 md:p-6">
+        <Table 
+          columns={columns} 
+          data={filteredProducts} 
+          onRowClick={(p) => setInspectedProduct(p)}
+          rowActions={productRowActions}
+        />
       </div>
 
       {/* EDIT/ADD PRODUCT OVERLAY MODAL */}

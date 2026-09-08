@@ -159,7 +159,8 @@ export const RolePermissionsMatrixModal: React.FC<RolePermissionsMatrixModalProp
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [activeTabRole, setActiveTabRole] = useState<SystemUserRole | 'all'>('all');
 
-  if (!isOpen) return null;
+  // RBAC matrix and role simulation are strictly reserved for Super Administrator
+  if (!isOpen || userRole !== 'admin') return null;
 
   const rolesList: Array<{ key: SystemUserRole; title: string; subtitle: string }> = [
     { key: 'admin', title: 'Super Admin', subtitle: 'Executive Chain Controller' },

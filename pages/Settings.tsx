@@ -6,6 +6,7 @@ import LanguageSwitcher from '../components/shared/LanguageSwitcher';
 import { useTheme } from '../contexts/ThemeContext';
 import { useSystemSettings } from '../contexts/SettingsContext';
 import { useLanguage } from '../contexts/LanguageContext';
+import { useAuth } from '../contexts/AuthContext';
 import Card from '../components/shared/Card';
 import UserManagementSection from '../components/settings/UserManagementSection';
 import { 
@@ -155,21 +156,42 @@ const Settings: React.FC = () => {
   const { theme } = useTheme();
   const { settings, updateSettings } = useSystemSettings();
   const { language, setLanguage, t } = useLanguage();
+  const { userRole, hasPermission } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialTab = searchParams.get('tab');
   const validTabs = ['general', 'security', 'users', 'localization', 'database'];
-  const [activeTab, setActiveTab] = useState<'general' | 'security' | 'users' | 'localization' | 'database'>(
-    initialTab && validTabs.includes(initialTab) ? (initialTab as any) : 'general'
-  );
+  
+  // Guard initial tab: non-admins cannot open 'users' or 'database'
+  const getInitialTab = (): 'general' | 'security' | 'users' | 'localization' | 'database' => {
+    if (initialTab && validTabs.includes(initialTab)) {
+      if (userRole !== 'admin' && (initialTab === 'users' || initialTab === 'database')) {
+        return 'general';
+      }
+      return initialTab as any;
+    }
+    return 'general';
+  };
+
+  const [activeTab, setActiveTab] = useState<'general' | 'security' | 'users' | 'localization' | 'database'>(getInitialTab);
 
   useEffect(() => {
     const tabParam = searchParams.get('tab');
-    if (tabParam && validTabs.includes(tabParam) && tabParam !== activeTab) {
-      setActiveTab(tabParam as any);
+    if (tabParam && validTabs.includes(tabParam)) {
+      if (userRole !== 'admin' && (tabParam === 'users' || tabParam === 'database')) {
+        setActiveTab('general');
+        setSearchParams({ tab: 'general' });
+        return;
+      }
+      if (tabParam !== activeTab) {
+        setActiveTab(tabParam as any);
+      }
     }
-  }, [searchParams]);
+  }, [searchParams, userRole]);
 
   const handleTabChange = (tab: 'general' | 'security' | 'users' | 'localization' | 'database') => {
+    if (userRole !== 'admin' && (tab === 'users' || tab === 'database')) {
+      return;
+    }
     setActiveTab(tab);
     setSearchParams({ tab });
   };
@@ -547,14 +569,16 @@ const Settings: React.FC = () => {
             <ShieldCheck className="w-4 h-4 text-emerald-500" />
             <span>{t('settings.securityTab', 'Cybersecurity & Threat Defense Center')}</span>
           </button>
-          <button 
-            type="button"
-            onClick={() => handleTabChange('users')}
-            className={`py-4 font-bold border-b-2 transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${activeTab === 'users' ? 'border-brand-orange text-brand-orange' : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}`}
-          >
-            <Users className="w-4 h-4 text-amber-500" />
-            <span>Users & Access Control</span>
-          </button>
+          {userRole === 'admin' && (
+            <button 
+              type="button"
+              onClick={() => handleTabChange('users')}
+              className={`py-4 font-bold border-b-2 transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${activeTab === 'users' ? 'border-brand-orange text-brand-orange' : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}`}
+            >
+              <Users className="w-4 h-4 text-amber-500" />
+              <span>Users & Access Control</span>
+            </button>
+          )}
           <button 
             type="button"
             onClick={() => handleTabChange('localization')}
@@ -563,14 +587,16 @@ const Settings: React.FC = () => {
             <Globe className="w-4 h-4 text-blue-500" />
             <span>{t('settings.localizationTab', 'Language & Regional Localization')}</span>
           </button>
-          <button 
-            type="button"
-            onClick={() => handleTabChange('database')}
-            className={`py-4 font-bold border-b-2 transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${activeTab === 'database' ? 'border-brand-orange text-brand-orange' : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}`}
-          >
-            <Database className="w-4 h-4 text-indigo-500" />
-            <span>MySQL Database & Auto-Seed</span>
-          </button>
+          {userRole === 'admin' && (
+            <button 
+              type="button"
+              onClick={() => handleTabChange('database')}
+              className={`py-4 font-bold border-b-2 transition-colors whitespace-nowrap cursor-pointer flex items-center gap-1.5 ${activeTab === 'database' ? 'border-brand-orange text-brand-orange' : 'border-transparent text-gray-500 hover:text-gray-800 dark:hover:text-gray-200'}`}
+            >
+              <Database className="w-4 h-4 text-indigo-500" />
+              <span>MySQL Database & Auto-Seed</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -654,12 +680,18 @@ const Settings: React.FC = () => {
                </div>
             </Card>
 
-            <button 
-              type="submit" 
-              className="w-full py-3 bg-brand-orange hover:bg-orange-600 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-lg transition cursor-pointer"
-            >
-              Save General ERP Configurations
-            </button>
+            {hasPermission('settings', 'update') ? (
+              <button 
+                type="submit" 
+                className="w-full py-3 bg-brand-orange hover:bg-orange-600 text-white font-bold text-xs uppercase tracking-wider rounded-xl shadow-lg transition cursor-pointer"
+              >
+                Save General ERP Configurations
+              </button>
+            ) : (
+              <div className="p-3 bg-slate-100 dark:bg-slate-800 rounded-xl text-center text-xs text-slate-500 font-semibold">
+                Read-Only View • Modifications restricted to Super Administrators
+              </div>
+            )}
           </form>
 
           {/* RIGHT COLUMN: Appearance and eTIMS */}
@@ -742,21 +774,23 @@ const Settings: React.FC = () => {
                 </div>
               </div>
 
-              {/* Emergency Lockdown Toggle */}
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={handleToggleEmergencyLockdown}
-                  className={`px-4 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition flex items-center gap-2 cursor-pointer shadow-lg ${
-                    emergencyLockdown 
-                      ? 'bg-rose-600 hover:bg-rose-700 text-white shadow-rose-900/30 animate-pulse'
-                      : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
-                  }`}
-                >
-                  <Ban className="w-4 h-4" />
-                  <span>{emergencyLockdown ? 'Lockdown ENGAGED (Quarantine)' : 'Emergency Lockdown'}</span>
-                </button>
-              </div>
+              {/* Emergency Lockdown Toggle - Super Admin Only */}
+              {userRole === 'admin' && (
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={handleToggleEmergencyLockdown}
+                    className={`px-4 py-2.5 rounded-xl font-black text-xs uppercase tracking-wider transition flex items-center gap-2 cursor-pointer shadow-lg ${
+                      emergencyLockdown 
+                        ? 'bg-rose-600 hover:bg-rose-700 text-white shadow-rose-900/30 animate-pulse'
+                        : 'bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700'
+                    }`}
+                  >
+                    <Ban className="w-4 h-4" />
+                    <span>{emergencyLockdown ? 'Lockdown ENGAGED (Quarantine)' : 'Emergency Lockdown'}</span>
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Defense Capabilities Badges */}
@@ -938,7 +972,7 @@ const Settings: React.FC = () => {
                         </p>
                       </div>
 
-                      {!session.isCurrent && (
+                      {!session.isCurrent && userRole === 'admin' && (
                         <button
                           type="button"
                           onClick={() => handleTerminateSession(session.id)}
@@ -952,41 +986,43 @@ const Settings: React.FC = () => {
                 </div>
               </Card>
 
-              {/* SECURITY SIMULATOR */}
-              <Card className="border border-indigo-100 dark:border-indigo-950 bg-indigo-50/5">
-                <div className="border-b border-indigo-100 dark:border-indigo-900 pb-2 mb-3">
-                  <h3 className="text-xs font-black text-indigo-700 dark:text-indigo-400 uppercase tracking-wider flex items-center gap-1.5"><ShieldAlert className="w-4 h-4 text-indigo-600 shrink-0" /><span>Penetration & Threat Simulator</span></h3>
-                  <p className="text-[11px] text-slate-400 mt-0.5">Test real-time defense interceptions.</p>
-                </div>
+              {/* SECURITY SIMULATOR - Super Admin Only */}
+              {userRole === 'admin' && (
+                <Card className="border border-indigo-100 dark:border-indigo-950 bg-indigo-50/5">
+                  <div className="border-b border-indigo-100 dark:border-indigo-900 pb-2 mb-3">
+                    <h3 className="text-xs font-black text-indigo-700 dark:text-indigo-400 uppercase tracking-wider flex items-center gap-1.5"><ShieldAlert className="w-4 h-4 text-indigo-600 shrink-0" /><span>Penetration & Threat Simulator</span></h3>
+                    <p className="text-[11px] text-slate-400 mt-0.5">Test real-time defense interceptions.</p>
+                  </div>
 
-                <div className="space-y-2 font-mono text-[10.5px]">
-                  <button 
-                    onClick={() => runSecuritySimulation('BRUTE_FORCE')}
-                    className="w-full p-2.5 bg-white dark:bg-slate-800 hover:bg-rose-50/50 dark:hover:bg-rose-950/20 border border-slate-200 dark:border-gray-700 rounded-lg text-left flex justify-between items-center transition cursor-pointer"
-                  >
-                    <span>Simulate Berlin Tor Brute Force Relay</span>
-                    <span className="text-red-500 font-extrabold uppercase text-[9px] bg-red-100 dark:bg-red-950/40 px-1.5 py-0.5 rounded">AUTO-BLOCK</span>
-                  </button>
+                  <div className="space-y-2 font-mono text-[10.5px]">
+                    <button 
+                      onClick={() => runSecuritySimulation('BRUTE_FORCE')}
+                      className="w-full p-2.5 bg-white dark:bg-slate-800 hover:bg-rose-50/50 dark:hover:bg-rose-950/20 border border-slate-200 dark:border-gray-700 rounded-lg text-left flex justify-between items-center transition cursor-pointer"
+                    >
+                      <span>Simulate Berlin Tor Brute Force Relay</span>
+                      <span className="text-red-500 font-extrabold uppercase text-[9px] bg-red-100 dark:bg-red-950/40 px-1.5 py-0.5 rounded">AUTO-BLOCK</span>
+                    </button>
 
-                  <button 
-                    onClick={() => runSecuritySimulation('WEBHOOK_SPOOF')}
-                    className="w-full p-2.5 bg-white dark:bg-slate-800 hover:bg-amber-50/50 dark:hover:bg-amber-950/20 border border-slate-200 dark:border-gray-700 rounded-lg text-left flex justify-between items-center transition cursor-pointer"
-                  >
-                    <span>Spoof WooCommerce HMAC Checksum</span>
-                    <span className="text-amber-600 font-extrabold uppercase text-[9px] bg-amber-100 dark:bg-amber-950/40 px-1.5 py-0.5 rounded">DENIED</span>
-                  </button>
-                </div>
+                    <button 
+                      onClick={() => runSecuritySimulation('WEBHOOK_SPOOF')}
+                      className="w-full p-2.5 bg-white dark:bg-slate-800 hover:bg-amber-50/50 dark:hover:bg-amber-950/20 border border-slate-200 dark:border-gray-700 rounded-lg text-left flex justify-between items-center transition cursor-pointer"
+                    >
+                      <span>Spoof WooCommerce HMAC Checksum</span>
+                      <span className="text-amber-600 font-extrabold uppercase text-[9px] bg-amber-100 dark:bg-amber-950/40 px-1.5 py-0.5 rounded">DENIED</span>
+                    </button>
+                  </div>
 
-                <div className="mt-4 pt-3 border-t border-indigo-150/15 flex justify-between items-center">
-                  <span className="text-[10px] text-slate-400">Clear all observational events</span>
-                  <button 
-                    onClick={() => runSecuritySimulation('CLEAR_LOGS')}
-                    className="text-slate-450 hover:text-rose-600 font-bold uppercase text-[9px] cursor-pointer"
-                  >
-                    Wipe Logs
-                  </button>
-                </div>
-              </Card>
+                  <div className="mt-4 pt-3 border-t border-indigo-150/15 flex justify-between items-center">
+                    <span className="text-[10px] text-slate-400">Clear all observational events</span>
+                    <button 
+                      onClick={() => runSecuritySimulation('CLEAR_LOGS')}
+                      className="text-slate-450 hover:text-rose-600 font-bold uppercase text-[9px] cursor-pointer"
+                    >
+                      Wipe Logs
+                    </button>
+                  </div>
+                </Card>
+              )}
             </div>
 
             {/* RIGHT COLUMN: Tamper-Evident Audit Ledger (colspan 7) */}

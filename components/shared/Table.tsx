@@ -111,25 +111,25 @@ const Table = <T extends { id: any }>({ columns, data, onRowClick, renderActions
   };
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl shadow-main overflow-hidden">
+    <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200/80 dark:border-slate-800 shadow-xs overflow-hidden transition-colors">
       <div className="overflow-x-auto min-h-[220px]">
-        <table className="w-full">
-          <thead className="bg-surface dark:bg-gray-700/50">
+        <table className="w-full text-left">
+          <thead className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200/80 dark:border-slate-800">
             <tr>
               {columns.map((col, index) => (
-                <th key={index} className="p-4 text-left text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                <th key={index} className="p-3.5 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                   {col.header}
                 </th>
               ))}
-              <th className="p-4 text-center text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider w-20">
+              <th className="p-3.5 text-center text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider w-16">
                 Actions
               </th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-surface-2 dark:divide-gray-700">
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800/80">
             {data.length === 0 ? (
               <tr>
-                <td colSpan={columns.length + 1} className="p-8 text-center text-sm text-slate-400">
+                <td colSpan={columns.length + 1} className="p-8 text-center text-xs text-slate-400">
                   No records found.
                 </td>
               </tr>
@@ -140,25 +140,25 @@ const Table = <T extends { id: any }>({ columns, data, onRowClick, renderActions
                 return (
                   <tr 
                     key={item.id} 
-                    className={`transition-colors ${onRowClick ? 'cursor-pointer hover:bg-surface dark:hover:bg-gray-700/50' : ''}`}
+                    className={`transition-colors ${onRowClick ? 'cursor-pointer hover:bg-slate-50/80 dark:hover:bg-slate-800/50' : ''}`}
                     onClick={() => onRowClick?.(item)}
                   >
                     {columns.map((col, index) => (
-                      <td key={index} className="p-4 text-sm text-ink dark:text-gray-100 whitespace-nowrap">
+                      <td key={index} className="p-3.5 text-xs text-slate-700 dark:text-slate-200 whitespace-nowrap">
                         {col.accessor(item)}
                       </td>
                     ))}
                     <td 
-                      className="p-4 text-center text-sm text-ink dark:text-gray-100 whitespace-nowrap" 
+                      className="p-3.5 text-center text-xs text-slate-700 dark:text-slate-200 whitespace-nowrap" 
                       onClick={(e) => e.stopPropagation()}
                     >
                       <button 
                         type="button"
                         onClick={(e) => handleOpenMenu(e, item)}
-                        className={`p-2 rounded-lg transition-all cursor-pointer inline-flex items-center justify-center ${
+                        className={`p-1.5 rounded-lg transition-all cursor-pointer inline-flex items-center justify-center ${
                           isMenuOpen 
-                            ? 'bg-[#ff5000] text-white shadow-sm ring-2 ring-[#ff5000]/30' 
-                            : 'text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700'
+                            ? 'bg-brand-orange text-white shadow-xs' 
+                            : 'text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800'
                         }`}
                         title="Actions Menu"
                         aria-label="Actions Menu"
