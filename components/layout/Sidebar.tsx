@@ -196,6 +196,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
   // Dynamically filter sections based on granular role authorization
   const allowedSections = useMemo(() => {
     return NAV_SECTIONS.filter(section => {
+      // Dashboard is strictly reserved for management only (Admin & Regional Manager)
+      if (section.id === 'dashboard' && userRole !== 'admin' && userRole !== 'manager') {
+        return false;
+      }
       const canAccessParent = canAccessRoute(section.to);
       const hasAllowedChildren = section.children?.some(c => canAccessRoute(c.to));
       return canAccessParent || hasAllowedChildren;
@@ -298,7 +302,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ onLogout }) => {
                   <button
                     type="button"
                     onClick={() => {
-                      navigate(section.to);
+                      const targetRoute = canAccessRoute(section.to) 
+                        ? section.to 
+                        : (section.children && section.children[0]?.to) || section.to;
+                      navigate(targetRoute);
                       setExpandedSections(prev => ({ ...prev, [section.id]: true }));
                     }}
                     className={`flex-1 flex items-center gap-3 px-3.5 py-2.5 rounded-xl transition-colors text-sm font-medium text-left cursor-pointer ${

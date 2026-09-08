@@ -198,6 +198,11 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
             authSuccessful = true;
             authenticatedUser = { username: 'accountant', email: 'accountant@masuma.co.ke', role: 'accountant', fullName: 'Grace Muthoni (Head Accountant)' };
           }
+        } else if (cleanId === 'auditor' || cleanId === 'auditor@masuma.co.ke') {
+          if (inputPassword === 'auditor123' || inputPassword === 'admin123') {
+            authSuccessful = true;
+            authenticatedUser = { username: 'auditor', email: 'auditor@masuma.co.ke', role: 'auditor', fullName: 'Bernard Kilonzo (Senior Auditor)' };
+          }
         }
 
         // Check dynamically managed system users from User Management

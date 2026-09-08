@@ -21,9 +21,22 @@ import Garage from './pages/Garage';
 import LoginScreen from './pages/LoginScreen';
 import MfaScreen from './pages/MfaScreen';
 import { TerminalLockModal } from './components/shared/TerminalLockModal';
-import { AuthProvider } from './contexts/AuthContext';
+import { AuthProvider, useAuth, getDefaultRoleHome } from './contexts/AuthContext';
 import { RoleGuard } from './components/shared/RoleGuard';
 import { X } from 'lucide-react';
+
+const RoleAwareRoot: React.FC = () => {
+  const { userRole } = useAuth();
+  if (userRole === 'admin' || userRole === 'manager') {
+    return <Dashboard />;
+  }
+  return <Navigate to={getDefaultRoleHome(userRole)} replace />;
+};
+
+const RoleAwareFallback: React.FC = () => {
+  const { userRole } = useAuth();
+  return <Navigate to={getDefaultRoleHome(userRole)} replace />;
+};
 
 const INACTIVITY_TIMEOUT_MS = 15 * 60 * 1000; // 15 minutes
 
@@ -159,7 +172,8 @@ const App: React.FC = () => {
         <MainLayout onLogout={handleLogout} onLockTerminal={handleLockTerminal}>
           <Routes>
             {/* Streamlined Core Routes */}
-            <Route path="/" element={<Dashboard />} />
+            <Route path="/" element={<RoleAwareRoot />} />
+            <Route path="/dashboard" element={<RoleAwareRoot />} />
             <Route path="/pos" element={<RoleGuard resource="pos"><POS /></RoleGuard>} />
             <Route path="/inventory" element={<RoleGuard resource="inventory"><Inventory /></RoleGuard>} />
             <Route path="/sales" element={<RoleGuard resource="sales"><Sales /></RoleGuard>} />
@@ -181,7 +195,7 @@ const App: React.FC = () => {
             <Route path="/settings" element={<RoleGuard resource="settings"><Settings /></RoleGuard>} />
 
             {/* Fallback */}
-            <Route path="*" element={<Navigate to="/" />} />
+            <Route path="*" element={<RoleAwareFallback />} />
           </Routes>
         </MainLayout>
 

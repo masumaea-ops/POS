@@ -401,7 +401,7 @@ export interface CustomerFeedback {
   createdAt: string;
 }
 
-export type SystemUserRole = 'admin' | 'manager' | 'cashier' | 'workshop' | 'accountant';
+export type SystemUserRole = 'admin' | 'manager' | 'cashier' | 'workshop' | 'accountant' | 'auditor';
 
 export interface SystemUser {
   id: string | number;

@@ -76,6 +76,17 @@ export const SYSTEM_PERSONAS: SystemUser[] = [
     branch: 'Nairobi HQ & Central Warehouse',
     isActive: true,
     lastLogin: new Date().toISOString()
+  },
+  {
+    id: 6,
+    username: 'auditor',
+    email: 'auditor@masuma.co.ke',
+    fullName: 'Bernard Kilonzo (Internal & Tax Auditor)',
+    role: 'auditor',
+    phone: '+254 700 000 006',
+    branch: 'All Branches / Multi-Branch Float',
+    isActive: true,
+    lastLogin: new Date().toISOString()
   }
 ];
 
@@ -99,7 +110,7 @@ export const ROLE_PERMISSIONS: Record<SystemUserRole, Record<AppResource, CrudAc
     users: ['read', 'create', 'update', 'delete', 'export', 'approve', 'admin']
   },
   manager: {
-    dashboard: ['read', 'export'],
+    dashboard: ['read', 'export'], // Management access
     pos: ['read', 'create', 'update', 'export', 'approve'],
     inventory: ['read', 'create', 'update', 'export', 'approve'], // NO delete
     sales: ['read', 'create', 'update', 'export', 'approve'],
@@ -116,14 +127,14 @@ export const ROLE_PERMISSIONS: Record<SystemUserRole, Record<AppResource, CrudAc
     users: ['read'] // Can see staff roster, cannot create/delete
   },
   cashier: {
-    dashboard: ['read'],
+    dashboard: [], // STRICTLY NO DASHBOARD - Reserved for management only
     pos: ['read', 'create', 'update', 'export'], // Full front-desk cash register
     inventory: ['read'], // Read-only parts catalog lookup (NO add, NO edit, NO delete)
     sales: ['read', 'create'], // Create orders & quotes
     quotations: ['read', 'create', 'export'], // Draft quotes & print slips
     invoices: ['read', 'export'], // View customer invoices & print receipts
     purchasing: [], // NO access
-    shipping: ['read'], // Track delivery status for customer
+    shipping: [], // NO access - Freight dispatch reserved for logistics team
     contacts: ['read', 'create'], // Add retail walk-in customer contacts
     reports: [], // NO financial intelligence
     accounting: [], // NO access
@@ -133,7 +144,7 @@ export const ROLE_PERMISSIONS: Record<SystemUserRole, Record<AppResource, CrudAc
     users: [] // NO access
   },
   workshop: {
-    dashboard: ['read'],
+    dashboard: [], // STRICTLY NO DASHBOARD - Reserved for management only
     pos: [], // NO cash handling
     inventory: ['read'], // Search parts & verify store stock for lift bay
     sales: [], // NO sales order administration
@@ -150,27 +161,45 @@ export const ROLE_PERMISSIONS: Record<SystemUserRole, Record<AppResource, CrudAc
     users: [] // NO access
   },
   accountant: {
-    dashboard: ['read', 'export'],
-    pos: ['read', 'export'], // Read register reconciliations & shifts
+    dashboard: [], // STRICTLY NO DASHBOARD - Reserved for management only
+    pos: [], // Front-counter register is for cashiers; accountant audits in invoices/reports
     inventory: ['read', 'export'], // Asset valuation inspection
     sales: ['read', 'export'], // Sales journal audits
     quotations: ['read', 'export'], // Quotation review
     invoices: ['read', 'create', 'update', 'export', 'approve'], // Tax invoices & eTIMS returns
     purchasing: ['read', 'export', 'approve'], // PO validation & GRN payments
-    shipping: ['read', 'export'], // Freight ledger audit
+    shipping: [], // Delivery logistics is for shipping team
     contacts: ['read', 'update', 'export'], // Payables / Receivables ledger
     reports: ['read', 'export'], // Full financial & VAT tax reporting
     accounting: ['read', 'create', 'update', 'export', 'approve'], // Full General Ledger & COA
-    garage: ['read', 'export'], // Garage revenue audit
+    garage: [], // Workshop bays are for garage technicians
     integrations: [], // NO access
     settings: [], // NO access
     users: [] // NO access
+  },
+  auditor: {
+    dashboard: [], // STRICTLY NO DASHBOARD - Reserved for management only
+    pos: ['read'], // Inspect counter sales logs & receipts (read-only audit)
+    inventory: ['read', 'export'], // Asset stock valuation & stock movement audit
+    sales: ['read', 'export'], // Sales journal audits & customer receipts
+    quotations: ['read', 'export'], // Quotation review & pricing audit
+    invoices: ['read', 'export'], // Fiscal invoices, eTIMS compliance & tax logs
+    purchasing: ['read', 'export'], // PO validation, supplier invoices & GRN 3-way match
+    shipping: ['read'], // Waybills & dispatch verification
+    contacts: ['read', 'export'], // Customer & Supplier debt/credit ledgers
+    reports: ['read', 'export'], // Full Financial P&L, VAT & Tax audit reporting
+    accounting: ['read', 'export'], // General Ledger, COA, Journal entries, Balance Sheet (Strictly Read & Export, NO write/edit/delete/approve)
+    garage: ['read', 'export'], // Service job cards & parts billing audit
+    integrations: [], // NO access
+    settings: ['read'], // Can view compliance settings, cannot edit
+    users: ['read'] // Can audit staff user roster
   }
 };
 
 // Route to resource mapping for high-level URL and navigation guards
 export const ROUTE_RESOURCE_MAP: Record<string, AppResource> = {
   '/': 'dashboard',
+  '/dashboard': 'dashboard',
   '/pos': 'pos',
   '/inventory': 'inventory',
   '/vin-picker': 'inventory',
@@ -187,6 +216,29 @@ export const ROUTE_RESOURCE_MAP: Record<string, AppResource> = {
   '/garage': 'garage',
   '/integrations': 'integrations',
   '/settings': 'settings'
+};
+
+/**
+ * Returns the designated operational landing page for each role.
+ * Management (admin, manager) lands on the Executive Dashboard ('/'),
+ * while frontline staff land directly in their respective workspace.
+ */
+export const getDefaultRoleHome = (role?: SystemUserRole): string => {
+  switch (role) {
+    case 'admin':
+    case 'manager':
+      return '/';
+    case 'cashier':
+      return '/pos';
+    case 'workshop':
+      return '/garage';
+    case 'accountant':
+      return '/accounting';
+    case 'auditor':
+      return '/reports';
+    default:
+      return '/profile';
+  }
 };
 
 interface AuthContextType {
@@ -285,10 +337,21 @@ const mapSystemRoleToGarageRole = (role: SystemUserRole): string => {
   };
 
   const canAccessRoute = (routePath: string): boolean => {
-    const cleanPath = routePath.split('?')[0].toLowerCase();
+    const [pathPart, queryPart] = routePath.split('?');
+    const cleanPath = pathPart.toLowerCase();
     
     // Profile is universally accessible
     if (cleanPath === '/profile') return true;
+
+    // Executive Dashboard is strictly reserved for management only (Admin & Regional Manager)
+    if ((cleanPath === '/' || cleanPath === '/dashboard') && currentUser.role !== 'admin' && currentUser.role !== 'manager') {
+      return false;
+    }
+
+    // Parts Suppliers tab under contacts requires purchasing permission
+    if (cleanPath === '/contacts' && queryPart && queryPart.includes('tab=Suppliers')) {
+      return hasPermission('purchasing', 'read');
+    }
 
     const resource = ROUTE_RESOURCE_MAP[cleanPath];
     if (!resource) return true; // Unmapped paths default to allowed
@@ -309,6 +372,8 @@ const mapSystemRoleToGarageRole = (role: SystemUserRole): string => {
         return { label: 'Garage Workshop Lead', color: 'text-cyan-400', bg: 'bg-cyan-500/10', border: 'border-cyan-500/30' };
       case 'accountant':
         return { label: 'Financial & Tax Accountant', color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/30' };
+      case 'auditor':
+        return { label: 'Internal / External Auditor', color: 'text-teal-400', bg: 'bg-teal-500/10', border: 'border-teal-500/30' };
       default:
         return { label: 'Staff Member', color: 'text-slate-400', bg: 'bg-slate-500/10', border: 'border-slate-500/30' };
     }

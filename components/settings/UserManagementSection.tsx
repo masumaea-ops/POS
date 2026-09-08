@@ -81,6 +81,14 @@ const ROLE_DEFINITIONS: Record<SystemUserRole, { label: string; desc: string; co
     bg: 'bg-purple-500/10',
     border: 'border-purple-500/30',
     icon: FileSpreadsheet
+  },
+  auditor: {
+    label: 'Internal / External Auditor',
+    desc: 'Read-only audit inspection, eTIMS tax verification, general ledger review & reporting exports.',
+    color: 'text-teal-400',
+    bg: 'bg-teal-500/10',
+    border: 'border-teal-500/30',
+    icon: Search
   }
 };
 
@@ -139,6 +147,32 @@ const DEFAULT_USERS: SystemUser[] = [
   },
   {
     id: 5,
+    username: 'accountant',
+    email: 'accountant@masuma.co.ke',
+    fullName: 'Grace Muthoni (Financial Accountant)',
+    role: 'accountant',
+    pinCode: '3333',
+    phone: '+254 700 000 005',
+    branch: 'Nairobi HQ & Central Warehouse',
+    isActive: true,
+    lastLogin: new Date().toISOString(),
+    createdAt: '2025-01-01T00:00:00Z',
+  },
+  {
+    id: 6,
+    username: 'auditor',
+    email: 'auditor@masuma.co.ke',
+    fullName: 'Bernard Kilonzo (Senior Tax & Fiscal Auditor)',
+    role: 'auditor',
+    pinCode: '7777',
+    phone: '+254 700 000 006',
+    branch: 'All Branches / Multi-Branch Float',
+    isActive: true,
+    lastLogin: new Date().toISOString(),
+    createdAt: '2025-01-01T00:00:00Z',
+  },
+  {
+    id: 7,
     username: 'masumaea',
     email: 'masumaea@gmail.com',
     fullName: 'Masuma EA Executive',
@@ -612,6 +646,7 @@ export const UserManagementSection: React.FC = () => {
               <option value="cashier" className="bg-slate-900 text-white">POS Cashier</option>
               <option value="workshop" className="bg-slate-900 text-white">Workshop Chief</option>
               <option value="accountant" className="bg-slate-900 text-white">Accountant</option>
+              <option value="auditor" className="bg-slate-900 text-white">Auditor (Read-Only)</option>
             </select>
           </div>
 
@@ -1106,6 +1141,7 @@ export const UserManagementSection: React.FC = () => {
                     <option value="cashier" className="bg-slate-900 text-white">POS Cashier</option>
                     <option value="workshop" className="bg-slate-900 text-white">Workshop Chief</option>
                     <option value="accountant" className="bg-slate-900 text-white">Financial Accountant</option>
+                    <option value="auditor" className="bg-slate-900 text-white">Internal / External Auditor</option>
                   </select>
                 </div>
 

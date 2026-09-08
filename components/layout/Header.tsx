@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Bell, ChevronDown, LogOut, Lock, ShieldCheck, Menu, UserCheck, Shield, ShoppingBag, Wrench, FileSpreadsheet } from 'lucide-react';
 import { useSystemSettings } from '../../contexts/SettingsContext';
-import { useAuth } from '../../contexts/AuthContext';
-import { NavLink } from 'react-router-dom';
+import { useAuth, getDefaultRoleHome } from '../../contexts/AuthContext';
+import { NavLink, useNavigate } from 'react-router-dom';
 import RolePermissionsMatrixModal from '../shared/RolePermissionsMatrixModal';
 
 interface HeaderProps {
@@ -16,6 +16,7 @@ export const Header: React.FC<HeaderProps> = ({
   onLockTerminal,
   onToggleMobileMenu
 }) => {
+  const navigate = useNavigate();
   const { settings, setSettings } = useSystemSettings();
   const { currentUser, userRole, getRoleBadge, switchRole, allPersonas } = useAuth();
   const [currencyMenuOpen, setCurrencyMenuOpen] = useState(false);
@@ -60,7 +61,7 @@ export const Header: React.FC<HeaderProps> = ({
         )}
 
         {/* Corporate Brand Identity */}
-        <NavLink to="/" className="flex flex-col shrink-0 group focus:outline-none">
+        <NavLink to={getDefaultRoleHome(userRole)} className="flex flex-col shrink-0 group focus:outline-none">
           <div className="flex items-baseline gap-1">
             <span className="text-2xl font-black text-[#ff5000] tracking-tighter leading-none group-hover:brightness-110 transition">
               MASUMA
@@ -278,6 +279,7 @@ export const Header: React.FC<HeaderProps> = ({
                         onClick={() => {
                           switchRole(persona.role);
                           setPersonaMenuOpen(false);
+                          navigate(getDefaultRoleHome(persona.role));
                         }}
                         className={`w-full flex items-center justify-between p-2 rounded-lg text-left transition cursor-pointer ${
                           isSelected

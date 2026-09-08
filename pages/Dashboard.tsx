@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { useAuth } from '../contexts/AuthContext';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth, getDefaultRoleHome } from '../contexts/AuthContext';
 import { useSystemSettings } from '../contexts/SettingsContext';
 import { ShieldCheck, UserCheck, RefreshCw, Eye, Sparkles } from 'lucide-react';
 import type { SystemUserRole } from '../types';
@@ -7,15 +8,20 @@ import type { SystemUserRole } from '../types';
 // Sub-dashboards
 import ExecutiveAdminDashboard from '../components/dashboard/ExecutiveAdminDashboard';
 import RegionalManagerDashboard from '../components/dashboard/RegionalManagerDashboard';
-import CashierCounterDashboard from '../components/dashboard/CashierCounterDashboard';
-import WorkshopOperationsDashboard from '../components/dashboard/WorkshopOperationsDashboard';
-import FinancialAccountantDashboard from '../components/dashboard/FinancialAccountantDashboard';
 import RolePermissionsMatrixModal from '../components/shared/RolePermissionsMatrixModal';
 
 export const Dashboard: React.FC = () => {
+  const navigate = useNavigate();
   const { currentUser, userRole, switchRole, getRoleBadge } = useAuth();
   const { settings } = useSystemSettings();
   const [showMatrixModal, setShowMatrixModal] = useState<boolean>(false);
+
+  // Dashboards are strictly reserved for management only
+  useEffect(() => {
+    if (userRole !== 'admin' && userRole !== 'manager') {
+      navigate(getDefaultRoleHome(userRole), { replace: true });
+    }
+  }, [userRole, navigate]);
 
   const testRoles: Array<{ key: SystemUserRole; label: string; icon: string }> = [
     { key: 'admin', label: 'Super Admin', icon: '👑' },
@@ -26,20 +32,10 @@ export const Dashboard: React.FC = () => {
   ];
 
   const renderRoleDashboard = () => {
-    switch (userRole) {
-      case 'admin':
-        return <ExecutiveAdminDashboard onOpenRbacMatrix={() => setShowMatrixModal(true)} />;
-      case 'manager':
-        return <RegionalManagerDashboard onOpenRbacMatrix={() => setShowMatrixModal(true)} />;
-      case 'cashier':
-        return <CashierCounterDashboard onOpenRbacMatrix={() => setShowMatrixModal(true)} />;
-      case 'workshop':
-        return <WorkshopOperationsDashboard onOpenRbacMatrix={() => setShowMatrixModal(true)} />;
-      case 'accountant':
-        return <FinancialAccountantDashboard onOpenRbacMatrix={() => setShowMatrixModal(true)} />;
-      default:
-        return <ExecutiveAdminDashboard onOpenRbacMatrix={() => setShowMatrixModal(true)} />;
+    if (userRole === 'manager') {
+      return <RegionalManagerDashboard onOpenRbacMatrix={() => setShowMatrixModal(true)} />;
     }
+    return <ExecutiveAdminDashboard onOpenRbacMatrix={() => setShowMatrixModal(true)} />;
   };
 
   const badge = getRoleBadge(userRole);
@@ -82,7 +78,12 @@ export const Dashboard: React.FC = () => {
               <button
                 key={r.key}
                 type="button"
-                onClick={() => switchRole(r.key)}
+                onClick={() => {
+                  switchRole(r.key);
+                  if (r.key !== 'admin' && r.key !== 'manager') {
+                    navigate(getDefaultRoleHome(r.key));
+                  }
+                }}
                 className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                   userRole === r.key
                     ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-xs'

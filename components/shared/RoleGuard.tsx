@@ -1,5 +1,5 @@
 import React from 'react';
-import { useAuth, AppResource, CrudAction } from '../../contexts/AuthContext';
+import { useAuth, AppResource, CrudAction, getDefaultRoleHome } from '../../contexts/AuthContext';
 import { ShieldAlert, ArrowLeft, UserCheck, Lock, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
@@ -94,7 +94,10 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
                 <button
                   key={persona.id}
                   type="button"
-                  onClick={() => switchRole(persona.role)}
+                  onClick={() => {
+                    switchRole(persona.role);
+                    navigate(getDefaultRoleHome(persona.role));
+                  }}
                   className={`p-2 rounded-lg text-left border transition cursor-pointer flex flex-col justify-between ${
                     isCurrent
                       ? 'bg-brand-orange/20 border-brand-orange text-brand-orange font-bold'
@@ -121,10 +124,10 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
           
           <button
             type="button"
-            onClick={() => navigate('/')}
+            onClick={() => navigate(getDefaultRoleHome(userRole))}
             className="flex-1 py-2.5 px-4 bg-[#ff5000] hover:bg-[#ff5000]/90 text-white rounded-xl text-xs font-bold transition shadow-md cursor-pointer"
           >
-            Return to Allowed Dashboard
+            {userRole === 'admin' || userRole === 'manager' ? 'Return to Management Dashboard' : 'Return to My Workspace'}
           </button>
         </div>
       </div>

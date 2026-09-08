@@ -167,6 +167,7 @@ export const RolePermissionsMatrixModal: React.FC<RolePermissionsMatrixModalProp
     { key: 'cashier', title: 'POS Cashier', subtitle: 'Front-Desk Counter Checkout' },
     { key: 'workshop', title: 'Garage Workshop Lead', subtitle: 'ECU Diagnostics & Bay Hub' },
     { key: 'accountant', title: 'Financial Accountant', subtitle: 'GL, eTIMS & Tax Audit' },
+    { key: 'auditor', title: 'Internal / External Auditor', subtitle: 'Read-Only Audit & Tax Verification' },
   ];
 
   const filteredResources = RESOURCES_METADATA.filter(res => {
