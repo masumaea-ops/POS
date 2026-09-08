@@ -95,3 +95,5 @@ export const useSystemSettings = () => {
   }
   return context;
 };
+
+export const useSettings = useSystemSettings;

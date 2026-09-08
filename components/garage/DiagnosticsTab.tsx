@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { useGarage } from '../../contexts/GarageContext';
 import { useSystemSettings } from '../../contexts/SettingsContext';
 import { DTC_LIBRARY } from '../../data/garageMockData';
-import type { DiagnosticReport, DiagnosticErrorCode, DiagnosticSensorTelemetry, JobCard } from '../../types';
+import type { DiagnosticReport, DiagnosticErrorCode, DiagnosticSensorTelemetry, DiagnosticPdfAttachment, JobCard } from '../../types';
 import SignatureCaptureModal from './SignatureCaptureModal';
+import UploadScanReportModal from './UploadScanReportModal';
+import ScanReportPdfViewerModal from './ScanReportPdfViewerModal';
 import { 
   Cpu, 
   Activity, 
@@ -12,6 +14,10 @@ import {
   Search, 
   Zap, 
   FileText, 
+  FileUp,
+  Download,
+  ExternalLink,
+  Trash2,
   Printer, 
   Gauge, 
   Wrench, 
@@ -25,7 +31,14 @@ import {
 } from 'lucide-react';
 
 export const DiagnosticsTab: React.FC = () => {
-  const { jobCards, addDiagnosticToJobCard, addSignatureToJobCard, hasPermission } = useGarage();
+  const { 
+    jobCards, 
+    addDiagnosticToJobCard, 
+    attachPdfToDiagnosticReport,
+    removePdfFromDiagnosticReport,
+    addSignatureToJobCard, 
+    hasPermission 
+  } = useGarage();
   const { formatPrice, settings } = useSystemSettings();
 
   // Scanner State
@@ -40,6 +53,11 @@ export const DiagnosticsTab: React.FC = () => {
   // Printable Report Modal
   const [activeReport, setActiveReport] = useState<DiagnosticReport | null>(null);
   const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
+
+  // OBD Scan Report PDF Upload & Viewer Modals
+  const [isUploadPdfModalOpen, setIsUploadPdfModalOpen] = useState(false);
+  const [isPdfViewerModalOpen, setIsPdfViewerModalOpen] = useState(false);
+  const [pdfViewerAttachment, setPdfViewerAttachment] = useState<DiagnosticPdfAttachment | null>(null);
 
   const canRunDiagnostics = hasPermission('run_diagnostics');
 
@@ -112,6 +130,18 @@ export const DiagnosticsTab: React.FC = () => {
     }, 2800);
   };
 
+  // Handle uploaded OBD PDF scan report
+  const handleSaveUploadedPdf = (pdfData: DiagnosticPdfAttachment, reportData?: Partial<DiagnosticReport>) => {
+    if (!selectedJobCard) return;
+    attachPdfToDiagnosticReport(selectedJobCard.id, pdfData, reportData);
+    setIsUploadPdfModalOpen(false);
+
+    // If viewing the report certificate modal, update activeReport
+    if (activeReport && selectedJobCard.id === selectedJobCardId) {
+      setActiveReport(prev => prev ? { ...prev, ...reportData, pdfAttachment: pdfData } : null);
+    }
+  };
+
   return (
     <div className="p-4 lg:p-6 space-y-6">
       {/* Top Banner */}
@@ -126,21 +156,33 @@ export const DiagnosticsTab: React.FC = () => {
           </p>
         </div>
 
-        {canRunDiagnostics ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {canRunDiagnostics ? (
+            <button
+              onClick={handleInitiateScan}
+              disabled={isScanning || !selectedJobCard}
+              className="px-4 sm:px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-2 font-mono uppercase tracking-wider transition-all disabled:opacity-50 cursor-pointer"
+            >
+              <Zap className={`w-4 h-4 ${isScanning ? 'animate-spin' : ''}`} />
+              <span>{isScanning ? 'Scanning ECU Bus...' : 'Initiate Live ECU Diagnostic Scan'}</span>
+            </button>
+          ) : (
+            <div className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 dark:bg-amber-950/40 px-3 py-1.5 rounded-lg border border-amber-200 dark:border-amber-800">
+              <ShieldCheck className="w-4 h-4 shrink-0" />
+              <span>RBAC Restricted: Diagnostic Scan requires Master Diagnostic Specialist role</span>
+            </div>
+          )}
+
           <button
-            onClick={handleInitiateScan}
-            disabled={isScanning || !selectedJobCard}
-            className="px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-2 font-mono uppercase tracking-wider transition-all disabled:opacity-50"
+            onClick={() => setIsUploadPdfModalOpen(true)}
+            disabled={!selectedJobCard}
+            className="px-4 sm:px-5 py-2.5 bg-brand-orange hover:bg-orange-600 text-white font-bold text-xs rounded-xl shadow-md flex items-center gap-2 font-mono uppercase tracking-wider transition-all disabled:opacity-50 cursor-pointer"
+            title="Upload OBD scan report in PDF from hardware scanner (Autel, Launch, Bosch, etc.)"
           >
-            <Zap className={`w-4 h-4 ${isScanning ? 'animate-spin' : ''}`} />
-            <span>{isScanning ? 'Scanning ECU Bus...' : 'Initiate Live ECU Diagnostic Scan'}</span>
+            <FileUp className="w-4 h-4" />
+            <span>Upload OBD Scan Report (PDF)</span>
           </button>
-        ) : (
-          <div className="flex items-center gap-1.5 text-xs text-amber-700 bg-amber-50 dark:bg-amber-950/40 px-3 py-1.5 rounded-lg border border-amber-200 dark:border-amber-800">
-            <ShieldCheck className="w-4 h-4 shrink-0" />
-            <span>RBAC Restricted: Diagnostic Scan requires Master Diagnostic Specialist role</span>
-          </div>
-        )}
+        </div>
       </div>
 
       {/* Target Vehicle & Scanner Control Bar */}
@@ -213,13 +255,90 @@ export const DiagnosticsTab: React.FC = () => {
               {selectedJobCard.diagnosticReport && (
                 <button
                   onClick={() => setActiveReport(selectedJobCard.diagnosticReport!)}
-                  className="px-2.5 py-1 bg-purple-600 hover:bg-purple-500 text-white font-bold text-[10px] rounded-lg uppercase"
+                  className="px-2.5 py-1 bg-purple-600 hover:bg-purple-500 text-white font-bold text-[10px] rounded-lg uppercase cursor-pointer"
                 >
                   View Report
                 </button>
               )}
             </div>
           </div>
+        )}
+
+        {/* OBD Scan Report PDF Attachment Card */}
+        {selectedJobCard && (
+          selectedJobCard.diagnosticReport?.pdfAttachment ? (
+            <div className="p-3 bg-purple-950/40 border border-purple-500/40 rounded-xl flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 text-xs font-mono animate-fade-in">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-lg bg-purple-600 text-white flex items-center justify-center shrink-0">
+                  <FileText className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[10px] uppercase font-bold text-purple-400">Attached OBD Scan PDF:</span>
+                    <strong className="text-white truncate">{selectedJobCard.diagnosticReport.pdfAttachment.fileName}</strong>
+                    <span className="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-300 text-[10px]">
+                      {selectedJobCard.diagnosticReport.pdfAttachment.fileSize}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-slate-400 block truncate">
+                    Scanner: {selectedJobCard.diagnosticReport.pdfAttachment.scannerDevice || selectedJobCard.diagnosticReport.scannerDevice} • Uploaded: {selectedJobCard.diagnosticReport.pdfAttachment.uploadDate} by {selectedJobCard.diagnosticReport.pdfAttachment.uploadedBy || 'Technician'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPdfViewerAttachment(selectedJobCard.diagnosticReport!.pdfAttachment!);
+                    setIsPdfViewerModalOpen(true);
+                  }}
+                  className="px-3 py-1.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg font-bold text-[11px] flex items-center gap-1.5 cursor-pointer transition shadow-sm"
+                >
+                  <FileText className="w-3.5 h-3.5" />
+                  <span>View PDF Scan</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setIsUploadPdfModalOpen(true)}
+                  className="px-2.5 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white rounded-lg font-bold text-[11px] flex items-center gap-1 cursor-pointer transition border border-slate-700"
+                  title="Replace with updated PDF"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>Replace</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (confirm(`Remove attached OBD scan report PDF (${selectedJobCard.diagnosticReport?.pdfAttachment?.fileName})?`)) {
+                      removePdfFromDiagnosticReport(selectedJobCard.id);
+                    }
+                  }}
+                  className="p-1.5 text-slate-400 hover:text-rose-400 rounded-lg hover:bg-rose-500/10 cursor-pointer transition"
+                  title="Remove PDF attachment"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="p-2.5 bg-slate-800/40 border border-slate-700/60 rounded-xl flex items-center justify-between gap-2 text-xs font-mono">
+              <div className="flex items-center gap-2 text-slate-400 text-[11px]">
+                <FileUp className="w-4 h-4 text-purple-400 shrink-0" />
+                <span>No hardware OBD scanner PDF attached to this job card yet.</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsUploadPdfModalOpen(true)}
+                className="px-3 py-1 bg-brand-orange hover:bg-orange-600 text-white rounded-lg font-bold text-[11px] flex items-center gap-1 cursor-pointer transition shrink-0"
+              >
+                <FileUp className="w-3.5 h-3.5" />
+                <span>Upload PDF Scan</span>
+              </button>
+            </div>
+          )
         )}
 
         {/* Scan Progress Bar */}
@@ -502,6 +621,69 @@ export const DiagnosticsTab: React.FC = () => {
                 <p className="mt-0.5">{activeReport.technicianNotes}</p>
               </div>
 
+              {/* Hardware OBD PDF Scan Report Attachment Section */}
+              {activeReport.pdfAttachment ? (
+                <div className="p-3.5 bg-purple-50 rounded-xl border border-purple-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-lg bg-purple-600 text-white flex items-center justify-center shrink-0">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-bold text-slate-900 text-xs flex items-center gap-2 flex-wrap">
+                        <span className="px-1.5 py-0.5 bg-purple-200 text-purple-900 font-mono text-[10px] rounded uppercase font-bold">
+                          Attached PDF Scan
+                        </span>
+                        <span className="font-mono text-purple-800 truncate max-w-[200px] sm:max-w-xs">{activeReport.pdfAttachment.fileName}</span>
+                        <span className="text-[10px] text-slate-500 font-mono">({activeReport.pdfAttachment.fileSize})</span>
+                      </div>
+                      <div className="text-[10px] text-slate-500 font-mono mt-0.5">
+                        Hardware: <strong>{activeReport.pdfAttachment.scannerDevice || activeReport.scannerDevice}</strong> • Uploaded: {activeReport.pdfAttachment.uploadDate} by {activeReport.pdfAttachment.uploadedBy}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 no-print shrink-0">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPdfViewerAttachment(activeReport.pdfAttachment!);
+                        setIsPdfViewerModalOpen(true);
+                      }}
+                      className="px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold font-mono flex items-center gap-1.5 shadow-sm cursor-pointer"
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      <span>View PDF Scan</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsUploadPdfModalOpen(true);
+                      }}
+                      className="px-2.5 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-lg text-xs font-bold font-mono flex items-center gap-1 cursor-pointer"
+                      title="Replace attached PDF"
+                    >
+                      <RefreshCw className="w-3.5 h-3.5" />
+                      <span>Replace</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 bg-slate-50 rounded-lg border border-dashed border-slate-300 flex items-center justify-between no-print text-xs font-mono">
+                  <span className="text-slate-500 text-[11px]">
+                    No hardware OBD scanner PDF report attached to this diagnostic report.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsUploadPdfModalOpen(true)}
+                    className="px-3 py-1 bg-brand-orange hover:bg-orange-600 text-white rounded-lg text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                  >
+                    <FileUp className="w-3.5 h-3.5" />
+                    <span>Attach PDF Report</span>
+                  </button>
+                </div>
+              )}
+
               {/* Footer Actions & Stamp */}
               <div className="pt-3 border-t border-slate-200 flex items-center justify-between">
                 <div className="text-[10px] text-slate-500 font-mono">
@@ -541,6 +723,38 @@ export const DiagnosticsTab: React.FC = () => {
             addSignatureToJobCard(selectedJobCard.id, sig);
             setIsSignatureModalOpen(false);
             alert(`Digital signature captured and attached to Job Card ${selectedJobCard.id}. Estimate status updated to Approved.`);
+          }}
+        />
+      )}
+
+      {/* Upload Hardware OBD Scan Report PDF Modal */}
+      {selectedJobCard && (
+        <UploadScanReportModal
+          isOpen={isUploadPdfModalOpen}
+          onClose={() => setIsUploadPdfModalOpen(false)}
+          jobCard={selectedJobCard}
+          existingReport={selectedJobCard.diagnosticReport}
+          onSave={handleSaveUploadedPdf}
+        />
+      )}
+
+      {/* PDF Scan Report Viewer Modal */}
+      {selectedJobCard && pdfViewerAttachment && (
+        <ScanReportPdfViewerModal
+          isOpen={isPdfViewerModalOpen}
+          onClose={() => setIsPdfViewerModalOpen(false)}
+          jobCard={selectedJobCard}
+          pdfAttachment={pdfViewerAttachment}
+          onReplace={() => {
+            setIsPdfViewerModalOpen(false);
+            setIsUploadPdfModalOpen(true);
+          }}
+          onRemove={() => {
+            if (confirm(`Remove attached scan report PDF (${pdfViewerAttachment.fileName})?`)) {
+              removePdfFromDiagnosticReport(selectedJobCard.id);
+              setIsPdfViewerModalOpen(false);
+              setPdfViewerAttachment(null);
+            }
           }}
         />
       )}

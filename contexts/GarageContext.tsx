@@ -7,6 +7,7 @@ import type {
   GarageStaffUser, 
   JobCard, 
   DiagnosticReport, 
+  DiagnosticPdfAttachment,
   JobCardPartItem, 
   JobCardLaborItem,
   CustomerSignatureData,
@@ -56,6 +57,8 @@ interface GarageContextType {
   deleteJobCard: (id: string) => void;
   updateJobCardStatus: (id: string, status: JobCard['status']) => void;
   addDiagnosticToJobCard: (jobCardId: string, report: DiagnosticReport) => void;
+  attachPdfToDiagnosticReport: (jobCardId: string, pdf: DiagnosticPdfAttachment, reportData?: Partial<DiagnosticReport>) => void;
+  removePdfFromDiagnosticReport: (jobCardId: string) => void;
   addPartToJobCard: (jobCardId: string, part: JobCardPartItem) => void;
   removePartFromJobCard: (jobCardId: string, partId: string) => void;
   updatePartStatus: (jobCardId: string, partId: string, status: JobCardPartItem['status']) => void;
@@ -230,6 +233,17 @@ export const GarageProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       localStorage.setItem('garage_notification_settings', JSON.stringify(notificationSettings));
     } catch (e) { console.error(e); }
   }, [notificationSettings]);
+
+  // Synchronize active garage role with system auth persona changes
+  useEffect(() => {
+    const handleRoleSync = (e: any) => {
+      if (e.detail) {
+        setActiveRoleState(e.detail as GarageRoleType);
+      }
+    };
+    window.addEventListener('garage_role_sync', handleRoleSync);
+    return () => window.removeEventListener('garage_role_sync', handleRoleSync);
+  }, []);
 
   useEffect(() => {
     try {
@@ -447,17 +461,100 @@ export const GarageProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const addDiagnosticToJobCard = (jobCardId: string, report: DiagnosticReport) => {
     setJobCards(prev => prev.map(jc => {
       if (jc.id !== jobCardId) return jc;
+      const isPdf = !!report.pdfAttachment;
       const newLog = {
         id: `LOG-${Date.now()}`,
         timestamp: new Date().toLocaleString(),
         authorName: report.technicianName,
-        actionTitle: 'Diagnostic ECU Scan Added',
-        details: `Overall health score: ${report.overallHealthScore}%. Fault codes found: ${report.faultCodes.map(f => f.code).join(', ') || 'None'}`
+        actionTitle: isPdf ? 'OBD Scan Report PDF Uploaded' : 'Diagnostic ECU Scan Added',
+        details: isPdf
+          ? `Uploaded OBD PDF report: ${report.pdfAttachment?.fileName} (${report.pdfAttachment?.fileSize}). Health score: ${report.overallHealthScore}%. Fault codes: ${report.faultCodes.map(f => f.code).join(', ') || 'None'}`
+          : `Overall health score: ${report.overallHealthScore}%. Fault codes found: ${report.faultCodes.map(f => f.code).join(', ') || 'None'}`
       };
       return {
         ...jc,
         diagnosticReport: report,
         status: jc.status === 'Booked' ? 'Diagnostic Scan' : jc.status,
+        historyLogs: [newLog, ...(jc.historyLogs || [])]
+      };
+    }));
+  };
+
+  const attachPdfToDiagnosticReport = (jobCardId: string, pdf: DiagnosticPdfAttachment, reportData?: Partial<DiagnosticReport>) => {
+    setJobCards(prev => prev.map(jc => {
+      if (jc.id !== jobCardId) return jc;
+
+      const currentStaff = staffUsers.find(s => s.role === activeRole);
+      const author = pdf.uploadedBy || currentStaff?.name || 'Technician';
+      const newLog = {
+        id: `LOG-${Date.now()}`,
+        timestamp: new Date().toLocaleString(),
+        authorName: author,
+        actionTitle: 'OBD Scan Report PDF Attached',
+        details: `Attached official scan report document: ${pdf.fileName} (${pdf.fileSize}) from ${pdf.scannerDevice || 'OBD Scanner'}.`
+      };
+
+      if (jc.diagnosticReport) {
+        return {
+          ...jc,
+          diagnosticReport: {
+            ...jc.diagnosticReport,
+            ...reportData,
+            pdfAttachment: pdf
+          },
+          status: jc.status === 'Booked' ? 'Diagnostic Scan' : jc.status,
+          historyLogs: [newLog, ...(jc.historyLogs || [])]
+        };
+      } else {
+        const newReport: DiagnosticReport = {
+          id: `DIAG-PDF-${Math.floor(8000 + Math.random() * 1000)}`,
+          scanDate: pdf.uploadDate || new Date().toLocaleString(),
+          scannerDevice: pdf.scannerDevice || reportData?.scannerDevice || 'Autel / OBD Hardware Scanner',
+          protocolUsed: reportData?.protocolUsed || 'ISO 15765-4 (CAN 500Kbps)',
+          overallHealthScore: reportData?.overallHealthScore ?? 75,
+          faultCodes: reportData?.faultCodes || [],
+          telemetrySnapshot: reportData?.telemetrySnapshot || {
+            rpm: 850,
+            coolantTempC: 90,
+            batteryVolts: 13.8,
+            o2SensorVolts: 0.45,
+            fuelTrimPct: 0.0,
+            oilPressureBar: 3.5,
+            intakePressureKpa: 101
+          },
+          technicianNotes: reportData?.technicianNotes || pdf.notes || `OBD hardware scan report uploaded in PDF format: ${pdf.fileName}.`,
+          technicianName: author,
+          recommendedParts: reportData?.recommendedParts || [],
+          status: 'Completed',
+          pdfAttachment: pdf
+        };
+
+        return {
+          ...jc,
+          diagnosticReport: newReport,
+          status: jc.status === 'Booked' ? 'Diagnostic Scan' : jc.status,
+          historyLogs: [newLog, ...(jc.historyLogs || [])]
+        };
+      }
+    }));
+  };
+
+  const removePdfFromDiagnosticReport = (jobCardId: string) => {
+    setJobCards(prev => prev.map(jc => {
+      if (jc.id !== jobCardId || !jc.diagnosticReport?.pdfAttachment) return jc;
+      const fileName = jc.diagnosticReport.pdfAttachment.fileName;
+      const { pdfAttachment, ...restReport } = jc.diagnosticReport;
+      const currentStaff = staffUsers.find(s => s.role === activeRole);
+      const newLog = {
+        id: `LOG-${Date.now()}`,
+        timestamp: new Date().toLocaleString(),
+        authorName: currentStaff?.name || 'Technician',
+        actionTitle: 'OBD Scan PDF Attachment Removed',
+        details: `Removed attached PDF scan file: ${fileName}.`
+      };
+      return {
+        ...jc,
+        diagnosticReport: restReport as DiagnosticReport,
         historyLogs: [newLog, ...(jc.historyLogs || [])]
       };
     }));
@@ -766,6 +863,8 @@ export const GarageProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       deleteJobCard,
       updateJobCardStatus,
       addDiagnosticToJobCard,
+      attachPdfToDiagnosticReport,
+      removePdfFromDiagnosticReport,
       addPartToJobCard,
       removePartFromJobCard,
       updatePartStatus,

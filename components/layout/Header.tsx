@@ -3,6 +3,7 @@ import { Bell, ChevronDown, LogOut, Lock, ShieldCheck, Menu, UserCheck, Shield, 
 import { useSystemSettings } from '../../contexts/SettingsContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { NavLink } from 'react-router-dom';
+import RolePermissionsMatrixModal from '../shared/RolePermissionsMatrixModal';
 
 interface HeaderProps {
   onLogout: () => void;
@@ -21,6 +22,7 @@ export const Header: React.FC<HeaderProps> = ({
   const [branchMenuOpen, setBranchMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [personaMenuOpen, setPersonaMenuOpen] = useState(false);
+  const [rbacMatrixOpen, setRbacMatrixOpen] = useState(false);
 
   const badge = getRoleBadge(userRole);
 
@@ -205,6 +207,17 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </div>
 
+        {/* Quick RBAC Permissions Matrix Trigger Button */}
+        <button
+          type="button"
+          onClick={() => setRbacMatrixOpen(true)}
+          className="hidden md:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 border border-slate-750 hover:border-indigo-500/50 text-indigo-300 text-xs font-bold transition cursor-pointer"
+          title="Inspect Granular RBAC Permissions Matrix"
+        >
+          <ShieldCheck className="w-4 h-4 text-indigo-400" />
+          <span>RBAC Matrix</span>
+        </button>
+
         {/* User Avatar Chip & Role Persona Selector */}
         <div className="relative">
           <button
@@ -285,24 +298,38 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
               </div>
 
-              <div className="pt-2 border-t border-slate-800 flex gap-2">
-                <NavLink
-                  to="/profile"
-                  onClick={() => setPersonaMenuOpen(false)}
-                  className="flex-1 py-1.5 bg-slate-800 hover:bg-slate-700 text-center rounded-lg text-slate-300 font-bold transition"
-                >
-                  My Profile
-                </NavLink>
+              <div className="pt-2 border-t border-slate-800 space-y-2">
                 <button
                   type="button"
                   onClick={() => {
                     setPersonaMenuOpen(false);
-                    onLogout();
+                    setRbacMatrixOpen(true);
                   }}
-                  className="flex-1 py-1.5 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 text-center rounded-lg font-bold transition border border-rose-600/30"
+                  className="w-full py-1.5 px-2 bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 border border-indigo-500/30 cursor-pointer"
                 >
-                  Sign Out
+                  <ShieldCheck className="w-4 h-4 text-indigo-400" />
+                  <span>Inspect Full RBAC Matrix</span>
                 </button>
+
+                <div className="flex gap-2">
+                  <NavLink
+                    to="/profile"
+                    onClick={() => setPersonaMenuOpen(false)}
+                    className="flex-1 py-1.5 bg-slate-800 hover:bg-slate-700 text-center rounded-lg text-slate-300 font-bold transition"
+                  >
+                    My Profile
+                  </NavLink>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPersonaMenuOpen(false);
+                      onLogout();
+                    }}
+                    className="flex-1 py-1.5 bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 text-center rounded-lg font-bold transition border border-rose-600/30"
+                  >
+                    Sign Out
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -331,6 +358,12 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
 
       </div>
+
+      {/* Global RBAC Permissions Matrix Modal */}
+      <RolePermissionsMatrixModal
+        isOpen={rbacMatrixOpen}
+        onClose={() => setRbacMatrixOpen(false)}
+      />
     </header>
   );
 };

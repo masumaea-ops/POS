@@ -252,6 +252,16 @@ export interface DiagnosticSensorTelemetry {
   massAirFlowGps?: number;
 }
 
+export interface DiagnosticPdfAttachment {
+  fileName: string;
+  fileSize: string;
+  uploadDate: string;
+  fileDataUrl: string; // Base64 data URL for in-browser viewing and download
+  uploadedBy?: string;
+  scannerDevice?: string;
+  notes?: string;
+}
+
 export interface DiagnosticReport {
   id: string; // e.g. DIAG-2026-8801
   scanDate: string;
@@ -265,6 +275,7 @@ export interface DiagnosticReport {
   technicianName: string;
   recommendedParts: Array<{ productId?: number; name: string; sku?: string; qty: number; approxPrice: number }>;
   status: 'Completed' | 'Pending Repairs' | 'Cleared';
+  pdfAttachment?: DiagnosticPdfAttachment;
 }
 
 export interface JobCardPartItem {

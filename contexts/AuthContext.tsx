@@ -80,7 +80,7 @@ export const SYSTEM_PERSONAS: SystemUser[] = [
 ];
 
 // Granular permission mapping: Role -> Resource -> Allowed CrudActions
-const ROLE_PERMISSIONS: Record<SystemUserRole, Record<AppResource, CrudAction[]>> = {
+export const ROLE_PERMISSIONS: Record<SystemUserRole, Record<AppResource, CrudAction[]>> = {
   admin: {
     dashboard: ['read', 'export'],
     pos: ['read', 'create', 'update', 'delete', 'export', 'approve', 'admin'],
@@ -246,9 +246,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; onLogoutExterna
     }
   };
 
+const mapSystemRoleToGarageRole = (role: SystemUserRole): string => {
+  switch (role) {
+    case 'admin': return 'SUPER_ADMIN';
+    case 'manager': return 'BRANCH_MANAGER';
+    case 'workshop': return 'DIAGNOSTIC_TECH';
+    case 'cashier': return 'RECEPTIONIST';
+    case 'accountant': return 'BRANCH_MANAGER';
+    default: return 'SUPER_ADMIN';
+  }
+};
+
   const switchUser = (user: SystemUser) => {
     setCurrentUser(user);
     localStorage.setItem('masuma_current_user', JSON.stringify(user));
+    const garageRole = mapSystemRoleToGarageRole(user.role);
+    try {
+      localStorage.setItem('garage_active_role', garageRole);
+      window.dispatchEvent(new CustomEvent('garage_role_sync', { detail: garageRole }));
+    } catch (_) {}
   };
 
   const switchRole = (role: SystemUserRole) => {
@@ -286,13 +302,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; onLogoutExterna
       case 'admin':
         return { label: 'Super Administrator', color: 'text-indigo-400', bg: 'bg-indigo-500/10', border: 'border-indigo-500/30' };
       case 'manager':
-        return { label: 'Operations Manager', color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/30' };
+        return { label: 'Regional Operations Manager', color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/30' };
       case 'cashier':
-        return { label: 'POS Cashier', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30' };
+        return { label: 'POS Counter Cashier', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30' };
       case 'workshop':
-        return { label: 'Workshop Chief', color: 'text-cyan-400', bg: 'bg-cyan-500/10', border: 'border-cyan-500/30' };
+        return { label: 'Garage Workshop Lead', color: 'text-cyan-400', bg: 'bg-cyan-500/10', border: 'border-cyan-500/30' };
       case 'accountant':
-        return { label: 'Financial Accountant', color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/30' };
+        return { label: 'Financial & Tax Accountant', color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/30' };
       default:
         return { label: 'Staff Member', color: 'text-slate-400', bg: 'bg-slate-500/10', border: 'border-slate-500/30' };
     }

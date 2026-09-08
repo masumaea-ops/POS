@@ -4,6 +4,7 @@ import { useSystemSettings } from '../../contexts/SettingsContext';
 import { MOCK_PRODUCTS, MOCK_CUSTOMERS } from '../../data/mockData';
 import type { JobCard, JobCardPartItem, JobCardLaborItem, VehicleDetails } from '../../types';
 import SignatureCaptureModal from './SignatureCaptureModal';
+import ScanReportPdfViewerModal from './ScanReportPdfViewerModal';
 import { 
   Car, 
   Wrench, 
@@ -11,6 +12,7 @@ import {
   Search, 
   Plus, 
   FileText, 
+  FileUp,
   CheckCircle2, 
   Clock, 
   AlertCircle, 
@@ -76,6 +78,7 @@ export const JobCardsTab: React.FC = () => {
   const [isPrintGatePassOpen, setIsPrintGatePassOpen] = useState(false);
   const [isSignatureModalOpen, setIsSignatureModalOpen] = useState(false);
   const [signatureTypeToCapture, setSignatureTypeToCapture] = useState<'Diagnostic Estimate Sign-Off' | 'Final Repair Acceptance' | 'Vehicle Intake Authorization'>('Diagnostic Estimate Sign-Off');
+  const [isPdfModalOpen, setIsPdfModalOpen] = useState(false);
 
   // Permissions check
   const canCreateJob = hasPermission('create_job_card');
@@ -563,21 +566,43 @@ export const JobCardsTab: React.FC = () => {
 
               {/* Computerized Diagnostic Link */}
               {selectedJobCard.diagnosticReport && (
-                <div className="p-4 bg-purple-50 dark:bg-purple-950/30 rounded-xl border border-purple-200 dark:border-purple-800 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
+                <div className="p-4 bg-purple-50 dark:bg-purple-950/30 rounded-xl border border-purple-200 dark:border-purple-800 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
                     <Cpu className="w-6 h-6 text-purple-600 dark:text-purple-400 shrink-0" />
-                    <div>
-                      <div className="font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
+                    <div className="min-w-0">
+                      <div className="font-extrabold text-slate-900 dark:text-white flex items-center gap-2 flex-wrap">
                         <span>Computerized Diagnostic Report Available</span>
                         <span className="px-2 py-0.5 bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200 text-[10px] font-black rounded-full">
-                          {selectedJobCard.diagnosticReport.overallHealthScore}% Vehicle Health Score
+                          {selectedJobCard.diagnosticReport.overallHealthScore}% Health Score
                         </span>
+                        {selectedJobCard.diagnosticReport.pdfAttachment && (
+                          <span className="px-2 py-0.5 bg-emerald-100 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300 text-[10px] font-mono font-bold rounded-md flex items-center gap-1">
+                            <FileText className="w-3 h-3" />
+                            <span>PDF Attached</span>
+                          </span>
+                        )}
                       </div>
                       <p className="text-[11px] text-slate-600 dark:text-slate-300 mt-0.5">
                         Scanned by {selectedJobCard.diagnosticReport.technicianName} using {selectedJobCard.diagnosticReport.scannerDevice}. Detected {selectedJobCard.diagnosticReport.faultCodes.length} ECU fault DTCs.
+                        {selectedJobCard.diagnosticReport.pdfAttachment && (
+                          <span className="ml-1 text-purple-600 dark:text-purple-300 font-semibold font-mono">
+                            • {selectedJobCard.diagnosticReport.pdfAttachment.fileName} ({selectedJobCard.diagnosticReport.pdfAttachment.fileSize})
+                          </span>
+                        )}
                       </p>
                     </div>
                   </div>
+
+                  {selectedJobCard.diagnosticReport.pdfAttachment && (
+                    <button
+                      type="button"
+                      onClick={() => setIsPdfModalOpen(true)}
+                      className="px-3.5 py-1.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-xs font-bold font-mono flex items-center gap-1.5 shrink-0 cursor-pointer shadow-xs transition"
+                    >
+                      <FileText className="w-3.5 h-3.5" />
+                      <span>View OBD PDF Scan</span>
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -1319,6 +1344,16 @@ export const JobCardsTab: React.FC = () => {
               } : null);
             }
           }}
+        />
+      )}
+
+      {/* Modal: OBD PDF Scan Report Viewer */}
+      {isPdfModalOpen && selectedJobCard?.diagnosticReport?.pdfAttachment && (
+        <ScanReportPdfViewerModal
+          isOpen={isPdfModalOpen}
+          onClose={() => setIsPdfModalOpen(false)}
+          jobCard={selectedJobCard}
+          pdfAttachment={selectedJobCard.diagnosticReport.pdfAttachment}
         />
       )}
     </div>
