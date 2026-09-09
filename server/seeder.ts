@@ -59,15 +59,19 @@ export async function migrateAndSeedDatabase() {
       const cashierHash = bcrypt.hashSync('cashier123', 10);
       const workshopHash = bcrypt.hashSync('garage123', 10);
       const managerHash = bcrypt.hashSync('manager123', 10);
+      const accountantHash = bcrypt.hashSync('accountant123', 10);
+      const auditorHash = bcrypt.hashSync('auditor123', 10);
 
       await connection.query(`
         INSERT INTO users (username, email, password_hash, salt, pin_code, full_name, role) VALUES
         ('admin', 'admin@masuma.co.ke', ?, 'bcrypt_salt_10', '1234', 'System Administrator', 'admin'),
-        ('masumaea', 'masumaea@gmail.com', ?, 'bcrypt_salt_10', '1234', 'Masuma EA Executive', 'admin'),
-        ('cashier', 'cashier@masuma.co.ke', ?, 'bcrypt_salt_10', '1234', 'POS Terminal Cashier', 'cashier'),
-        ('workshop', 'garage@masuma.co.ke', ?, 'bcrypt_salt_10', '1234', 'Workshop Chief Engineer', 'workshop'),
-        ('manager', 'manager@masuma.co.ke', ?, 'bcrypt_salt_10', '9988', 'Regional Operations Manager', 'manager')
-      `, [adminHash, adminHash, cashierHash, workshopHash, managerHash]);
+        ('masumaea', 'masumaea@gmail.com', ?, 'bcrypt_salt_10', '1111', 'Masuma EA Executive', 'admin'),
+        ('cashier', 'cashier@masuma.co.ke', ?, 'bcrypt_salt_10', '0000', 'POS Terminal Cashier', 'cashier'),
+        ('workshop', 'garage@masuma.co.ke', ?, 'bcrypt_salt_10', '9999', 'Workshop Chief Engineer', 'workshop'),
+        ('manager', 'manager@masuma.co.ke', ?, 'bcrypt_salt_10', '5555', 'Regional Operations Manager', 'manager'),
+        ('accountant', 'accountant@masuma.co.ke', ?, 'bcrypt_salt_10', '4444', 'Grace Muthoni (Head Accountant)', 'accountant'),
+        ('auditor', 'auditor@masuma.co.ke', ?, 'bcrypt_salt_10', '7777', 'Bernard Kilonzo (Internal Auditor)', 'auditor')
+      `, [adminHash, adminHash, cashierHash, workshopHash, managerHash, accountantHash, auditorHash]);
     } else {
       // Automatic Upgrade: If users exist but passwords are unencrypted (e.g., from earlier seeds), encrypt them with bcrypt immediately
       const [existingUsers]: any = await connection.query('SELECT id, username, email, password_hash FROM users');

@@ -16,7 +16,7 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
   children,
   fallback
 }) => {
-  const { hasPermission, currentUser, userRole, getRoleBadge, switchRole, allPersonas } = useAuth();
+  const { hasPermission, currentUser, primaryUser, userRole, isSimulating, exitSimulation, getRoleBadge, switchRole, allPersonas } = useAuth();
   const navigate = useNavigate();
 
   const isAllowed = hasPermission(resource, (action || 'read') as CrudAction);
@@ -30,18 +30,6 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
   }
 
   const badge = getRoleBadge(userRole);
-
-  // Determine authorized personas for this resource
-  const authorizedPersonas = allPersonas.filter(p => {
-    if (p.role === 'admin') return true;
-    if (resource === 'accounting') return p.role === 'accountant' || p.role === 'manager';
-    if (resource === 'integrations' || resource === 'settings' || resource === 'users') return false;
-    if (resource === 'purchasing') return p.role === 'manager' || p.role === 'accountant';
-    if (resource === 'reports') return p.role === 'manager' || p.role === 'accountant';
-    if (resource === 'garage') return p.role === 'workshop' || p.role === 'manager';
-    if (resource === 'pos') return p.role === 'cashier' || p.role === 'manager';
-    return false;
-  });
 
   return (
     <div className="flex-1 p-6 md:p-12 flex items-center justify-center min-h-[70vh]">
@@ -77,15 +65,26 @@ export const RoleGuard: React.FC<RoleGuardProps> = ({
           </div>
         </div>
 
-        {/* Quick Persona Switcher strictly reserved for Super Administrator diagnostic testing */}
-        {userRole === 'admin' && allPersonas.length > 1 && (
+        {/* Role Simulation Controls strictly for Super Administrator */}
+        {primaryUser?.role === 'admin' && (
           <div className="p-4 bg-slate-950/60 rounded-xl border border-slate-800 text-left space-y-3">
             <div className="flex items-center justify-between text-xs text-slate-300 font-bold">
               <span className="flex items-center gap-1.5">
                 <UserCheck className="w-4 h-4 text-brand-orange" />
                 <span>Super Admin Role Simulation</span>
               </span>
-              <span className="text-[10px] text-slate-500 font-normal">Diagnostic Only</span>
+              {isSimulating && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    exitSimulation();
+                    navigate('/');
+                  }}
+                  className="px-2 py-0.5 rounded bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-bold transition cursor-pointer"
+                >
+                  Exit Simulation
+                </button>
+              )}
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">

@@ -19,7 +19,7 @@ export const Header: React.FC<HeaderProps> = ({
 }) => {
   const navigate = useNavigate();
   const { settings, setSettings } = useSystemSettings();
-  const { currentUser, userRole, getRoleBadge, switchRole, allPersonas } = useAuth();
+  const { currentUser, primaryUser, userRole, isSimulating, exitSimulation, getRoleBadge, switchRole, allPersonas } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [currencyMenuOpen, setCurrencyMenuOpen] = useState(false);
   const [branchMenuOpen, setBranchMenuOpen] = useState(false);
@@ -238,8 +238,8 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </div>
 
-        {/* RBAC Matrix Quick Trigger - Admin Only */}
-        {userRole === 'admin' && (
+        {/* RBAC Matrix Quick Trigger - Admin / Auditor */}
+        {(userRole === 'admin' || userRole === 'auditor') && (
           <button
             type="button"
             onClick={() => setRbacMatrixOpen(true)}
@@ -249,6 +249,26 @@ export const Header: React.FC<HeaderProps> = ({
             <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />
             <span>RBAC Matrix</span>
           </button>
+        )}
+
+        {/* Prominent Role Simulation Indicator (When Admin is testing other roles) */}
+        {isSimulating && (
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/60 text-amber-800 dark:text-amber-300 text-xs">
+            <UserCheck className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+            <span className="hidden md:inline font-medium">Simulating:</span>
+            <span className="font-bold text-[11px] truncate max-w-[120px]">{badge.label}</span>
+            <button
+              type="button"
+              onClick={() => {
+                exitSimulation();
+                navigate('/');
+              }}
+              className="ml-1 px-1.5 py-0.5 rounded bg-amber-600 hover:bg-amber-700 text-white text-[10px] font-bold transition cursor-pointer"
+              title="Exit Role Simulation and return to Super Admin"
+            >
+              Exit
+            </button>
+          </div>
         )}
 
         {/* User Avatar & Profile Dropdown */}
@@ -297,15 +317,27 @@ export const Header: React.FC<HeaderProps> = ({
                 <span className="font-semibold text-slate-800 dark:text-slate-200">{currentUser.branch || 'Nairobi Central'}</span>
               </div>
 
-              {/* Admin Persona Simulation */}
-              {userRole === 'admin' && allPersonas.length > 1 && (
-                <div>
-                  <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1.5">
+              {/* Admin Persona Simulation (Available to authenticated Super Administrator) */}
+              {primaryUser?.role === 'admin' && (
+                <div className="p-2.5 rounded-lg bg-slate-50 dark:bg-slate-750 border border-slate-200/80 dark:border-slate-700/60 space-y-2">
+                  <div className="flex items-center justify-between text-[11px] font-bold text-slate-700 dark:text-slate-300">
                     <span className="flex items-center gap-1 text-brand-orange">
                       <UserCheck className="w-3.5 h-3.5" />
-                      <span>Role Simulation</span>
+                      <span>Role Simulation Mode</span>
                     </span>
-                    <span className="text-[9px] text-slate-400">Admin Only</span>
+                    {isSimulating && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          exitSimulation();
+                          setPersonaMenuOpen(false);
+                          navigate('/');
+                        }}
+                        className="text-[10px] text-rose-500 hover:text-rose-600 font-bold underline cursor-pointer"
+                      >
+                        Exit Simulation
+                      </button>
+                    )}
                   </div>
                   <div className="space-y-1">
                     {allPersonas.map((persona) => {

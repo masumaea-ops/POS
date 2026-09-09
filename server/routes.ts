@@ -94,6 +94,34 @@ const fallbackUsersStore: FallbackUserRecord[] = [
   },
   {
     id: 5,
+    username: 'accountant',
+    email: 'accountant@masuma.co.ke',
+    hash: bcrypt.hashSync('accountant123', 10),
+    fullName: 'Grace Muthoni (Head Accountant)',
+    role: 'accountant',
+    pinCode: '4444',
+    phone: '+254 700 000 005',
+    branch: 'Nairobi HQ & Central Warehouse',
+    isActive: true,
+    lastLogin: new Date().toISOString(),
+    createdAt: '2025-01-01T00:00:00Z',
+  },
+  {
+    id: 6,
+    username: 'auditor',
+    email: 'auditor@masuma.co.ke',
+    hash: bcrypt.hashSync('auditor123', 10),
+    fullName: 'Bernard Kilonzo (Internal & Tax Auditor)',
+    role: 'auditor',
+    pinCode: '7777',
+    phone: '+254 700 000 006',
+    branch: 'All Branches / Multi-Branch Float',
+    isActive: true,
+    lastLogin: new Date().toISOString(),
+    createdAt: '2025-01-01T00:00:00Z',
+  },
+  {
+    id: 7,
     username: 'masumaea',
     email: 'masumaea@gmail.com',
     hash: bcrypt.hashSync('admin123', 10),
@@ -108,7 +136,7 @@ const fallbackUsersStore: FallbackUserRecord[] = [
   }
 ];
 
-let nextUserId = 6;
+let nextUserId = 8;
 
 const loginAttempts = new Map<string, { count: number; lockedUntil: number }>();
 
@@ -273,6 +301,96 @@ router.post('/auth/login', async (req, res) => {
     console.error('[Auth Error]', err);
     return res.status(500).json({ success: false, message: 'Server authentication error: ' + err.message });
   }
+});
+
+// Terminal PIN Login Endpoint
+router.post('/auth/pin-login', async (req, res) => {
+  try {
+    const { pin, role, identifier } = req.body;
+    if (!pin) {
+      return res.status(400).json({ success: false, message: 'Please provide a 4-digit terminal PIN.' });
+    }
+
+    const cleanPin = String(pin).trim();
+    const cleanRole = role ? String(role).trim().toLowerCase() : undefined;
+    const cleanId = identifier ? String(identifier).trim().toLowerCase() : undefined;
+
+    const pool = await getDbPool();
+    if (pool) {
+      let query = 'SELECT * FROM users WHERE pin_code = ? AND is_active = TRUE';
+      const params: any[] = [cleanPin];
+
+      if (cleanId) {
+        query += ' AND (LOWER(username) = ? OR LOWER(email) = ?)';
+        params.push(cleanId, cleanId);
+      } else if (cleanRole) {
+        query += ' AND LOWER(role) = ?';
+        params.push(cleanRole);
+      }
+
+      query += ' LIMIT 1';
+
+      const [rows]: any = await pool.query(query, params);
+      if (rows && rows.length > 0) {
+        const user = rows[0];
+        return res.json({
+          success: true,
+          user: {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            role: user.role,
+            fullName: user.full_name,
+            branch: user.branch || 'Nairobi HQ & Central Warehouse',
+          }
+        });
+      }
+    }
+
+    // Fallback store PIN check
+    const matched = fallbackUsersStore.find(u => {
+      if (!u.isActive || u.pinCode !== cleanPin) return false;
+      if (cleanId) return u.username.toLowerCase() === cleanId || u.email.toLowerCase() === cleanId;
+      if (cleanRole) return u.role.toLowerCase() === cleanRole;
+      return true;
+    });
+
+    if (matched) {
+      return res.json({
+        success: true,
+        user: {
+          id: matched.id,
+          username: matched.username,
+          email: matched.email,
+          role: matched.role,
+          fullName: matched.fullName,
+          phone: matched.phone,
+          branch: matched.branch,
+        }
+      });
+    }
+
+    return res.status(401).json({
+      success: false,
+      message: 'Invalid terminal PIN code for this workstation.'
+    });
+  } catch (err: any) {
+    console.error('[PIN Auth Error]', err);
+    return res.status(500).json({ success: false, message: 'Terminal authentication error: ' + err.message });
+  }
+});
+
+// Get predefined personas for quick workstation selector
+router.get('/auth/personas', (req, res) => {
+  const personas = fallbackUsersStore.map(u => ({
+    id: u.id,
+    username: u.username,
+    role: u.role,
+    fullName: u.fullName,
+    branch: u.branch,
+    hasPin: Boolean(u.pinCode)
+  }));
+  res.json({ success: true, personas });
 });
 
 // ==============================================================================

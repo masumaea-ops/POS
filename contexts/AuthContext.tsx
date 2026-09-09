@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import type { SystemUser, SystemUserRole } from '../types';
 
 export type CrudAction = 'read' | 'create' | 'update' | 'delete' | 'export' | 'approve' | 'admin';
@@ -243,12 +243,16 @@ export const getDefaultRoleHome = (role?: SystemUserRole): string => {
 
 interface AuthContextType {
   currentUser: SystemUser;
+  primaryUser: SystemUser | null;
   userRole: SystemUserRole;
+  isSimulating: boolean;
+  simulatedRole: SystemUserRole | null;
   isAuthenticated: boolean;
   login: (user: SystemUser) => void;
   logout: () => void;
   switchUser: (user: SystemUser) => void;
   switchRole: (role: SystemUserRole) => void;
+  exitSimulation: () => void;
   hasPermission: (resource: AppResource, action: CrudAction) => boolean;
   canAccessRoute: (routePath: string) => boolean;
   getRoleBadge: (role?: SystemUserRole) => { label: string; color: string; bg: string; border: string };
@@ -261,39 +265,99 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; onLogoutExterna
   children,
   onLogoutExternal
 }) => {
-  const [currentUser, setCurrentUser] = useState<SystemUser>(() => {
+  // 1. Primary Authenticated User (The real identity logged in)
+  const [primaryUser, setPrimaryUser] = useState<SystemUser | null>(() => {
     try {
-      const stored = localStorage.getItem('masuma_current_user');
+      const stored = localStorage.getItem('masuma_primary_user') || localStorage.getItem('masuma_current_user');
       if (stored) {
         const parsed = JSON.parse(stored);
         if (parsed && parsed.role) return parsed;
       }
     } catch (_) {}
-    return SYSTEM_PERSONAS[0]; // Default to Super Admin if unset
+    return null;
   });
 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return sessionStorage.getItem('masuma_auth_active') === 'true';
+    const active = sessionStorage.getItem('masuma_auth_active') === 'true';
+    const stored = localStorage.getItem('masuma_primary_user') || localStorage.getItem('masuma_current_user');
+    return active && Boolean(stored);
   });
 
-  // Sync state to localStorage whenever currentUser changes
-  useEffect(() => {
-    if (currentUser) {
-      localStorage.setItem('masuma_current_user', JSON.stringify(currentUser));
+  // 2. Role Simulation (Only permitted for Super Administrator)
+  const [simulatedRole, setSimulatedRole] = useState<SystemUserRole | null>(() => {
+    try {
+      const storedSim = sessionStorage.getItem('masuma_simulated_role');
+      if (storedSim && ['admin', 'manager', 'cashier', 'workshop', 'accountant', 'auditor'].includes(storedSim)) {
+        return storedSim as SystemUserRole;
+      }
+    } catch (_) {}
+    return null;
+  });
+
+  // Check if active simulation is in effect
+  const isSimulating = Boolean(
+    primaryUser?.role === 'admin' && 
+    simulatedRole && 
+    simulatedRole !== 'admin'
+  );
+
+  // Effective operational role
+  const effectiveRole: SystemUserRole = isSimulating 
+    ? (simulatedRole as SystemUserRole)
+    : (primaryUser?.role || 'cashier');
+
+  // Effective operational user persona
+  const currentUser: SystemUser = useMemo(() => {
+    if (!primaryUser) {
+      return SYSTEM_PERSONAS[0]; // Fallback for unauthenticated render passes
     }
-  }, [currentUser]);
+    if (isSimulating && simulatedRole) {
+      const matched = SYSTEM_PERSONAS.find(p => p.role === simulatedRole);
+      if (matched) {
+        return {
+          ...matched,
+          fullName: `${matched.fullName} (Simulated)`,
+        };
+      }
+    }
+    return primaryUser;
+  }, [primaryUser, isSimulating, simulatedRole]);
+
+  // Sync primary user changes to storage
+  useEffect(() => {
+    if (primaryUser) {
+      localStorage.setItem('masuma_primary_user', JSON.stringify(primaryUser));
+      localStorage.setItem('masuma_current_user', JSON.stringify(primaryUser));
+    }
+  }, [primaryUser]);
+
+  // Sync simulated role changes to sessionStorage
+  useEffect(() => {
+    if (simulatedRole && primaryUser?.role === 'admin') {
+      sessionStorage.setItem('masuma_simulated_role', simulatedRole);
+    } else {
+      sessionStorage.removeItem('masuma_simulated_role');
+    }
+  }, [simulatedRole, primaryUser]);
 
   const login = (user: SystemUser) => {
-    setCurrentUser(user);
+    setPrimaryUser(user);
+    setSimulatedRole(null);
     setIsAuthenticated(true);
+    localStorage.setItem('masuma_primary_user', JSON.stringify(user));
     localStorage.setItem('masuma_current_user', JSON.stringify(user));
     sessionStorage.setItem('masuma_auth_active', 'true');
+    sessionStorage.removeItem('masuma_simulated_role');
   };
 
   const logout = () => {
     setIsAuthenticated(false);
+    setPrimaryUser(null);
+    setSimulatedRole(null);
     sessionStorage.removeItem('masuma_auth_active');
+    sessionStorage.removeItem('masuma_simulated_role');
     try {
+      localStorage.removeItem('masuma_primary_user');
       localStorage.removeItem('masuma_current_user');
     } catch (_) {}
     if (onLogoutExternal) {
@@ -301,25 +365,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; onLogoutExterna
     }
   };
 
-const mapSystemRoleToGarageRole = (role: SystemUserRole): string => {
-  switch (role) {
-    case 'admin': return 'SUPER_ADMIN';
-    case 'manager': return 'BRANCH_MANAGER';
-    case 'workshop': return 'DIAGNOSTIC_TECH';
-    case 'cashier': return 'RECEPTIONIST';
-    case 'accountant': return 'BRANCH_MANAGER';
-    default: return 'SUPER_ADMIN';
-  }
-};
+  const mapSystemRoleToGarageRole = (role: SystemUserRole): string => {
+    switch (role) {
+      case 'admin': return 'SUPER_ADMIN';
+      case 'manager': return 'BRANCH_MANAGER';
+      case 'workshop': return 'DIAGNOSTIC_TECH';
+      case 'cashier': return 'RECEPTIONIST';
+      case 'accountant': return 'BRANCH_MANAGER';
+      default: return 'SUPER_ADMIN';
+    }
+  };
 
   const switchUser = (user: SystemUser) => {
-    // Only Super Administrator is permitted to switch roles or test personas
-    if (currentUser.role !== 'admin') {
-      console.warn('[RBAC Security] Privilege switching and impersonation are strictly restricted to Super Administrators.');
+    // Only Super Administrator is permitted to switch personas or test roles
+    if (primaryUser?.role !== 'admin') {
+      console.warn('[RBAC Security] Privilege switching and role simulation are strictly restricted to Super Administrators.');
       return;
     }
-    setCurrentUser(user);
-    localStorage.setItem('masuma_current_user', JSON.stringify(user));
+    setSimulatedRole(user.role === 'admin' ? null : user.role);
     const garageRole = mapSystemRoleToGarageRole(user.role);
     try {
       localStorage.setItem('garage_active_role', garageRole);
@@ -328,21 +391,31 @@ const mapSystemRoleToGarageRole = (role: SystemUserRole): string => {
   };
 
   const switchRole = (role: SystemUserRole) => {
-    // Only Super Administrator is permitted to switch roles or test personas
-    if (currentUser.role !== 'admin') {
+    // Only Super Administrator is permitted to simulate other roles
+    if (primaryUser?.role !== 'admin') {
       console.warn('[RBAC Security] Privilege switching is strictly restricted to Super Administrators.');
       return;
     }
-    const matched = SYSTEM_PERSONAS.find(p => p.role === role) || {
-      ...currentUser,
-      role,
-      fullName: `Active User (${role.toUpperCase()})`
-    };
-    switchUser(matched);
+    setSimulatedRole(role === 'admin' ? null : role);
+    const garageRole = mapSystemRoleToGarageRole(role);
+    try {
+      localStorage.setItem('garage_active_role', garageRole);
+      window.dispatchEvent(new CustomEvent('garage_role_sync', { detail: garageRole }));
+    } catch (_) {}
+  };
+
+  const exitSimulation = () => {
+    setSimulatedRole(null);
+    sessionStorage.removeItem('masuma_simulated_role');
+    const garageRole = mapSystemRoleToGarageRole(primaryUser?.role || 'admin');
+    try {
+      localStorage.setItem('garage_active_role', garageRole);
+      window.dispatchEvent(new CustomEvent('garage_role_sync', { detail: garageRole }));
+    } catch (_) {}
   };
 
   const hasPermission = (resource: AppResource, action: CrudAction): boolean => {
-    const role = currentUser.role || 'cashier';
+    const role = effectiveRole || 'cashier';
     const roleTable = ROLE_PERMISSIONS[role];
     if (!roleTable) return false;
     const actions = roleTable[resource] || [];
@@ -353,11 +426,11 @@ const mapSystemRoleToGarageRole = (role: SystemUserRole): string => {
     const [pathPart, queryPart] = routePath.split('?');
     const cleanPath = pathPart.toLowerCase();
     
-    // Profile is universally accessible
+    // Profile is universally accessible to any logged-in user
     if (cleanPath === '/profile') return true;
 
     // Executive Dashboard is strictly reserved for management only (Admin & Regional Manager)
-    if ((cleanPath === '/' || cleanPath === '/dashboard') && currentUser.role !== 'admin' && currentUser.role !== 'manager') {
+    if ((cleanPath === '/' || cleanPath === '/dashboard') && effectiveRole !== 'admin' && effectiveRole !== 'manager') {
       return false;
     }
 
@@ -368,7 +441,7 @@ const mapSystemRoleToGarageRole = (role: SystemUserRole): string => {
 
     // Users and staff management under settings is strictly restricted to Super Administrator
     if (cleanPath === '/settings' && queryPart && queryPart.includes('tab=users')) {
-      return currentUser.role === 'admin';
+      return effectiveRole === 'admin';
     }
 
     const resource = ROUTE_RESOURCE_MAP[cleanPath];
@@ -378,22 +451,22 @@ const mapSystemRoleToGarageRole = (role: SystemUserRole): string => {
   };
 
   const getRoleBadge = (targetRole?: SystemUserRole) => {
-    const r = targetRole || currentUser.role;
+    const r = targetRole || effectiveRole;
     switch (r) {
       case 'admin':
-        return { label: 'Super Administrator', color: 'text-indigo-400', bg: 'bg-indigo-500/10', border: 'border-indigo-500/30' };
+        return { label: 'Super Administrator', color: 'text-indigo-600 dark:text-indigo-400', bg: 'bg-indigo-50 dark:bg-indigo-500/10', border: 'border-indigo-200 dark:border-indigo-500/30' };
       case 'manager':
-        return { label: 'Regional Operations Manager', color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/30' };
+        return { label: 'Operations Manager', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-500/10', border: 'border-amber-200 dark:border-amber-500/30' };
       case 'cashier':
-        return { label: 'POS Counter Cashier', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30' };
+        return { label: 'POS Counter Cashier', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-500/10', border: 'border-emerald-200 dark:border-emerald-500/30' };
       case 'workshop':
-        return { label: 'Garage Workshop Lead', color: 'text-cyan-400', bg: 'bg-cyan-500/10', border: 'border-cyan-500/30' };
+        return { label: 'Workshop Chief Lead', color: 'text-cyan-600 dark:text-cyan-400', bg: 'bg-cyan-50 dark:bg-cyan-500/10', border: 'border-cyan-200 dark:border-cyan-500/30' };
       case 'accountant':
-        return { label: 'Financial & Tax Accountant', color: 'text-purple-400', bg: 'bg-purple-500/10', border: 'border-purple-500/30' };
+        return { label: 'Financial & Tax Accountant', color: 'text-purple-600 dark:text-purple-400', bg: 'bg-purple-50 dark:bg-purple-500/10', border: 'border-purple-200 dark:border-purple-500/30' };
       case 'auditor':
-        return { label: 'Internal / External Auditor', color: 'text-teal-400', bg: 'bg-teal-500/10', border: 'border-teal-500/30' };
+        return { label: 'Internal / Tax Auditor', color: 'text-teal-600 dark:text-teal-400', bg: 'bg-teal-50 dark:bg-teal-500/10', border: 'border-teal-200 dark:border-teal-500/30' };
       default:
-        return { label: 'Staff Member', color: 'text-slate-400', bg: 'bg-slate-500/10', border: 'border-slate-500/30' };
+        return { label: 'Staff Member', color: 'text-slate-600 dark:text-slate-400', bg: 'bg-slate-50 dark:bg-slate-500/10', border: 'border-slate-200 dark:border-slate-500/30' };
     }
   };
 
@@ -401,16 +474,20 @@ const mapSystemRoleToGarageRole = (role: SystemUserRole): string => {
     <AuthContext.Provider
       value={{
         currentUser,
-        userRole: currentUser.role,
+        primaryUser,
+        userRole: effectiveRole,
+        isSimulating,
+        simulatedRole,
         isAuthenticated,
         login,
         logout,
         switchUser,
         switchRole,
+        exitSimulation,
         hasPermission,
         canAccessRoute,
         getRoleBadge,
-        allPersonas: currentUser.role === 'admin' ? SYSTEM_PERSONAS : [currentUser]
+        allPersonas: primaryUser?.role === 'admin' ? SYSTEM_PERSONAS : (primaryUser ? [primaryUser] : SYSTEM_PERSONAS)
       }}
     >
       {children}
