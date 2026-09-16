@@ -51,6 +51,31 @@ export async function migrateAndSeedDatabase() {
     }
 
     // 3. Seed Users with Bcrypt Cryptographic Hashes
+    
+    // Auto-migrate missing columns to prevent ER_BAD_FIELD_ERROR
+    const [userCols]: any = await connection.query(`
+      SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
+      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users'
+    `);
+    const existingColNames = (userCols as any[]).map(c => c.COLUMN_NAME.toLowerCase());
+
+    if (!existingColNames.includes('username')) {
+      console.log('[Seeder] Migrating users table: adding missing username column...');
+      await connection.query(`ALTER TABLE users ADD COLUMN username VARCHAR(50) UNIQUE AFTER id`);
+    }
+    if (!existingColNames.includes('pin_code')) {
+      await connection.query(`ALTER TABLE users ADD COLUMN pin_code VARCHAR(10) DEFAULT '1234'`);
+    }
+    if (!existingColNames.includes('full_name') && !existingColNames.includes('name')) {
+      await connection.query(`ALTER TABLE users ADD COLUMN full_name VARCHAR(100)`);
+    }
+    if (!existingColNames.includes('role')) {
+      await connection.query(`ALTER TABLE users ADD COLUMN role VARCHAR(30) DEFAULT 'cashier'`);
+    }
+    if (!existingColNames.includes('is_active')) {
+      await connection.query(`ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT TRUE`);
+    }
+
     const [usersCount]: any = await connection.query('SELECT COUNT(*) as count FROM users');
     if (usersCount[0].count === 0) {
       console.log('[Seeder] Seeding default user accounts with Bcrypt encryption...');
@@ -100,13 +125,29 @@ export async function migrateAndSeedDatabase() {
       }
 
       // Check if user's admin email masumaea@gmail.com exists, otherwise insert or link
-      const [userEmailCheck]: any = await connection.query('SELECT id FROM users WHERE email = ? OR username = ?', ['masumaea@gmail.com', 'masumaea']);
+      let userEmailCheck: any[] = [];
+      try {
+        const [check1]: any = await connection.query('SELECT id FROM users WHERE email = ? OR username = ?', ['masumaea@gmail.com', 'masumaea']);
+        userEmailCheck = check1;
+      } catch (err) {
+        const [check2]: any = await connection.query('SELECT id FROM users WHERE email = ?', ['masumaea@gmail.com']);
+        userEmailCheck = check2;
+      }
+
       if (userEmailCheck.length === 0) {
         const adminHash = bcrypt.hashSync('admin123', 10);
-        await connection.query(`
-          INSERT INTO users (username, email, password_hash, salt, pin_code, full_name, role) VALUES
-          ('masumaea', 'masumaea@gmail.com', ?, 'bcrypt_salt_10', '1234', 'Masuma EA Executive', 'admin')
-        `, [adminHash]);
+        try {
+          await connection.query(`
+            INSERT INTO users (username, email, password_hash, salt, pin_code, full_name, role) VALUES
+            ('masumaea', 'masumaea@gmail.com', ?, 'bcrypt_salt_10', '1234', 'Masuma EA Executive', 'admin')
+          `, [adminHash]);
+        } catch (insertErr) {
+          // Fallback if username doesn't exist
+          await connection.query(`
+            INSERT INTO users (email, password_hash, salt, pin_code, full_name, role) VALUES
+            ('masumaea@gmail.com', ?, 'bcrypt_salt_10', '1234', 'Masuma EA Executive', 'admin')
+          `, [adminHash]);
+        }
       }
     }
 
