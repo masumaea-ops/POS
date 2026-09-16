@@ -74,10 +74,26 @@ export async function migrateAndSeedDatabase() {
       `, [adminHash, adminHash, cashierHash, workshopHash, managerHash, accountantHash, auditorHash]);
     } else {
       // Automatic Upgrade: If users exist but passwords are unencrypted (e.g., from earlier seeds), encrypt them with bcrypt immediately
-      const [existingUsers]: any = await connection.query('SELECT id, username, email, password_hash FROM users');
+      
+      // Update username if missing
+      try {
+        await connection.query(`UPDATE users SET username = SUBSTRING_INDEX(email, '@', 1) WHERE username IS NULL OR username = ''`);
+      } catch (err) {}
+
+      let existingUsers: any[] = [];
+      try {
+        // Try selecting with username first
+        const [usersWithUsername]: any = await connection.query('SELECT id, username, email, password_hash FROM users');
+        existingUsers = usersWithUsername;
+      } catch (err) {
+        // Fallback if username column doesn't exist
+        const [usersWithoutUsername]: any = await connection.query('SELECT id, email, password_hash FROM users');
+        existingUsers = usersWithoutUsername;
+      }
+
       for (const u of existingUsers) {
         if (!u.password_hash || (!u.password_hash.startsWith('$2a$') && !u.password_hash.startsWith('$2b$'))) {
-          console.log(`[Seeder] Upgrading unencrypted password for user "${u.username}" to secure Bcrypt hash...`);
+          console.log(`[Seeder] Upgrading unencrypted password for user "${u.username || u.email}" to secure Bcrypt hash...`);
           const upgradedHash = bcrypt.hashSync(u.password_hash || 'admin123', 10);
           await connection.query('UPDATE users SET password_hash = ? WHERE id = ?', [upgradedHash, u.id]);
         }

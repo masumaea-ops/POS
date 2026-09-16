@@ -195,14 +195,29 @@ router.post('/auth/login', async (req, res) => {
 
     const pool = await getDbPool();
     if (pool) {
-      // Query user from MySQL database
-      const [rows]: any = await pool.query(
-        'SELECT * FROM users WHERE (LOWER(email) = ? OR LOWER(username) = ?) AND is_active = TRUE LIMIT 1',
-        [cleanId, cleanId]
-      );
+      // Query user from MySQL database safely checking if username column exists
+      let hasUsername = false;
+      try {
+        const [colCheck]: any = await pool.query(`
+          SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
+          WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND LOWER(COLUMN_NAME) = 'username'
+        `);
+        hasUsername = Boolean(colCheck && colCheck.length > 0);
+      } catch (_) {}
+
+      const query = hasUsername
+        ? 'SELECT * FROM users WHERE (LOWER(email) = ? OR LOWER(username) = ?) AND is_active = TRUE LIMIT 1'
+        : 'SELECT * FROM users WHERE LOWER(email) = ? AND (is_active = TRUE OR is_active IS NULL) LIMIT 1';
+      
+      const queryParams = hasUsername ? [cleanId, cleanId] : [cleanId];
+
+      const [rows]: any = await pool.query(query, queryParams);
 
       if (rows && rows.length > 0) {
         const user = rows[0];
+        if (!user.username) {
+          user.username = (user.email || '').split('@')[0] || 'user';
+        }
         let isMatch = false;
 
         // Verify with bcrypt
