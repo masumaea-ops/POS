@@ -52,29 +52,69 @@ export async function migrateAndSeedDatabase() {
 
     // 3. Seed Users with Bcrypt Cryptographic Hashes
     
-    // Auto-migrate missing columns to prevent ER_BAD_FIELD_ERROR
+    // Auto-migrate ALL missing columns to prevent ER_BAD_FIELD_ERROR on legacy databases
     const [userCols]: any = await connection.query(`
       SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS 
       WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users'
     `);
-    const existingColNames = (userCols as any[]).map(c => c.COLUMN_NAME.toLowerCase());
+    let existingColNames = (userCols as any[]).map(c => c.COLUMN_NAME.toLowerCase());
 
-    if (!existingColNames.includes('username')) {
-      console.log('[Seeder] Migrating users table: adding missing username column...');
-      await connection.query(`ALTER TABLE users ADD COLUMN username VARCHAR(50) UNIQUE AFTER id`);
-    }
-    if (!existingColNames.includes('pin_code')) {
-      await connection.query(`ALTER TABLE users ADD COLUMN pin_code VARCHAR(10) DEFAULT '1234'`);
-    }
+    const ensureColumn = async (colName: string, alterSql: string) => {
+      if (!existingColNames.includes(colName.toLowerCase())) {
+        try {
+          console.log(`[Seeder] Migrating users table: adding missing ${colName} column...`);
+          await connection.query(alterSql);
+          existingColNames.push(colName.toLowerCase());
+        } catch (err: any) {
+          console.warn(`[Seeder] Warning on altering ${colName}:`, err.message);
+        }
+      }
+    };
+
+    await ensureColumn('username', `ALTER TABLE users ADD COLUMN username VARCHAR(50) UNIQUE AFTER id`);
+    await ensureColumn('pin_code', `ALTER TABLE users ADD COLUMN pin_code VARCHAR(10) DEFAULT '1234'`);
     if (!existingColNames.includes('full_name') && !existingColNames.includes('name')) {
-      await connection.query(`ALTER TABLE users ADD COLUMN full_name VARCHAR(100)`);
+      await ensureColumn('full_name', `ALTER TABLE users ADD COLUMN full_name VARCHAR(100)`);
     }
-    if (!existingColNames.includes('role')) {
-      await connection.query(`ALTER TABLE users ADD COLUMN role VARCHAR(30) DEFAULT 'cashier'`);
+    await ensureColumn('role', `ALTER TABLE users ADD COLUMN role VARCHAR(30) DEFAULT 'cashier'`);
+    await ensureColumn('is_active', `ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT TRUE`);
+    await ensureColumn('salt', `ALTER TABLE users ADD COLUMN salt VARCHAR(100) DEFAULT 'bcrypt_salt_10'`);
+    await ensureColumn('phone', `ALTER TABLE users ADD COLUMN phone VARCHAR(30)`);
+    await ensureColumn('branch', `ALTER TABLE users ADD COLUMN branch VARCHAR(100) DEFAULT 'Nairobi HQ & Central Warehouse'`);
+    await ensureColumn('avatar_url', `ALTER TABLE users ADD COLUMN avatar_url TEXT`);
+    await ensureColumn('last_login', `ALTER TABLE users ADD COLUMN last_login DATETIME`);
+
+    // Password column migration check
+    if (!existingColNames.includes('password_hash')) {
+      if (existingColNames.includes('password')) {
+        await connection.query(`ALTER TABLE users CHANGE COLUMN password password_hash VARCHAR(255) NOT NULL`);
+        existingColNames.push('password_hash');
+      } else {
+        await ensureColumn('password_hash', `ALTER TABLE users ADD COLUMN password_hash VARCHAR(255) NOT NULL`);
+      }
     }
-    if (!existingColNames.includes('is_active')) {
-      await connection.query(`ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT TRUE`);
-    }
+
+    // Helper function to safely insert or update user matching existing table columns
+    const insertUserDynamic = async (userData: Record<string, any>) => {
+      const validCols: string[] = [];
+      const placeholders: string[] = [];
+      const values: any[] = [];
+
+      for (const [key, val] of Object.entries(userData)) {
+        if (existingColNames.includes(key.toLowerCase())) {
+          validCols.push(key);
+          placeholders.push('?');
+          values.push(val);
+        }
+      }
+
+      if (validCols.length > 0) {
+        await connection.query(
+          `INSERT INTO users (${validCols.join(', ')}) VALUES (${placeholders.join(', ')})`,
+          values
+        );
+      }
+    };
 
     const [usersCount]: any = await connection.query('SELECT COUNT(*) as count FROM users');
     if (usersCount[0].count === 0) {
@@ -87,20 +127,22 @@ export async function migrateAndSeedDatabase() {
       const accountantHash = bcrypt.hashSync('accountant123', 10);
       const auditorHash = bcrypt.hashSync('auditor123', 10);
 
-      await connection.query(`
-        INSERT INTO users (username, email, password_hash, salt, pin_code, full_name, role) VALUES
-        ('admin', 'admin@masuma.co.ke', ?, 'bcrypt_salt_10', '1234', 'System Administrator', 'admin'),
-        ('masumaea', 'masumaea@gmail.com', ?, 'bcrypt_salt_10', '1111', 'Masuma EA Executive', 'admin'),
-        ('cashier', 'cashier@masuma.co.ke', ?, 'bcrypt_salt_10', '0000', 'POS Terminal Cashier', 'cashier'),
-        ('workshop', 'garage@masuma.co.ke', ?, 'bcrypt_salt_10', '9999', 'Workshop Chief Engineer', 'workshop'),
-        ('manager', 'manager@masuma.co.ke', ?, 'bcrypt_salt_10', '5555', 'Regional Operations Manager', 'manager'),
-        ('accountant', 'accountant@masuma.co.ke', ?, 'bcrypt_salt_10', '4444', 'Grace Muthoni (Head Accountant)', 'accountant'),
-        ('auditor', 'auditor@masuma.co.ke', ?, 'bcrypt_salt_10', '7777', 'Bernard Kilonzo (Internal Auditor)', 'auditor')
-      `, [adminHash, adminHash, cashierHash, workshopHash, managerHash, accountantHash, auditorHash]);
+      const defaultUsers = [
+        { username: 'admin', email: 'admin@masuma.co.ke', password_hash: adminHash, salt: 'bcrypt_salt_10', pin_code: '1234', full_name: 'System Administrator', role: 'admin' },
+        { username: 'masumaea', email: 'masumaea@gmail.com', password_hash: adminHash, salt: 'bcrypt_salt_10', pin_code: '1111', full_name: 'Masuma EA Executive', role: 'admin' },
+        { username: 'cashier', email: 'cashier@masuma.co.ke', password_hash: cashierHash, salt: 'bcrypt_salt_10', pin_code: '0000', full_name: 'POS Terminal Cashier', role: 'cashier' },
+        { username: 'workshop', email: 'garage@masuma.co.ke', password_hash: workshopHash, salt: 'bcrypt_salt_10', pin_code: '9999', full_name: 'Workshop Chief Engineer', role: 'workshop' },
+        { username: 'manager', email: 'manager@masuma.co.ke', password_hash: managerHash, salt: 'bcrypt_salt_10', pin_code: '5555', full_name: 'Regional Operations Manager', role: 'manager' },
+        { username: 'accountant', email: 'accountant@masuma.co.ke', password_hash: accountantHash, salt: 'bcrypt_salt_10', pin_code: '4444', full_name: 'Grace Muthoni (Head Accountant)', role: 'accountant' },
+        { username: 'auditor', email: 'auditor@masuma.co.ke', password_hash: auditorHash, salt: 'bcrypt_salt_10', pin_code: '7777', full_name: 'Bernard Kilonzo (Internal Auditor)', role: 'auditor' }
+      ];
+
+      for (const du of defaultUsers) {
+        await insertUserDynamic(du);
+      }
     } else {
       // Automatic Upgrade: If users exist but passwords are unencrypted (e.g., from earlier seeds), encrypt them with bcrypt immediately
       
-      // Update username if missing
       try {
         await connection.query(`UPDATE users SET username = SUBSTRING_INDEX(email, '@', 1) WHERE username IS NULL OR username = ''`);
       } catch (err) {}
@@ -109,11 +151,11 @@ export async function migrateAndSeedDatabase() {
       try {
         // Try selecting with username first
         const [usersWithUsername]: any = await connection.query('SELECT id, username, email, password_hash FROM users');
-        existingUsers = usersWithUsername;
+        existingUsers = usersWithUsername || [];
       } catch (err) {
         // Fallback if username column doesn't exist
         const [usersWithoutUsername]: any = await connection.query('SELECT id, email, password_hash FROM users');
-        existingUsers = usersWithoutUsername;
+        existingUsers = usersWithoutUsername || [];
       }
 
       for (const u of existingUsers) {
@@ -125,29 +167,30 @@ export async function migrateAndSeedDatabase() {
       }
 
       // Check if user's admin email masumaea@gmail.com exists, otherwise insert or link
-      let userEmailCheck: any[] = [];
+      let userExists = false;
       try {
-        const [check1]: any = await connection.query('SELECT id FROM users WHERE email = ? OR username = ?', ['masumaea@gmail.com', 'masumaea']);
-        userEmailCheck = check1;
+        const [check]: any = await connection.query(
+          existingColNames.includes('username')
+            ? 'SELECT id FROM users WHERE email = ? OR username = ?'
+            : 'SELECT id FROM users WHERE email = ?',
+          existingColNames.includes('username') ? ['masumaea@gmail.com', 'masumaea'] : ['masumaea@gmail.com']
+        );
+        userExists = Boolean(check && check.length > 0);
       } catch (err) {
-        const [check2]: any = await connection.query('SELECT id FROM users WHERE email = ?', ['masumaea@gmail.com']);
-        userEmailCheck = check2;
+        userExists = false;
       }
 
-      if (userEmailCheck.length === 0) {
+      if (!userExists) {
         const adminHash = bcrypt.hashSync('admin123', 10);
-        try {
-          await connection.query(`
-            INSERT INTO users (username, email, password_hash, salt, pin_code, full_name, role) VALUES
-            ('masumaea', 'masumaea@gmail.com', ?, 'bcrypt_salt_10', '1234', 'Masuma EA Executive', 'admin')
-          `, [adminHash]);
-        } catch (insertErr) {
-          // Fallback if username doesn't exist
-          await connection.query(`
-            INSERT INTO users (email, password_hash, salt, pin_code, full_name, role) VALUES
-            ('masumaea@gmail.com', ?, 'bcrypt_salt_10', '1234', 'Masuma EA Executive', 'admin')
-          `, [adminHash]);
-        }
+        await insertUserDynamic({
+          username: 'masumaea',
+          email: 'masumaea@gmail.com',
+          password_hash: adminHash,
+          salt: 'bcrypt_salt_10',
+          pin_code: '1234',
+          full_name: 'Masuma EA Executive',
+          role: 'admin'
+        });
       }
     }
 
