@@ -7,6 +7,9 @@
     "dev": "tsx server.ts",
     "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
     "start": "node dist/server.cjs",
+    "pm2:start": "pm2 start ecosystem.config.cjs",
+    "pm2:restart": "pm2 restart masuma-erp",
+    "pm2:logs": "pm2 logs masuma-erp",
     "db:seed": "tsx scripts/seed.ts",
     "preview": "vite preview",
     "lint": "tsc --noEmit"

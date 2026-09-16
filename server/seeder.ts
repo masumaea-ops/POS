@@ -59,6 +59,21 @@ export async function migrateAndSeedDatabase() {
     `);
     let existingColNames = (userCols as any[]).map(c => c.COLUMN_NAME.toLowerCase());
 
+    // 2.1 Repair id column if it's missing AUTO_INCREMENT
+    const [idColDetail]: any = await connection.query(`
+      SELECT EXTRA FROM INFORMATION_SCHEMA.COLUMNS 
+      WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'users' AND COLUMN_NAME = 'id'
+    `);
+
+    if (idColDetail && idColDetail.length > 0 && !idColDetail[0].EXTRA.toLowerCase().includes('auto_increment')) {
+      console.log('[Seeder] Repairing users table: adding missing AUTO_INCREMENT to id column...');
+      try {
+        await connection.query(`ALTER TABLE users MODIFY COLUMN id INT AUTO_INCREMENT`);
+      } catch (err: any) {
+        console.warn('[Seeder] Warning on repairing id column:', err.message);
+      }
+    }
+
     const ensureColumn = async (colName: string, alterSql: string) => {
       if (!existingColNames.includes(colName.toLowerCase())) {
         try {
