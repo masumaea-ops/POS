@@ -2,6 +2,7 @@ import express from "express";
 import path from "path";
 import cors from "cors";
 import dotenv from "dotenv";
+import morgan from "morgan";
 import { createServer as createViteServer } from "vite";
 import apiRoutes from "./server/routes";
 import { migrateAndSeedDatabase } from "./server/seeder";
@@ -13,6 +14,7 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  app.use(morgan("dev"));
   app.use(cors());
   app.use(express.json());
 
