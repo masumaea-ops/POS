@@ -68,9 +68,13 @@ export async function migrateAndSeedDatabase() {
     if (idColDetail && idColDetail.length > 0 && !idColDetail[0].EXTRA.toLowerCase().includes('auto_increment')) {
       console.log('[Seeder] Repairing users table: adding missing AUTO_INCREMENT to id column...');
       try {
+        // Disable foreign key checks temporarily to allow modifying referenced column
+        await connection.query('SET FOREIGN_KEY_CHECKS = 0');
         await connection.query(`ALTER TABLE users MODIFY COLUMN id INT AUTO_INCREMENT`);
+        await connection.query('SET FOREIGN_KEY_CHECKS = 1');
       } catch (err: any) {
         console.warn('[Seeder] Warning on repairing id column:', err.message);
+        try { await connection.query('SET FOREIGN_KEY_CHECKS = 1'); } catch (_) {}
       }
     }
 
