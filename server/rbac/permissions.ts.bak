@@ -46,7 +46,7 @@ export const ALL_PERMISSIONS: PermissionDefinition[] = [
   { id: 'garage.view', module: 'garage', action: 'view', name: 'View Garage', description: 'View jobs/branches', riskLevel: 'low' },
   
   // Accounting
-  { id: 'accounting.view', module: 'accounting', action: 'view', name: 'View Accounting', description: 'View charts/accounts', riskLevel: 'low' },
+  { id: 'accounting.view', module: 'accounting', action: 'view', name: 'View Accounting', description: 'View charts/accounts', riskLevel: 'low' }
 
   // Dashboard
   { id: 'dashboard.view', module: 'dashboard', action: 'view', name: 'View Dashboard', description: 'View executive dashboard', riskLevel: 'low' },

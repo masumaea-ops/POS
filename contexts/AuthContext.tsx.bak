@@ -465,6 +465,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; onLogoutExterna
     if (!resource) return true;
     return hasPermission(resource, "read");
   };
+    return hasPermission(resource, 'read');
+  };
 
   const getRoleBadge = (targetRole?: SystemUserRole) => {
     const r = targetRole || effectiveRole;

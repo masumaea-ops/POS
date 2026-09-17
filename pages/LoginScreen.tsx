@@ -130,6 +130,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
         if (response.ok && data.success) {
           authSuccessful = true;
           authenticatedUser = data.user;
+          if (data.token) {
+            localStorage.setItem('masuma_auth_token', data.token);
+          }
+          if (data.permissions) {
+            localStorage.setItem('masuma_server_permissions', JSON.stringify(data.permissions));
+          }
         } else if (response.status === 429) {
           setLockoutRemaining(60);
           setLoginError(data.message || 'Account temporarily locked due to excessive failed attempts.');
