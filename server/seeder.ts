@@ -96,7 +96,14 @@ export async function migrateAndSeedDatabase() {
     if (!existingColNames.includes('full_name') && !existingColNames.includes('name')) {
       await ensureColumn('full_name', `ALTER TABLE users ADD COLUMN full_name VARCHAR(100)`);
     }
-    await ensureColumn('role', `ALTER TABLE users ADD COLUMN role VARCHAR(30) DEFAULT 'cashier'`);
+    
+    // Always ensure role is a VARCHAR (in case it was previously created as an ENUM)
+    try {
+      await connection.query(`ALTER TABLE users MODIFY COLUMN role VARCHAR(50) NOT NULL DEFAULT 'cashier'`);
+    } catch (err: any) {
+      console.warn(`[Seeder] Warning on modifying role column to VARCHAR:`, err.message);
+    }
+    
     await ensureColumn('is_active', `ALTER TABLE users ADD COLUMN is_active BOOLEAN DEFAULT TRUE`);
     await ensureColumn('salt', `ALTER TABLE users ADD COLUMN salt VARCHAR(100) DEFAULT 'bcrypt_salt_10'`);
     await ensureColumn('phone', `ALTER TABLE users ADD COLUMN phone VARCHAR(30)`);

@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS users (
   salt VARCHAR(100) NOT NULL,
   pin_code VARCHAR(50),
   full_name VARCHAR(100) NOT NULL,
-  role ENUM('admin', 'cashier', 'workshop', 'manager', 'accountant') NOT NULL DEFAULT 'cashier',
+  role VARCHAR(50) NOT NULL DEFAULT 'cashier',
   is_active BOOLEAN DEFAULT TRUE,
   last_login TIMESTAMP NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
