@@ -121,7 +121,8 @@ const App: React.FC = () => {
   const [isTerminalLocked, setIsTerminalLocked] = useState(false);
 
   const handleLogin = () => {
-    setNeedsMfa(true);
+    setIsAuthenticated(true);
+    sessionStorage.setItem('masuma_auth_active', 'true');
   };
 
   const handleMfa = () => {

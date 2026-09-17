@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs';
 import { getDbPool } from './db';
 import { CREATE_TABLES_SQL } from './schema';
+import { initializeRbacStore } from './rbac/store.js';
 
 export async function migrateAndSeedDatabase() {
   const pool = await getDbPool();
@@ -292,6 +293,7 @@ export async function migrateAndSeedDatabase() {
     }
 
     console.log('[Seeder] Database migration and seeding completed successfully!');
+    await initializeRbacStore();
     return { success: true, message: 'All tables verified and seeded successfully' };
   } catch (error: any) {
     console.error('[Seeder] Migration/Seeding error:', error);

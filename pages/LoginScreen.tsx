@@ -19,8 +19,6 @@ import {
 } from 'lucide-react';
 import { 
   RateLimiter, 
-  generateTimedOTP, 
-  verifyTimedOTP, 
   sanitizeInput 
 } from '../utils/securityUtils';
 
@@ -300,18 +298,8 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
       } else {
         setForgotError(data.message || 'Unable to dispatch verification code. Please confirm your email.');
       }
-    } catch {
-      // Fallback: Local cryptographic OTP generation for offline/standalone mode
-      const targetEmail = getAdminEmail();
-      if (inputEmail !== targetEmail && inputEmail !== 'admin@masuma.co.ke' && inputEmail !== 'masumaea@gmail.com') {
-        setForgotError('Provided email is not recognized as an authorized administrator.');
-      } else {
-        generateTimedOTP(inputEmail);
-        setMaskedRecipient(inputEmail);
-        setResendCooldown(45);
-        setOtpNoticeMsg(`Verification code issued for ${inputEmail}. Please check your email inbox.`);
-        setView('forgot_otp');
-      }
+    } catch (err) {
+      setForgotError('Network error: Unable to communicate with the authentication server.');
     } finally {
       setIsSendingOtp(false);
     }
@@ -356,23 +344,12 @@ const LoginScreen: React.FC<LoginScreenProps> = ({ onLogin }) => {
       const data = await res.json();
 
       if (res.ok && data.success) {
-        // Synchronize local password fallback cache
-        const bcryptHash = bcrypt.hashSync(newPassword, 10);
-        localStorage.setItem('masuma_admin_password', bcryptHash);
         setView('forgot_success');
       } else {
         setForgotError(data.message || 'Verification failed. Please check the code.');
       }
-    } catch {
-      // Fallback: Verify against client-side timed OTP store
-      const isOtpValid = verifyTimedOTP(targetEmail, cleanOtp);
-      if (isOtpValid.valid) {
-        const bcryptHash = bcrypt.hashSync(newPassword, 10);
-        localStorage.setItem('masuma_admin_password', bcryptHash);
-        setView('forgot_success');
-      } else {
-        setForgotError(isOtpValid.reason || 'The 6-digit verification code entered is invalid or expired.');
-      }
+    } catch (err) {
+      setForgotError('Network error: Unable to communicate with the authentication server.');
     } finally {
       setIsResettingPassword(false);
     }

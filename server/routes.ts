@@ -17,6 +17,15 @@ import {
   issueVerificationOtp, 
   verifyOtpCode 
 } from './otpStore';
+import { 
+  authenticateToken, 
+  requirePermission, 
+  preventPrivilegeEscalation,
+  registerSession 
+} from './rbac/middleware.js';
+import { resolveUserPermissions, getAllRoles } from './rbac/store.js';
+import { ALL_PERMISSIONS } from './rbac/permissions.js';
+import { getAuditLogs, recordAuditLog } from './rbac/audit.js';
 
 const router = Router();
 
@@ -236,8 +245,30 @@ router.post('/auth/login', async (req, res) => {
         if (isMatch) {
           resetLoginRateLimit(cleanId);
           await pool.query('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?', [user.id]).catch(() => {});
+          
+          const token = crypto.randomBytes(32).toString('hex');
+          const sessionData = {
+            userId: String(user.id),
+            username: user.username,
+            email: user.email,
+            fullName: user.full_name,
+            role: user.role || 'cashier',
+            branch: user.branch || 'Nairobi HQ & Central Warehouse',
+            createdAt: Date.now()
+          };
+          registerSession(token, sessionData);
+          const perms = await resolveUserPermissions(sessionData.userId, sessionData.role);
+          const permissionsObj = Object.fromEntries(perms);
+
+          recordAuditLog({
+             userId: String(user.id), username: user.username, userRole: user.role,
+             action: 'login', resource: 'auth', status: 'allowed'
+          });
+
           return res.json({
             success: true,
+            token,
+            permissions: permissionsObj,
             user: {
               id: user.id,
               username: user.username,
@@ -258,12 +289,27 @@ router.post('/auth/login', async (req, res) => {
           `, [cleanId.includes('@') ? cleanId.split('@')[0] : 'admin', cleanId.includes('@') ? cleanId : 'admin@masuma.co.ke', newHash]).catch(() => {});
 
           resetLoginRateLimit(cleanId);
+          const token = crypto.randomBytes(32).toString('hex');
+          const sessionData = {
+            userId: '1',
+            username: cleanId.includes('@') ? cleanId.split('@')[0] : 'admin',
+            email: cleanId.includes('@') ? cleanId : 'admin@masuma.co.ke',
+            fullName: 'System Administrator',
+            role: 'admin',
+            branch: 'Nairobi HQ & Central Warehouse',
+            createdAt: Date.now()
+          };
+          registerSession(token, sessionData);
+          const perms = await resolveUserPermissions(sessionData.userId, sessionData.role);
+
           return res.json({
             success: true,
+            token,
+            permissions: Object.fromEntries(perms),
             user: {
               id: 1,
-              username: cleanId.includes('@') ? cleanId.split('@')[0] : 'admin',
-              email: cleanId.includes('@') ? cleanId : 'admin@masuma.co.ke',
+              username: sessionData.username,
+              email: sessionData.email,
               role: 'admin',
               fullName: 'System Administrator'
             }
@@ -282,8 +328,24 @@ router.post('/auth/login', async (req, res) => {
         if (isMatch) {
           resetLoginRateLimit(cleanId);
           account.lastLogin = new Date().toISOString();
+          
+          const token = crypto.randomBytes(32).toString('hex');
+          const sessionData = {
+            userId: String(account.id),
+            username: account.username,
+            email: account.email,
+            fullName: account.fullName,
+            role: account.role || 'cashier',
+            branch: account.branch || 'Nairobi HQ & Central Warehouse',
+            createdAt: Date.now()
+          };
+          registerSession(token, sessionData);
+          const perms = await resolveUserPermissions(sessionData.userId, sessionData.role);
+
           return res.json({
             success: true,
+            token,
+            permissions: Object.fromEntries(perms),
             user: {
               id: account.id,
               username: account.username,
@@ -348,8 +410,23 @@ router.post('/auth/pin-login', async (req, res) => {
       const [rows]: any = await pool.query(query, params);
       if (rows && rows.length > 0) {
         const user = rows[0];
+        const token = crypto.randomBytes(32).toString('hex');
+        const sessionData = {
+          userId: String(user.id),
+          username: user.username,
+          email: user.email,
+          fullName: user.full_name,
+          role: user.role || 'cashier',
+          branch: user.branch || 'Nairobi HQ & Central Warehouse',
+          createdAt: Date.now()
+        };
+        registerSession(token, sessionData);
+        const perms = await resolveUserPermissions(sessionData.userId, sessionData.role);
+
         return res.json({
           success: true,
+          token,
+          permissions: Object.fromEntries(perms),
           user: {
             id: user.id,
             username: user.username,
@@ -591,7 +668,7 @@ router.post('/auth/reset-password', async (req, res) => {
 // ==============================================================================
 
 // Inspect active SMTP configuration status (credentials masked for security)
-router.get('/config/smtp', (req, res) => {
+router.get('/config/smtp', authenticateToken, requirePermission('settings.view'), (req, res) => {
   try {
     const status = getPublicSmtpStatus();
     res.json({ success: true, config: status });
@@ -601,7 +678,7 @@ router.get('/config/smtp', (req, res) => {
 });
 
 // Test SMTP connection handshake and optionally dispatch a test email
-router.post('/config/smtp/test', async (req, res) => {
+router.post('/config/smtp/test', authenticateToken, requirePermission('smtp.manage'), async (req, res) => {
   try {
     const { recipientEmail } = req.body;
 
@@ -635,7 +712,7 @@ router.post('/config/smtp/test', async (req, res) => {
 });
 
 // Dynamically update SMTP credentials in-memory for live testing
-router.post('/config/smtp/update', (req, res) => {
+router.post('/config/smtp/update', authenticateToken, requirePermission('smtp.manage'), (req, res) => {
   try {
     const { host, port, secure, user, pass, from, service } = req.body;
     updateRuntimeSmtpConfig({ host, port, secure, user, pass, from, service });
@@ -650,7 +727,7 @@ router.post('/config/smtp/update', (req, res) => {
 });
 
 // Database status check
-router.get('/db/status', async (req, res) => {
+router.get('/db/status', authenticateToken, requirePermission('settings.view'), async (req, res) => {
   try {
     const status = await checkDbStatus();
     res.json(status);
@@ -660,7 +737,7 @@ router.get('/db/status', async (req, res) => {
 });
 
 // Manually trigger DB migration & seeding
-router.post('/db/seed', async (req, res) => {
+router.post('/db/seed', authenticateToken, requirePermission('db.manage'), async (req, res) => {
   try {
     const result = await migrateAndSeedDatabase();
     if (result.success) {
@@ -675,7 +752,7 @@ router.post('/db/seed', async (req, res) => {
 });
 
 // Fetch products from MySQL (with fallback if DB offline)
-router.get('/products', async (req, res) => {
+router.get('/products', authenticateToken, requirePermission('inventory.view'), async (req, res) => {
   try {
     const pool = await getDbPool();
     if (!pool) {
@@ -689,7 +766,7 @@ router.get('/products', async (req, res) => {
 });
 
 // Fetch customers from MySQL
-router.get('/customers', async (req, res) => {
+router.get('/customers', authenticateToken, requirePermission('customers.view'), async (req, res) => {
   try {
     const pool = await getDbPool();
     if (!pool) {
@@ -703,7 +780,7 @@ router.get('/customers', async (req, res) => {
 });
 
 // Fetch chart of accounts
-router.get('/accounting/accounts', async (req, res) => {
+router.get('/accounting/accounts', authenticateToken, requirePermission('accounting.view'), async (req, res) => {
   try {
     const pool = await getDbPool();
     if (!pool) {
@@ -717,7 +794,7 @@ router.get('/accounting/accounts', async (req, res) => {
 });
 
 // Fetch garage branches
-router.get('/garage/branches', async (req, res) => {
+router.get('/garage/branches', authenticateToken, requirePermission('garage.view'), async (req, res) => {
   try {
     const pool = await getDbPool();
     if (!pool) {
@@ -735,14 +812,23 @@ router.get('/garage/branches', async (req, res) => {
 // ==========================================
 
 // 1. Get All System Users
-router.get('/users', async (req, res) => {
+router.get('/users', authenticateToken, requirePermission('users.view'), async (req, res) => {
   try {
     const pool = await getDbPool();
     if (pool) {
       try {
-        const [rows]: any = await pool.query(
-          'SELECT id, username, email, full_name as fullName, role, pin_code as pinCode, is_active as isActive, last_login as lastLogin, created_at as createdAt FROM users ORDER BY id ASC'
-        );
+        const scope = req.user?.permissions.get('users.view');
+        let query = 'SELECT id, username, email, full_name as fullName, role, branch, pin_code as pinCode, is_active as isActive, last_login as lastLogin, created_at as createdAt FROM users';
+        const params = [];
+        if (scope === 'branch' && req.user?.branch) {
+          query += ' WHERE branch = ?';
+          params.push(req.user.branch);
+        } else if (scope === 'own') {
+          query += ' WHERE id = ?';
+          params.push(req.user?.id);
+        }
+        query += ' ORDER BY id ASC';
+        const [rows]: any = await pool.query(query, params);
         if (Array.isArray(rows) && rows.length > 0) {
           return res.json({ success: true, users: rows, source: 'mysql' });
         }
@@ -772,7 +858,7 @@ router.get('/users', async (req, res) => {
 });
 
 // 2. Create System User
-router.post('/users', async (req, res) => {
+router.post('/users', authenticateToken, requirePermission('users.create'), preventPrivilegeEscalation, async (req, res) => {
   try {
     const { username, email, password, fullName, role, pinCode, phone, branch, isActive = true } = req.body;
 
@@ -856,7 +942,7 @@ router.post('/users', async (req, res) => {
 });
 
 // 3. Update System User
-router.put('/users/:id', async (req, res) => {
+router.put('/users/:id', authenticateToken, requirePermission('users.edit'), preventPrivilegeEscalation, async (req, res) => {
   try {
     const userId = Number(req.params.id);
     const { fullName, email, role, pinCode, phone, branch, isActive, password } = req.body;
@@ -916,7 +1002,7 @@ router.put('/users/:id', async (req, res) => {
 });
 
 // 4. Delete / Deactivate System User
-router.delete('/users/:id', async (req, res) => {
+router.delete('/users/:id', authenticateToken, requirePermission('users.disable'), preventPrivilegeEscalation, async (req, res) => {
   try {
     const userId = Number(req.params.id);
 
@@ -1036,7 +1122,7 @@ function getFormattedTimestamp(): string {
 }
 
 // 1. GET Current Integrations Status & Configuration (Masked for Security)
-router.get('/integrations/status', (req, res) => {
+router.get('/integrations/status', authenticateToken, requirePermission('integrations.view'), (req, res) => {
   res.json({
     success: true,
     timestamp: new Date().toISOString(),
@@ -1068,7 +1154,7 @@ router.get('/integrations/status', (req, res) => {
 });
 
 // 2. POST Update Integration Settings (Runtime override without hardcoding)
-router.post('/integrations/config', (req, res) => {
+router.post('/integrations/config', authenticateToken, requirePermission('integrations.manage'), (req, res) => {
   try {
     const { mpesa, kra } = req.body;
     if (mpesa) {
@@ -1105,7 +1191,7 @@ router.post('/integrations/config', (req, res) => {
 });
 
 // 3. POST Trigger M-Pesa STK Push (Lipa na M-Pesa Online)
-router.post('/integrations/mpesa/stkpush', async (req, res) => {
+router.post('/integrations/mpesa/stkpush', authenticateToken, requirePermission('pos.create_sale'), async (req, res) => {
   try {
     const { phone, amount, accountReference, transactionDesc, customShortcode, customPasskey } = req.body;
 
@@ -1265,7 +1351,7 @@ router.post('/integrations/mpesa/stkpush', async (req, res) => {
 });
 
 // 4. POST Query M-Pesa STK Push Status (Polling helper)
-router.post('/integrations/mpesa/query', async (req, res) => {
+router.post('/integrations/mpesa/query', authenticateToken, requirePermission('pos.create_sale'), async (req, res) => {
   try {
     const { checkoutRequestId } = req.body;
     if (!checkoutRequestId) {
@@ -1335,7 +1421,7 @@ router.post('/integrations/mpesa/callback', (req, res) => {
 });
 
 // 6. POST KRA eTIMS Fiscal Handshake & Status Check
-router.post('/integrations/kra/handshake', async (req, res) => {
+router.post('/integrations/kra/handshake', authenticateToken, requirePermission('integrations.manage'), async (req, res) => {
   try {
     const { taxpayerPin, branchCode, deviceSerial } = req.body;
     const pin = (taxpayerPin || integrationsConfig.kra.taxpayerPin).toUpperCase();
@@ -1376,7 +1462,7 @@ router.post('/integrations/kra/handshake', async (req, res) => {
 });
 
 // 7. POST KRA eTIMS Fiscal Invoice Signing (Generating CU Number & QR Code verification)
-router.post('/integrations/kra/sign', async (req, res) => {
+router.post('/integrations/kra/sign', authenticateToken, requirePermission('pos.create_sale'), async (req, res) => {
   try {
     const { invoiceNumber, customerPin, totalAmount, vatAmount, items = [] } = req.body;
     const pin = integrationsConfig.kra.taxpayerPin;

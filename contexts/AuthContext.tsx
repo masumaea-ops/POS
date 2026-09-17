@@ -277,6 +277,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; onLogoutExterna
     return null;
   });
 
+  const [serverPermissions, setServerPermissions] = useState<Record<string, string>>(() => {
+    try {
+      const p = localStorage.getItem('masuma_server_permissions');
+      if (p) return JSON.parse(p);
+    } catch (e) {}
+    return {};
+  });
+
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
     const active = sessionStorage.getItem('masuma_auth_active') === 'true';
     const stored = localStorage.getItem('masuma_primary_user') || localStorage.getItem('masuma_current_user');
@@ -340,7 +348,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; onLogoutExterna
     }
   }, [simulatedRole, primaryUser]);
 
-  const login = (user: SystemUser) => {
+  const login = (user: SystemUser, token?: string, permissions?: Record<string, string>) => {
     setPrimaryUser(user);
     setSimulatedRole(null);
     setIsAuthenticated(true);
@@ -348,6 +356,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; onLogoutExterna
     localStorage.setItem('masuma_current_user', JSON.stringify(user));
     sessionStorage.setItem('masuma_auth_active', 'true');
     sessionStorage.removeItem('masuma_simulated_role');
+    
+    if (token) {
+      localStorage.setItem('masuma_auth_token', token);
+    }
+    if (permissions) {
+      setServerPermissions(permissions);
+      localStorage.setItem('masuma_server_permissions', JSON.stringify(permissions));
+    }
   };
 
   const logout = () => {
@@ -359,7 +375,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; onLogoutExterna
     try {
       localStorage.removeItem('masuma_primary_user');
       localStorage.removeItem('masuma_current_user');
+      localStorage.removeItem('masuma_auth_token');
+      localStorage.removeItem('masuma_server_permissions');
     } catch (_) {}
+    setServerPermissions({});
     if (onLogoutExternal) {
       onLogoutExternal();
     }
@@ -473,6 +492,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode; onLogoutExterna
   return (
     <AuthContext.Provider
       value={{
+        serverPermissions,
         currentUser,
         primaryUser,
         userRole: effectiveRole,
