@@ -16,6 +16,9 @@ export interface SmtpConfig {
   user: string;
   pass: string;
   from: string;
+  fromName: string;
+  fromAddress: string;
+  replyTo?: string;
   service?: string; // Optional known service e.g. 'gmail', 'SendGrid'
 }
 
@@ -36,6 +39,64 @@ let cachedTransporter: Transporter | null = null;
 let lastTransporterKey = '';
 
 /**
+ * Robustly parses and sanitizes the sender display name, email address, and replyTo.
+ * Strips erroneous backslashes, stray quotes, and handles domain mismatch between
+ * the display sender and the authenticated SMTP user to prevent RFC 553 5.7.1 rejection.
+ */
+export function sanitizeSender(rawFrom: string | undefined, smtpUser: string): {
+  name: string;
+  address: string;
+  replyTo?: string;
+  formatted: string;
+} {
+  const fallbackUser = (smtpUser || '').trim();
+  // Strip backslashes, escaped quotes, and newlines
+  let clean = (rawFrom || '').replace(/\\/g, '').replace(/["'\r\n]/g, ' ').trim();
+
+  // Extract email if enclosed in angle brackets or matching standard pattern
+  const emailMatch = clean.match(/<([^>]+)>/) || clean.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+  let email = emailMatch ? (emailMatch[1] || emailMatch[0]).trim().toLowerCase() : '';
+
+  // Extract display name by removing the email and any angle brackets
+  let name = clean.replace(/<[^>]+>/g, '').replace(email, '').replace(/\s+/g, ' ').trim();
+  if (!name) {
+    name = 'Masuma EA Ltd';
+  }
+
+  let replyTo: string | undefined = process.env.REPLY_TO ? process.env.REPLY_TO.replace(/["'\r\n\\]/g, '').trim() : undefined;
+
+  // Domain ownership check: if authenticated as notifications@masuma.africa, sending as alerts@masuma.co.ke
+  // will cause 553 5.7.1 "Sender address rejected: not owned by user notifications@masuma.africa".
+  if (fallbackUser && fallbackUser.includes('@')) {
+    const smtpDomain = fallbackUser.split('@')[1]?.toLowerCase();
+    const emailDomain = email ? email.split('@')[1]?.toLowerCase() : '';
+
+    if (!email) {
+      email = fallbackUser;
+    } else if (smtpDomain && emailDomain && smtpDomain !== emailDomain) {
+      console.warn(`[Email Service] Warning: EMAIL_FROM address (${email}) does not match authenticated SMTP user domain (${fallbackUser}). Setting sender to ${fallbackUser} with Reply-To: ${email} to satisfy SMTP anti-spoofing policy.`);
+      if (!replyTo) {
+        replyTo = email;
+      }
+      email = fallbackUser;
+    }
+  } else if (!email && fallbackUser) {
+    email = fallbackUser;
+  }
+
+  if (!email) {
+    email = 'noreply@masuma.co.ke';
+  }
+
+  return {
+    name,
+    address: email,
+    replyTo,
+    formatted: `"${name}" <${email}>`
+  };
+}
+
+/**
  * Retrieves the active SMTP configuration from environment variables or runtime overrides.
  */
 export function getSmtpConfig(): SmtpConfig {
@@ -44,8 +105,9 @@ export function getSmtpConfig(): SmtpConfig {
   const envSecure = process.env.SMTP_SECURE === 'true' || envPort === 465;
   const envUser = process.env.SMTP_USER || '';
   const envPass = process.env.SMTP_PASS || '';
-  const envFrom = process.env.EMAIL_FROM || (envUser ? `"Masuma ERP Security" <${envUser}>` : '"Masuma ERP Security" <noreply@masuma.co.ke>');
   const envService = process.env.SMTP_SERVICE || undefined;
+
+  const sender = sanitizeSender(process.env.EMAIL_FROM, envUser);
 
   const baseConfig: SmtpConfig = {
     host: envHost,
@@ -53,7 +115,10 @@ export function getSmtpConfig(): SmtpConfig {
     secure: envSecure,
     user: envUser,
     pass: envPass,
-    from: envFrom,
+    from: sender.formatted,
+    fromName: sender.name,
+    fromAddress: sender.address,
+    replyTo: sender.replyTo,
     service: envService
   };
 
@@ -61,12 +126,22 @@ export function getSmtpConfig(): SmtpConfig {
     return baseConfig;
   }
 
-  return {
+  const merged: SmtpConfig = {
     ...baseConfig,
     ...runtimeConfigOverride,
     port: runtimeConfigOverride.port !== undefined ? Number(runtimeConfigOverride.port) : baseConfig.port,
     secure: runtimeConfigOverride.secure !== undefined ? Boolean(runtimeConfigOverride.secure) : baseConfig.secure,
   };
+
+  if (runtimeConfigOverride.from || runtimeConfigOverride.user) {
+    const overrideSender = sanitizeSender(runtimeConfigOverride.from || merged.from, runtimeConfigOverride.user || merged.user);
+    merged.from = overrideSender.formatted;
+    merged.fromName = overrideSender.name;
+    merged.fromAddress = overrideSender.address;
+    merged.replyTo = overrideSender.replyTo || merged.replyTo;
+  }
+
+  return merged;
 }
 
 /**

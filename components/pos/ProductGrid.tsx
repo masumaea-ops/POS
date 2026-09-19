@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Product, CartItem } from '../../types';
-import { Plus, ShoppingCart, MapPin, AlertTriangle } from 'lucide-react';
+import { Plus, ShoppingCart, MapPin, AlertCircle, PackageX, Check } from 'lucide-react';
 import { useSystemSettings } from '../../contexts/SettingsContext';
 
 interface ProductGridProps {
@@ -27,116 +27,171 @@ const ProductCard: React.FC<{
   const isDiscounted = finalPrice < product.price;
 
   const minStock = product.minStockLevel || 10;
-  const isLowStock = product.stock > 0 && product.stock <= minStock;
+  const isOutOfStock = product.stock <= 0;
+  const isLowStock = !isOutOfStock && product.stock <= minStock;
 
   return (
     <div 
-        className={`bg-white dark:bg-gray-800 rounded-xl shadow-md p-3 sm:p-4 flex flex-col justify-between cursor-pointer group transition-all duration-350 hover:-translate-y-1.5 hover:shadow-xl border-2 ${
-          quantityInCart > 0 
-            ? 'border-emerald-500/45 dark:border-emerald-500/30 shadow-emerald-500/5' 
-            : 'border-transparent hover:border-brand-orange'
-        }`}
-        onClick={() => product.stock > 0 && onAddToCart({ ...product, price: finalPrice })}
-        title="Click to add item to sales cart"
+      className={`group relative bg-white dark:bg-slate-850 rounded-2xl p-3 sm:p-3.5 flex flex-col justify-between border transition-all duration-200 ${
+        isOutOfStock
+          ? 'opacity-60 border-slate-200/60 dark:border-slate-800'
+          : quantityInCart > 0
+          ? 'border-brand-orange/60 dark:border-brand-orange/50 shadow-xs ring-1 ring-brand-orange/20 dark:ring-brand-orange/20'
+          : 'border-slate-200/80 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 hover:shadow-md'
+      }`}
     >
-        <div className="relative overflow-hidden rounded-lg mb-3">
-            <img 
-              src={product.imageUrl} 
-              alt={product.name} 
-              className="w-full h-28 sm:h-36 object-cover rounded-lg group-hover:scale-105 transition-transform duration-500" 
-              referrerPolicy="no-referrer" 
-            />
+      <div>
+        {/* Product Image Container */}
+        <div className="relative overflow-hidden rounded-xl bg-slate-100 dark:bg-slate-800 aspect-4/3 mb-3 border border-slate-150 dark:border-slate-750/50">
+          <img 
+            src={product.imageUrl} 
+            alt={product.name} 
+            className="w-full h-full object-cover group-hover:scale-103 transition-transform duration-300" 
+            referrerPolicy="no-referrer"
+            loading="lazy" 
+          />
 
-            {/* In-cart indicator badge */}
-            {quantityInCart > 0 && (
-              <div className="absolute top-2 left-2 bg-emerald-500 dark:bg-emerald-600 text-white text-[9px] sm:text-[10px] font-black px-2 py-0.5 sm:py-1 rounded-full shadow-lg flex items-center gap-1 border border-white/20">
-                  <ShoppingCart className="w-3 h-3 shrink-0" />
-                  <span>{quantityInCart} In Cart</span>
-              </div>
-            )}
-            
-            {/* Stock Level Badge */}
-            <div className={`absolute top-2 right-2 text-[9px] sm:text-[10px] font-black px-2 py-0.5 sm:py-1 rounded-full shadow-xs flex items-center gap-1 ${
-                product.stock === 0 
-                  ? 'bg-red-600 text-white' 
-                  : isLowStock 
-                    ? 'bg-amber-500 text-slate-950 font-extrabold animate-pulse' 
-                    : 'bg-slate-900/80 dark:bg-slate-700/80 text-white backdrop-blur-xs'
-            }`}>
-                {product.stock === 0 
-                  ? 'Out of Stock' 
-                  : isLowStock 
-                    ? (
-                      <>
-                        <AlertTriangle className="w-3 h-3 text-slate-950" />
-                        <span>Low Stock ({product.stock})</span>
-                      </>
-                    )
-                    : `${product.stock} Units`
-                }
+          {/* In-cart indicator badge */}
+          {quantityInCart > 0 && (
+            <div className="absolute top-2 left-2 bg-brand-orange text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-xs flex items-center gap-1">
+              <ShoppingCart className="w-3 h-3 shrink-0" />
+              <span>{quantityInCart} in Cart</span>
             </div>
-            
-            {product.binLocation && (
-              <div className="absolute bottom-2 left-2 text-[9px] bg-slate-950/80 text-slate-100 px-1.5 py-0.5 rounded font-mono font-bold tracking-tight flex items-center gap-1">
-                <MapPin className="w-3 h-3 text-brand-orange" />
-                <span>{product.binLocation}</span>
-              </div>
+          )}
+          
+          {/* Stock Level Badge */}
+          <div className="absolute top-2 right-2">
+            {isOutOfStock ? (
+              <span className="bg-slate-900/90 text-white text-[10px] font-bold px-2 py-0.5 rounded-md backdrop-blur-xs flex items-center gap-1">
+                Out of Stock
+              </span>
+            ) : isLowStock ? (
+              <span className="bg-amber-500/90 text-slate-950 text-[10px] font-bold px-2 py-0.5 rounded-md backdrop-blur-xs flex items-center gap-1">
+                <AlertCircle className="w-3 h-3 text-slate-950 shrink-0" />
+                <span>Low: {product.stock} left</span>
+              </span>
+            ) : (
+              <span className="bg-slate-900/75 dark:bg-slate-800/80 text-white text-[10px] font-semibold px-2 py-0.5 rounded-md backdrop-blur-xs">
+                {product.stock} in stock
+              </span>
             )}
-
-            {product.stock > 0 && (
-              <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  <div className="w-10 h-10 rounded-full bg-brand-orange text-white flex items-center justify-center shadow-lg active:scale-90 transition-transform">
-                    <Plus className="w-5 h-5 font-bold" />
-                  </div>
-              </div>
-            )}
+          </div>
+          
+          {/* Bin location pill */}
+          {product.binLocation && (
+            <div className="absolute bottom-2 left-2 text-[9px] bg-slate-950/85 text-slate-200 px-1.5 py-0.5 rounded-md font-mono font-medium flex items-center gap-1 backdrop-blur-xs">
+              <MapPin className="w-2.5 h-2.5 text-brand-orange shrink-0" />
+              <span>Bin {product.binLocation}</span>
+            </div>
+          )}
         </div>
         
-        <div className="flex-1 flex flex-col justify-between mt-1">
-          <div>
-            <div className="flex justify-between items-center">
-              <span className="text-[9px] bg-slate-100 dark:bg-slate-700 px-1.5 py-0.5 rounded-md font-bold text-slate-500 uppercase tracking-wider">{product.brand}</span>
-              {product.oemCode && (
-                <span className="text-[9px] text-brand-orange font-mono font-bold">OEM Active</span>
-              )}
-            </div>
-            <h3 className="font-bold text-ink dark:text-gray-50 text-xs sm:text-sm mt-1.5 line-clamp-2 min-h-[2rem] leading-tight group-hover:text-brand-orange transition-colors">
-              {product.name}
-            </h3>
-            <div className="flex flex-col gap-0.5 mt-1">
-              <p className="text-[10px] text-gray-400 dark:text-gray-500 font-mono">SKU: <span className="font-bold text-slate-700 dark:text-slate-300">{product.sku}</span></p>
-              {product.oemCode && (
-                <p className="text-[9px] text-indigo-500 dark:text-indigo-400 font-mono">OEM: {product.oemCode}</p>
-              )}
-            </div>
+        {/* Product Details */}
+        <div>
+          <div className="flex items-center justify-between gap-1.5 mb-1">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">
+              {product.brand}
+            </span>
+            {product.category && (
+              <span className="text-[10px] text-slate-400 dark:text-slate-500 truncate font-medium">
+                {product.category}
+              </span>
+            )}
           </div>
 
-          <div className="mt-3 pt-2 border-t border-slate-100 dark:border-slate-750">
-            {isDiscounted ? (
-              <div className="flex flex-col">
-                <span className="text-[10px] text-slate-400 line-through font-mono">{formatPrice(product.price)}</span>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm sm:text-base font-black text-brand-orange font-mono">{formatPrice(finalPrice)}</span>
-                  <span className="text-[9px] bg-emerald-500/10 dark:bg-emerald-950/45 text-emerald-600 dark:text-emerald-400 px-1.5 py-0.2 rounded font-black font-sans uppercase">
-                    {customerTier === 'Wholesale A' ? 'Tier A' : 'Tier B'}
-                  </span>
-                </div>
-              </div>
-            ) : (
-              <div className="flex items-center justify-between">
-                <p className="text-sm sm:text-base font-black text-ink dark:text-gray-50 font-mono">{formatPrice(product.price)}</p>
-                <span className="text-[8px] bg-slate-100 dark:bg-slate-750 text-slate-500 px-1.5 py-0.2 rounded font-mono uppercase font-bold">Cash Rate</span>
-              </div>
+          <h3 
+            className="font-semibold text-slate-900 dark:text-white text-xs sm:text-sm line-clamp-2 leading-snug min-h-[2.25rem]"
+            title={product.name}
+          >
+            {product.name}
+          </h3>
+
+          <div className="flex items-center gap-2 mt-1.5 text-[11px] font-mono">
+            <span className="text-slate-500 dark:text-slate-400">SKU:</span>
+            <span className="font-semibold text-slate-700 dark:text-slate-300 select-all">{product.sku}</span>
+            {product.oemCode && (
+              <>
+                <span className="text-slate-300 dark:text-slate-600">•</span>
+                <span className="text-brand-orange truncate font-medium" title={`OEM: ${product.oemCode}`}>
+                  {product.oemCode}
+                </span>
+              </>
             )}
           </div>
         </div>
+      </div>
+
+      {/* Pricing & Add Button Footer */}
+      <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-end justify-between gap-2">
+        <div className="flex flex-col">
+          {isDiscounted ? (
+            <>
+              <span className="text-[10px] text-slate-400 line-through font-mono">
+                {formatPrice(product.price)}
+              </span>
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-sm sm:text-base font-black text-brand-orange font-mono">
+                  {formatPrice(finalPrice)}
+                </span>
+                <span className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-1 rounded uppercase">
+                  {customerTier === 'Wholesale A' ? 'Tier A' : 'Tier B'}
+                </span>
+              </div>
+            </>
+          ) : (
+            <span className="text-sm sm:text-base font-black text-slate-900 dark:text-white font-mono">
+              {formatPrice(product.price)}
+            </span>
+          )}
+        </div>
+
+        <button
+          type="button"
+          disabled={isOutOfStock}
+          onClick={() => !isOutOfStock && onAddToCart({ ...product, price: finalPrice })}
+          className={`py-1.5 px-2.5 rounded-xl font-bold text-xs flex items-center gap-1 transition-all cursor-pointer ${
+            isOutOfStock
+              ? 'bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-600 cursor-not-allowed'
+              : quantityInCart > 0
+              ? 'bg-brand-orange text-white hover:bg-brand-orange/90 shadow-xs'
+              : 'bg-slate-100 dark:bg-slate-800 hover:bg-brand-orange hover:text-white text-slate-700 dark:text-slate-300 border border-slate-200/60 dark:border-slate-700/60'
+          }`}
+          title={isOutOfStock ? 'Item out of stock' : 'Add to cart'}
+        >
+          {quantityInCart > 0 ? (
+            <>
+              <Check className="w-3.5 h-3.5" />
+              <span>+{quantityInCart}</span>
+            </>
+          ) : (
+            <>
+              <Plus className="w-3.5 h-3.5" />
+              <span>Add</span>
+            </>
+          )}
+        </button>
+      </div>
     </div>
   );
 };
 
 const ProductGrid: React.FC<ProductGridProps> = ({ products, onAddToCart, customerTier, cart = [] }) => {
+  if (products.length === 0) {
+    return (
+      <div className="h-96 flex flex-col items-center justify-center text-center p-8 bg-white dark:bg-slate-850 rounded-2xl border border-slate-200/80 dark:border-slate-800">
+        <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 flex items-center justify-center mb-3">
+          <PackageX className="w-7 h-7" />
+        </div>
+        <h3 className="text-sm font-bold text-slate-900 dark:text-white">No Matching Products Found</h3>
+        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-sm">
+          Try searching by alternative part name, OEM reference code, Japanese/Korean vehicle make, or clear category filters.
+        </p>
+      </div>
+    );
+  }
+
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4 md:gap-5">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
       {products.map((product) => {
         const cartItem = cart.find(item => item.id === product.id);
         const quantityInCart = cartItem ? cartItem.quantity : 0;

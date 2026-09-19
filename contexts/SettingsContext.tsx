@@ -39,7 +39,9 @@ const DEFAULT_SETTINGS: SystemSettings = {
 interface SettingsContextType {
   settings: SystemSettings;
   updateSettings: (newSettings: Partial<SystemSettings>) => void;
+  setSettings: React.Dispatch<React.SetStateAction<SystemSettings>>;
   formatPrice: (amount: number) => string;
+  formatCurrency: (amount: number) => string;
 }
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
@@ -74,6 +76,18 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     });
   };
 
+  const setSettings: React.Dispatch<React.SetStateAction<SystemSettings>> = (value) => {
+    setSettingsState((prev) => {
+      const updated = typeof value === 'function' ? (value as (prev: SystemSettings) => SystemSettings)(prev) : { ...prev, ...value };
+      try {
+        localStorage.setItem('system_settings', JSON.stringify(updated));
+      } catch (e) {
+        console.error('Error saving settings to localStorage', e);
+      }
+      return updated;
+    });
+  };
+
   const formatPrice = (amount: number) => {
     return `${settings.currency} ${(amount || 0).toLocaleString(undefined, {
       minimumFractionDigits: 0,
@@ -81,8 +95,10 @@ export const SettingsProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     })}`;
   };
 
+  const formatCurrency = formatPrice;
+
   return (
-    <SettingsContext.Provider value={{ settings, updateSettings, formatPrice }}>
+    <SettingsContext.Provider value={{ settings, updateSettings, setSettings, formatPrice, formatCurrency }}>
       {children}
     </SettingsContext.Provider>
   );

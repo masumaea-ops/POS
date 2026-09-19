@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Printer, Download, FileText, Receipt, Eye, CheckCircle2, Smartphone, RefreshCw, QrCode, ExternalLink, Send, PenLine } from 'lucide-react';
+import { X, Printer, Download, FileText, Receipt, Eye, CheckCircle2, Smartphone, RefreshCw, QrCode, ExternalLink, Send, PenLine, AlertCircle } from 'lucide-react';
 import type { Customer, CartItem } from '../../types';
 import { useSystemSettings } from '../../contexts/SettingsContext';
 import {
@@ -84,7 +84,7 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   // Trigger Lipa na M-Pesa STK Push
   const handleTriggerStkPush = async () => {
     if (!stkPhone.trim()) {
-      setValidationError('🔴 Customer phone number is required for M-Pesa STK Push.');
+      setValidationError('Customer phone number is required for M-Pesa STK Push.');
       return;
     }
     setStkPushing(true);
@@ -110,13 +110,13 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
       const data = await res.json();
       if (!res.ok || !data.success) {
         setStkStatusMessage(null);
-        setValidationError(`🔴 STK Push failed: ${data.message || 'Check M-Pesa gateway configuration.'}`);
+        setValidationError(`STK Push failed: ${data.message || 'Check M-Pesa gateway configuration.'}`);
         setStkPushing(false);
         return;
       }
 
       const checkoutId = data.checkoutRequestId;
-      setStkStatusMessage(`📲 Prompt sent to ${stkPhone}! Waiting for customer PIN...`);
+      setStkStatusMessage(`Prompt dispatched to ${stkPhone}. Awaiting customer PIN authorization...`);
 
       let checks = 0;
       const pollTimer = setInterval(async () => {
@@ -134,13 +134,13 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
               clearInterval(pollTimer);
               const receipt = qData.receiptNumber || `RJK${Math.floor(1000000 + Math.random() * 9000000)}`;
               setMpesaRef(receipt);
-              setStkStatusMessage(`✅ M-Pesa Verified! Receipt: ${receipt}`);
+              setStkStatusMessage(`M-Pesa payment confirmed. Receipt: ${receipt}`);
               setStkPushing(false);
               setValidationError('');
             } else if (qData.status === 'FAILED' || qData.status === 'CANCELLED') {
               clearInterval(pollTimer);
               setStkStatusMessage(null);
-              setValidationError(`🔴 Transaction ${qData.status.toLowerCase()}: ${qData.resultDesc || 'Cancelled by customer'}`);
+              setValidationError(`Transaction ${qData.status.toLowerCase()}: ${qData.resultDesc || 'Cancelled by customer'}`);
               setStkPushing(false);
             }
           }
@@ -150,14 +150,14 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
         if (checks >= 12) {
           clearInterval(pollTimer);
-          setStkStatusMessage('⚠️ Prompt timed out. Customer can verify via manual code or re-trigger.');
+          setStkStatusMessage('Prompt timed out. Customer can verify via manual code or re-trigger.');
           setStkPushing(false);
         }
       }, 1500);
 
     } catch (err: any) {
       setStkStatusMessage(null);
-      setValidationError(`🔴 Gateway connection error: ${err.message}`);
+      setValidationError(`Gateway connection error: ${err.message}`);
       setStkPushing(false);
     }
   };
@@ -171,22 +171,22 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
   const handleConfirmAction = () => {
     // Perform validations
     if (paymentMethod === 'M-Pesa' && !validateMpesaRef(mpesaRef.trim())) {
-      setValidationError('🔴 Invalid mobile gateway reference code. Must be 10 characters (uppercase alphanumeric, e.g., SKF1829CK2)');
+      setValidationError('Invalid mobile gateway reference code. Must be 10 alphanumeric characters (e.g. SKF1829CK2).');
       return;
     }
 
     if (paymentMethod === 'Split' && !validateMpesaRef(mpesaRef.trim())) {
-      setValidationError('🔴 Split mobile transfer requires a valid 10-character reference code.');
+      setValidationError('Split mobile transfer requires a valid 10-character reference code.');
       return;
     }
 
     if (paymentMethod === 'Bank EFT' && bankRef.trim().length < 5) {
-      setValidationError('🔴 Valid Bank Electronic Funds Transfer reference is required for audit conformity.');
+      setValidationError('Valid Bank Electronic Funds Transfer reference is required for audit conformity.');
       return;
     }
 
     if (actualTendered < totalAmount) {
-      setValidationError('🔴 Tendered value cannot be less than the order subtotal.');
+      setValidationError('Tendered value cannot be less than the order subtotal.');
       return;
     }
 
@@ -299,8 +299,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
 
             {/* ERROR SUMMARY */}
             {validationError && (
-              <div className="mt-4 p-3 bg-red-500/10 text-red-500 text-xs rounded-lg font-medium border border-red-500/20">
-                {validationError}
+              <div className="mt-4 p-3 bg-rose-500/10 text-rose-600 dark:text-rose-400 text-xs rounded-xl font-medium border border-rose-500/20 flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{validationError}</span>
               </div>
             )}
 
@@ -492,9 +493,9 @@ const PaymentModal: React.FC<PaymentModalProps> = ({
                       {/* Live STK Push Status Box */}
                       {stkStatusMessage && (
                         <div className={`p-2.5 rounded-lg text-xs font-semibold animate-fade-in flex items-start gap-2 ${
-                          stkStatusMessage.startsWith('✅')
+                          stkStatusMessage.toLowerCase().includes('confirmed') || stkStatusMessage.toLowerCase().includes('verified')
                             ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400'
-                            : stkStatusMessage.startsWith('⚠️')
+                            : stkStatusMessage.toLowerCase().includes('timed out') || stkStatusMessage.toLowerCase().includes('failed')
                             ? 'bg-amber-500/15 border border-amber-500/30 text-amber-600 dark:text-amber-400'
                             : 'bg-indigo-500/10 border border-indigo-500/20 text-indigo-700 dark:text-indigo-300'
                         }`}>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { Product } from '../../types';
-import { X, Search, Camera, Keyboard, Printer, Tag, Zap } from 'lucide-react';
+import { X, Search, Camera, Keyboard, Printer, Tag, Zap, RotateCw, Radio, Check, AlertCircle, XCircle } from 'lucide-react';
 import { useSystemSettings } from '../../contexts/SettingsContext';
 
 interface ScanLogEntry {
@@ -373,9 +373,10 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                       </div>
                       <button
                         onClick={startCamera}
-                        className="py-1.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-[10px] uppercase rounded-lg border border-slate-700 transition"
+                        className="py-1.5 px-4 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-[10px] uppercase rounded-lg border border-slate-700 transition flex items-center justify-center gap-1.5 mx-auto"
                       >
-                        🔄 Re-Initialize Sensor
+                        <RotateCw className="w-3.5 h-3.5" />
+                        <span>Re-Initialize Sensor</span>
                       </button>
                     </div>
                   )}
@@ -458,8 +459,8 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
             {activeTab === 'hardware' && (
               <div className="space-y-4">
                 <div className="bg-slate-50 dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 text-center space-y-4">
-                  <div className="h-16 w-16 bg-brand-orange/10 text-brand-orange text-3xl flex items-center justify-center rounded-full mx-auto border border-brand-orange/20">
-                    🔌
+                  <div className="h-14 w-14 bg-brand-orange/10 text-brand-orange flex items-center justify-center rounded-2xl mx-auto border border-brand-orange/20">
+                    <Radio className="w-6 h-6" />
                   </div>
                   <div className="space-y-1">
                     <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">
@@ -634,8 +635,9 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
               {/* CHRONOLOGICAL EVENT FEED SCROLLER */}
               <div className="space-y-2 max-h-[240px] overflow-y-auto pr-1">
                 {scanLogs.length === 0 ? (
-                  <div className="p-8 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl text-slate-400 font-mono text-[10px]">
-                     🚀 Waiting for optical barcode data inputs...
+                  <div className="p-8 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl text-slate-400 font-mono text-[10px] flex flex-col items-center justify-center gap-1.5">
+                     <Radio className="w-5 h-5 text-slate-400" />
+                     <span>Waiting for optical barcode data inputs...</span>
                   </div>
                 ) : (
                   scanLogs.map((log, idx) => (
@@ -674,7 +676,7 @@ export const BarcodeScannerModal: React.FC<BarcodeScannerModalProps> = ({
                       </div>
 
                       {log.status === 'SUCCESS' && (
-                        <span className="text-lg text-emerald-500">✓</span>
+                        <Check className="w-4 h-4 text-emerald-500 shrink-0" />
                       )}
                     </div>
                   ))

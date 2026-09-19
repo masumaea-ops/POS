@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import type { SaleOrder, CartItem } from '../../types';
-import { X, CheckCircle2, AlertCircle, Printer, ShoppingCart, Truck, ShieldCheck, Box, PackageCheck, MapPin } from 'lucide-react';
+import { X, CheckCircle2, AlertCircle, Printer, ShoppingCart, Truck, ShieldCheck, Box, PackageCheck, MapPin, Check, CheckCheck } from 'lucide-react';
 import { useSystemSettings } from '../../contexts/SettingsContext';
 import { generateQRCodeDataURL } from '../../utils/qrCodeGenerator';
 
@@ -184,9 +184,10 @@ export const OrderVerificationModal: React.FC<OrderVerificationModalProps> = ({
                 <button
                   type="button"
                   onClick={handleVerifyAll}
-                  className="px-3 py-1 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-650 text-slate-800 dark:text-slate-100 rounded-lg text-xs font-bold transition"
+                  className="px-3 py-1 bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-650 text-slate-800 dark:text-slate-100 rounded-lg text-xs font-bold transition flex items-center gap-1"
                 >
-                  ✓ Check All Items
+                  <CheckCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span>Check All Items</span>
                 </button>
               </div>
             </div>
@@ -228,7 +229,7 @@ export const OrderVerificationModal: React.FC<OrderVerificationModalProps> = ({
                             : 'border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800'
                         }`}
                       >
-                        {isChecked && <span className="text-xs font-black">✓</span>}
+                        {isChecked && <Check className="w-3.5 h-3.5 text-white" />}
                       </button>
                       <div>
                         <h4 className={`text-xs font-bold ${isChecked ? 'text-emerald-950 dark:text-emerald-200' : 'text-slate-900 dark:text-white'}`}>
@@ -312,7 +313,7 @@ export const OrderVerificationModal: React.FC<OrderVerificationModalProps> = ({
               }`}
             >
               <Truck className="w-4 h-4" />
-              <span>{isAllVerified ? '✓ Authorize & Dispatch' : 'Mark Dispatched'}</span>
+              <span>{isAllVerified ? 'Authorize & Dispatch' : 'Mark Dispatched'}</span>
             </button>
           </div>
         </footer>

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { 
   Users, 
   UserPlus, 
@@ -224,8 +225,10 @@ export const UserManagementSection: React.FC = () => {
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('ALL');
   const [copiedText, setCopiedText] = useState<string | null>(null);
 
+  const [searchParams] = useSearchParams();
+
   // Modals state
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(() => searchParams.get('action') === 'add');
   const [editingUser, setEditingUser] = useState<SystemUser | null>(null);
   const [resettingUser, setResettingUser] = useState<SystemUser | null>(null);
   const [actionNotice, setActionNotice] = useState<{ type: 'success' | 'error' | 'info'; message: string } | null>(null);

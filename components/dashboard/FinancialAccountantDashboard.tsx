@@ -13,23 +13,20 @@ import {
   Download,
   Landmark,
   CreditCard,
-  Percent
+  Percent,
+  ChevronRight
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useSettings } from '../../contexts/SettingsContext';
 
-interface FinancialAccountantDashboardProps {
-  onOpenRbacMatrix: () => void;
-}
-
-export const FinancialAccountantDashboard: React.FC<FinancialAccountantDashboardProps> = ({ onOpenRbacMatrix }) => {
+export const FinancialAccountantDashboard: React.FC = () => {
   const navigate = useNavigate();
   const { settings, formatPrice } = useSettings();
 
   const arAging = [
-    { bracket: 'Current (0-30 Days)', amount: 642000, percentage: 68, risk: 'Low' },
-    { bracket: 'Overdue (31-60 Days)', amount: 186000, percentage: 20, risk: 'Medium' },
-    { bracket: 'Overdue (61-90 Days)', amount: 78000, percentage: 8, risk: 'High' },
+    { bracket: 'Current (0–30 Days)', amount: 642000, percentage: 68, risk: 'Low' },
+    { bracket: 'Overdue (31–60 Days)', amount: 186000, percentage: 20, risk: 'Medium' },
+    { bracket: 'Overdue (61–90 Days)', amount: 78000, percentage: 8, risk: 'High' },
     { bracket: 'Default Risk (90+ Days)', amount: 38500, percentage: 4, risk: 'Critical' }
   ];
 
@@ -37,130 +34,151 @@ export const FinancialAccountantDashboard: React.FC<FinancialAccountantDashboard
 
   return (
     <div className="space-y-6 animate-in fade-in duration-200">
-      {/* Accountant Scope Banner */}
-      <div className="bg-gradient-to-r from-purple-950/60 via-slate-900 to-slate-900 border border-purple-500/30 rounded-2xl p-6 relative overflow-hidden">
-        <div className="absolute right-0 top-0 w-80 h-full bg-purple-500/5 blur-3xl pointer-events-none" />
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 relative z-10">
+      
+      {/* ACCOUNTANT COMMAND HEADER */}
+      <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200/80 dark:border-slate-700/80 shadow-xs">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2">
-              <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-purple-500/20 text-purple-400 border border-purple-500/30">
-                Corporate Finance & Audit Hub
+            <div className="flex flex-wrap items-center gap-2 mb-1">
+              <span className="px-2.5 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-purple-50 dark:bg-purple-950/40 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800">
+                Corporate Finance & Audit Console
               </span>
-              <span className="text-xs text-slate-400 font-mono">KRA eTIMS Validated • Fiscal Year 2026</span>
+              <span className="text-xs text-slate-400 font-medium">KRA eTIMS Validated • Fiscal Year 2026</span>
             </div>
-            <h1 className="text-2xl font-black text-white mt-1">
+            <h1 className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
               Financial Accounting & Tax Console
             </h1>
-            <p className="text-xs text-slate-300 mt-0.5">
-              General ledger audits, aged accounts receivable, KRA VAT liability, and bank reconciliations.
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-2xl leading-relaxed">
+              General ledger audits, aged accounts receivable, KRA VAT liability, and multi-channel bank reconciliations.
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={onOpenRbacMatrix}
-              className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 transition flex items-center gap-1.5 cursor-pointer"
-            >
-              <ShieldCheck className="w-4 h-4 text-purple-400" />
-              <span>Inspect My Permissions</span>
-            </button>
+          <div className="flex items-center gap-2.5 shrink-0">
             <button
               type="button"
               onClick={() => navigate('/accounting')}
-              className="px-5 py-2.5 bg-brand-orange hover:bg-brand-orange/90 text-white text-xs font-black rounded-xl shadow-lg transition flex items-center gap-2 cursor-pointer"
+              className="px-4 py-2 bg-brand-orange hover:bg-brand-orange/90 text-white text-xs font-semibold rounded-xl shadow-xs transition flex items-center gap-1.5 cursor-pointer"
             >
               <Landmark className="w-4 h-4" />
               <span>General Ledger</span>
             </button>
           </div>
         </div>
+
+        {/* FINANCIAL SUMMARY STATUS BAR */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 pt-5 border-t border-slate-100 dark:border-slate-700/60 text-xs">
+          <div>
+            <span className="text-slate-400 block text-[11px]">KRA eTIMS Compliance</span>
+            <span className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">100% Fiscalized</span>
+          </div>
+          <div>
+            <span className="text-slate-400 block text-[11px]">Pending Vendor Bills (AP)</span>
+            <span className="font-bold text-slate-900 dark:text-white text-sm">{formatPrice(540000)} Matched</span>
+          </div>
+          <div>
+            <span className="text-slate-400 block text-[11px]">Total Outstanding AR</span>
+            <span className="font-bold text-slate-900 dark:text-white text-sm">{formatPrice(totalAR)}</span>
+          </div>
+          <div>
+            <span className="text-slate-400 block text-[11px]">Audit Lock Status</span>
+            <span className="font-bold text-emerald-600 dark:text-emerald-400 text-sm">Balanced & Reconciled</span>
+          </div>
+        </div>
       </div>
 
-      {/* Financial High-Level KPIs */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Total Outstanding AR */}
-        <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Total Outstanding AR</span>
-            <Coins className="w-4 h-4 text-purple-500" />
+      {/* FINANCIAL HIGH-LEVEL KPIS */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        {/* Metric 1: Total Outstanding AR */}
+        <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-xs hover:border-slate-300 dark:hover:border-slate-600 transition">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Total Outstanding AR</span>
+            <div className="w-8 h-8 rounded-lg bg-purple-50 dark:bg-purple-950/40 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+              <Coins className="w-4 h-4" />
+            </div>
           </div>
-          <div className="flex items-baseline gap-2 mt-2">
-            <span className="text-3xl font-black text-slate-900 dark:text-white font-mono">
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
               {formatPrice(totalAR)}
             </span>
           </div>
-          <div className="mt-2 text-[11px] text-slate-500 flex items-center justify-between font-mono">
-            <span>Aged Debtor Balance</span>
-            <span className="text-purple-500 font-bold">18 Accounts</span>
+          <div className="mt-3 flex items-center justify-between text-xs pt-3 border-t border-slate-100 dark:border-slate-700/60">
+            <span className="text-slate-500 text-[11px]">Aged Debtor Balance</span>
+            <span className="text-purple-600 dark:text-purple-400 font-bold">18 Accounts</span>
           </div>
         </div>
 
-        {/* KRA eTIMS VAT Liability */}
-        <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">KRA 16% VAT Accrued</span>
-            <Receipt className="w-4 h-4 text-emerald-500" />
+        {/* Metric 2: KRA eTIMS VAT Liability */}
+        <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-xs hover:border-slate-300 dark:hover:border-slate-600 transition">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">KRA 16% VAT Accrued</span>
+            <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
+              <Receipt className="w-4 h-4" />
+            </div>
           </div>
-          <div className="flex items-baseline gap-2 mt-2">
-            <span className="text-3xl font-black text-emerald-600 dark:text-emerald-400 font-mono">
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 tracking-tight">
               {formatPrice(146800)}
             </span>
           </div>
-          <div className="mt-2 text-[11px] text-slate-500 flex items-center justify-between font-mono">
-            <span>eTIMS OSCU Sync</span>
-            <span className="text-emerald-500 font-bold">100% Fiscalized</span>
+          <div className="mt-3 flex items-center justify-between text-xs pt-3 border-t border-slate-100 dark:border-slate-700/60">
+            <span className="text-slate-500 text-[11px]">eTIMS OSCU Integration</span>
+            <span className="text-emerald-600 dark:text-emerald-400 font-bold">100% Fiscalized</span>
           </div>
         </div>
 
-        {/* Supplier AP Pending */}
-        <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Accounts Payable (AP)</span>
-            <Building2 className="w-4 h-4 text-blue-500" />
+        {/* Metric 3: Supplier AP Pending */}
+        <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-xs hover:border-slate-300 dark:hover:border-slate-600 transition">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Accounts Payable (AP)</span>
+            <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+              <Building2 className="w-4 h-4" />
+            </div>
           </div>
-          <div className="flex items-baseline gap-2 mt-2">
-            <span className="text-3xl font-black text-slate-900 dark:text-white font-mono">
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">
               {formatPrice(540000)}
             </span>
           </div>
-          <div className="mt-2 text-[11px] text-slate-500 flex items-center justify-between">
-            <span>3-Way Match Verified</span>
-            <span className="text-blue-500 font-bold">Due in 15d</span>
+          <div className="mt-3 flex items-center justify-between text-xs pt-3 border-t border-slate-100 dark:border-slate-700/60">
+            <span className="text-slate-500 text-[11px]">3-Way Match Verified</span>
+            <span className="text-blue-600 dark:text-blue-400 font-bold">Due in 15d</span>
           </div>
         </div>
 
-        {/* Cash Flow Today */}
-        <div className="bg-white dark:bg-gray-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Cash Flow Collected Today</span>
-            <CreditCard className="w-4 h-4 text-brand-orange" />
+        {/* Metric 4: Cash Flow Collected Today */}
+        <div className="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-xs hover:border-slate-300 dark:hover:border-slate-600 transition">
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Daily Cash Collections</span>
+            <div className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-950/40 text-brand-orange flex items-center justify-center">
+              <CreditCard className="w-4 h-4" />
+            </div>
           </div>
-          <div className="flex items-baseline gap-2 mt-2">
-            <span className="text-3xl font-black text-brand-orange font-mono">
+          <div className="flex items-baseline gap-2">
+            <span className="text-2xl font-bold text-brand-orange tracking-tight">
               {formatPrice(1143500)}
             </span>
           </div>
-          <div className="mt-2 text-[11px] text-slate-500 flex items-center justify-between font-mono">
-            <span>Across All Gateways</span>
-            <span className="text-brand-orange font-bold">Reconciled</span>
+          <div className="mt-3 flex items-center justify-between text-xs pt-3 border-t border-slate-100 dark:border-slate-700/60">
+            <span className="text-slate-500 text-[11px]">All Payment Gateways</span>
+            <span className="text-emerald-600 dark:text-emerald-400 font-bold">Reconciled</span>
           </div>
         </div>
       </div>
 
-      {/* Aged Accounts Receivable Matrix */}
-      <div className="bg-white dark:bg-gray-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs">
-        <div className="flex items-center justify-between mb-4">
+      {/* AGED ACCOUNTS RECEIVABLE MATRIX */}
+      <div className="bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
           <div>
-            <h3 className="text-base font-black text-slate-900 dark:text-white">Aged Debtors & Accounts Receivable Breakdown</h3>
-            <p className="text-xs text-slate-400">Aging schedule of commercial wholesale and corporate fleet accounts.</p>
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">Aged Debtors & Accounts Receivable Breakdown</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Aging schedule of commercial wholesale and corporate fleet accounts.</p>
           </div>
           <button
             type="button"
             onClick={() => navigate('/invoices')}
-            className="text-xs text-brand-orange font-bold hover:underline"
+            className="text-xs text-brand-orange font-semibold hover:underline flex items-center gap-1 cursor-pointer self-start sm:self-auto"
           >
-            Manage Invoices & Dunning →
+            <span>Manage Invoices & Dunning</span>
+            <ChevronRight className="w-3.5 h-3.5" />
           </button>
         </div>
 
@@ -168,31 +186,31 @@ export const FinancialAccountantDashboard: React.FC<FinancialAccountantDashboard
           {arAging.map(item => (
             <div 
               key={item.bracket} 
-              className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-900/30"
+              className="p-4 rounded-xl border border-slate-200/80 dark:border-slate-750 bg-slate-50/50 dark:bg-slate-750/30"
             >
               <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-700 dark:text-slate-300">{item.bracket}</span>
-                <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded ${
+                <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">{item.bracket}</span>
+                <span className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded ${
                   item.risk === 'Low' 
-                    ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' 
+                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20' 
                     : item.risk === 'Medium'
-                      ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20'
+                      ? 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400 border border-blue-500/20'
                       : item.risk === 'High'
-                        ? 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20'
-                        : 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border border-rose-500/20'
+                        ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400 border border-amber-500/20'
+                        : 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 border border-rose-500/20'
                 }`}>
                   {item.risk} Risk
                 </span>
               </div>
-              <div className="mt-2 text-xl font-black font-mono text-slate-900 dark:text-white">
+              <div className="mt-2 text-xl font-bold text-slate-900 dark:text-white">
                 {formatPrice(item.amount)}
               </div>
-              <div className="mt-2 flex items-center justify-between text-[11px] text-slate-400">
-                <span>Share: {item.percentage}%</span>
+              <div className="mt-2 flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400">
+                <span>Distribution: {item.percentage}%</span>
               </div>
-              <div className="mt-1 w-full h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
+              <div className="mt-1.5 w-full h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
                 <div 
-                  className={`h-full ${item.risk === 'Critical' ? 'bg-rose-500' : item.risk === 'High' ? 'bg-amber-500' : 'bg-emerald-500'}`} 
+                  className={`h-full rounded-full ${item.risk === 'Critical' ? 'bg-rose-500' : item.risk === 'High' ? 'bg-amber-500' : 'bg-emerald-500'}`} 
                   style={{ width: `${item.percentage}%` }}
                 />
               </div>
@@ -201,11 +219,11 @@ export const FinancialAccountantDashboard: React.FC<FinancialAccountantDashboard
         </div>
       </div>
 
-      {/* Quick Launchpad & Role Scope */}
+      {/* QUICK LAUNCHPAD & ROLE SCOPE */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Accountant Launchpad */}
-        <div className="lg:col-span-8 bg-white dark:bg-gray-800 p-6 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-xs">
-          <h3 className="text-base font-black text-slate-900 dark:text-white mb-4">
+        {/* ACCOUNTANT LAUNCHPAD */}
+        <div className="lg:col-span-8 bg-white dark:bg-slate-800 p-6 rounded-2xl border border-slate-200/80 dark:border-slate-700/80 shadow-xs">
+          <h3 className="text-base font-bold text-slate-900 dark:text-white mb-4">
             Finance & Tax Action Launchpad
           </h3>
 
@@ -213,59 +231,59 @@ export const FinancialAccountantDashboard: React.FC<FinancialAccountantDashboard
             <button
               type="button"
               onClick={() => navigate('/invoices')}
-              className="p-4 rounded-xl border border-purple-500/30 bg-purple-500/5 hover:bg-purple-500/10 text-left transition group cursor-pointer"
+              className="p-4 rounded-xl border border-purple-200/80 dark:border-purple-800/60 bg-purple-50/20 dark:bg-purple-950/20 hover:bg-purple-50/40 dark:hover:bg-purple-950/30 text-left transition group cursor-pointer"
             >
-              <div className="w-10 h-10 rounded-lg bg-purple-500 text-white flex items-center justify-center mb-3 group-hover:scale-105 transition">
-                <FileText className="w-5 h-5" />
+              <div className="w-9 h-9 rounded-lg bg-purple-600 text-white flex items-center justify-center mb-3 group-hover:scale-105 transition">
+                <FileText className="w-4 h-4" />
               </div>
-              <h4 className="font-black text-slate-900 dark:text-white text-sm">Tax Invoices & eTIMS</h4>
-              <p className="text-xs text-slate-500 mt-1">Review fiscal signatures, verify invoice QR codes, and trigger customer dunning SMS.</p>
+              <h4 className="font-bold text-slate-900 dark:text-white text-sm">Tax Invoices & eTIMS</h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">Review fiscal signatures, verify invoice QR codes, and trigger customer dunning alerts.</p>
             </button>
 
             <button
               type="button"
               onClick={() => navigate('/accounting')}
-              className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 bg-slate-50/50 dark:bg-slate-900/30 text-left transition group cursor-pointer"
+              className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 bg-slate-50/50 dark:bg-slate-750/40 text-left transition group cursor-pointer"
             >
-              <div className="w-10 h-10 rounded-lg bg-indigo-500 text-white flex items-center justify-center mb-3 group-hover:scale-105 transition">
-                <Landmark className="w-5 h-5" />
+              <div className="w-9 h-9 rounded-lg bg-indigo-500 text-white flex items-center justify-center mb-3 group-hover:scale-105 transition">
+                <Landmark className="w-4 h-4" />
               </div>
-              <h4 className="font-black text-slate-900 dark:text-white text-sm">General Ledger & COA</h4>
-              <p className="text-xs text-slate-500 mt-1">Post journal adjustments, examine chart of accounts, and audit double-entry ledger.</p>
+              <h4 className="font-bold text-slate-900 dark:text-white text-sm">General Ledger & COA</h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">Post journal adjustments, examine chart of accounts, and audit double-entry ledger.</p>
             </button>
 
             <button
               type="button"
               onClick={() => navigate('/reports')}
-              className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 bg-slate-50/50 dark:bg-slate-900/30 text-left transition group cursor-pointer"
+              className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 bg-slate-50/50 dark:bg-slate-750/40 text-left transition group cursor-pointer"
             >
-              <div className="w-10 h-10 rounded-lg bg-emerald-500 text-white flex items-center justify-center mb-3 group-hover:scale-105 transition">
-                <BarChart2 className="w-5 h-5" />
+              <div className="w-9 h-9 rounded-lg bg-emerald-500 text-white flex items-center justify-center mb-3 group-hover:scale-105 transition">
+                <BarChart2 className="w-4 h-4" />
               </div>
-              <h4 className="font-black text-slate-900 dark:text-white text-sm">P&L & Financial Reports</h4>
-              <p className="text-xs text-slate-500 mt-1">Export executive balance sheets, income statements, and KRA VAT return filings.</p>
+              <h4 className="font-bold text-slate-900 dark:text-white text-sm">P&L & Financial Reports</h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">Export executive balance sheets, income statements, and KRA VAT return filings.</p>
             </button>
 
             <button
               type="button"
               onClick={() => navigate('/purchasing')}
-              className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 bg-slate-50/50 dark:bg-slate-900/30 text-left transition group cursor-pointer"
+              className="p-4 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 bg-slate-50/50 dark:bg-slate-750/40 text-left transition group cursor-pointer"
             >
-              <div className="w-10 h-10 rounded-lg bg-blue-500 text-white flex items-center justify-center mb-3 group-hover:scale-105 transition">
-                <Building2 className="w-5 h-5" />
+              <div className="w-9 h-9 rounded-lg bg-blue-500 text-white flex items-center justify-center mb-3 group-hover:scale-105 transition">
+                <Building2 className="w-4 h-4" />
               </div>
-              <h4 className="font-black text-slate-900 dark:text-white text-sm">3-Way Match PO Approvals</h4>
-              <p className="text-xs text-slate-500 mt-1">Compare Supplier Invoices with Purchase Orders and Goods Received Notes (GRN).</p>
+              <h4 className="font-bold text-slate-900 dark:text-white text-sm">3-Way Match PO Approvals</h4>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">Compare Supplier Invoices with Purchase Orders and Goods Received Notes (GRN).</p>
             </button>
           </div>
         </div>
 
-        {/* Accountant Security Boundary */}
-        <div className="lg:col-span-4 bg-slate-900 text-white p-6 rounded-2xl border border-slate-800 flex flex-col justify-between">
+        {/* ACCOUNTANT SECURITY BOUNDARY */}
+        <div className="lg:col-span-4 bg-slate-900 text-white p-6 rounded-2xl border border-slate-800 flex flex-col justify-between shadow-xs">
           <div>
             <div className="flex items-center gap-2 text-purple-400">
               <ShieldCheck className="w-5 h-5" />
-              <h3 className="font-black text-sm uppercase tracking-wider">Role Boundary: Accountant</h3>
+              <h3 className="font-bold text-sm tracking-wide">Governance & Authorization Scope</h3>
             </div>
             <p className="text-xs text-slate-400 mt-2 leading-relaxed">
               Your account has unrestricted financial auditing, ledger posting, and tax authority. Storefront retail cash registers and workshop diagnostics are restricted:
@@ -289,17 +307,6 @@ export const FinancialAccountantDashboard: React.FC<FinancialAccountantDashboard
                 <span>Full Access to Invoices, Accounting, Ledgers & Tax</span>
               </li>
             </ul>
-          </div>
-
-          <div className="border-t border-slate-800 pt-4 mt-6">
-            <button
-              type="button"
-              onClick={onOpenRbacMatrix}
-              className="w-full py-2 bg-slate-800 hover:bg-slate-750 text-slate-200 text-xs font-bold rounded-xl border border-slate-700 transition flex items-center justify-center gap-1.5 cursor-pointer"
-            >
-              <span>View Full System Security Matrix</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
           </div>
         </div>
       </div>

@@ -257,13 +257,30 @@ Masuma Auto Parts East Africa Ltd - Enterprise Systems
       const transporter = getMailTransporter();
       const config = getSmtpConfig();
 
-      const info = await transporter.sendMail({
-        from: config.from,
+      const mailOptions: any = {
+        from: {
+          name: config.fromName || 'Masuma EA Ltd',
+          address: config.fromAddress || config.user
+        },
         to: cleanEmail,
         subject: subject,
         text: textContent,
         html: htmlContent,
-      });
+      };
+
+      if (config.replyTo) {
+        mailOptions.replyTo = config.replyTo;
+      }
+
+      // Enforce envelope sender matching authenticated user to prevent SMTP 553 sender rejection
+      if (config.user && config.user.includes('@')) {
+        mailOptions.envelope = {
+          from: config.user,
+          to: cleanEmail
+        };
+      }
+
+      const info = await transporter.sendMail(mailOptions);
 
       console.log(`[Email Service] Production verification code successfully dispatched to ${masked} (MessageID: ${info.messageId})`);
 
@@ -324,8 +341,11 @@ export async function sendTestEmail(toEmail: string): Promise<EmailDispatchResul
     const transporter = getMailTransporter();
     const config = getSmtpConfig();
 
-    const info = await transporter.sendMail({
-      from: config.from,
+    const mailOptions: any = {
+      from: {
+        name: config.fromName || 'Masuma EA Ltd',
+        address: config.fromAddress || config.user
+      },
       to: cleanEmail,
       subject: '[Masuma ERP] SMTP Gateway Connection Test',
       text: `Masuma ERP SMTP Gateway Connection Test\n\nThis confirms that the Masuma ERP server can successfully connect to your SMTP server (${config.host}:${config.port}) and dispatch transactional emails.\n\nTimestamp: ${timestamp}`,
@@ -340,7 +360,20 @@ export async function sendTestEmail(toEmail: string): Promise<EmailDispatchResul
           </div>
         </div>
       `
-    });
+    };
+
+    if (config.replyTo) {
+      mailOptions.replyTo = config.replyTo;
+    }
+
+    if (config.user && config.user.includes('@')) {
+      mailOptions.envelope = {
+        from: config.user,
+        to: cleanEmail
+      };
+    }
+
+    const info = await transporter.sendMail(mailOptions);
 
     return {
       success: true,

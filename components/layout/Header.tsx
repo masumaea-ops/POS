@@ -4,7 +4,6 @@ import { useSystemSettings } from '../../contexts/SettingsContext';
 import { useAuth, getDefaultRoleHome } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { NavLink, useNavigate } from 'react-router-dom';
-import RolePermissionsMatrixModal from '../shared/RolePermissionsMatrixModal';
 
 interface HeaderProps {
   onLogout: () => void;
@@ -25,7 +24,6 @@ export const Header: React.FC<HeaderProps> = ({
   const [branchMenuOpen, setBranchMenuOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [personaMenuOpen, setPersonaMenuOpen] = useState(false);
-  const [rbacMatrixOpen, setRbacMatrixOpen] = useState(false);
 
   const badge = getRoleBadge(userRole);
 
@@ -238,19 +236,6 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </div>
 
-        {/* RBAC Matrix Quick Trigger - Admin / Auditor */}
-        {(userRole === 'admin' || userRole === 'auditor') && (
-          <button
-            type="button"
-            onClick={() => setRbacMatrixOpen(true)}
-            className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-800/40 text-indigo-700 dark:text-indigo-300 text-xs font-bold transition cursor-pointer"
-            title="Inspect Granular RBAC Permissions Matrix"
-          >
-            <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />
-            <span>RBAC Matrix</span>
-          </button>
-        )}
-
         {/* Prominent Role Simulation Indicator (When Admin is testing other roles) */}
         {isSimulating && (
           <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/60 text-amber-800 dark:text-amber-300 text-xs">
@@ -370,20 +355,6 @@ export const Header: React.FC<HeaderProps> = ({
               )}
 
               <div className="pt-2 border-t border-slate-100 dark:border-slate-700 space-y-2">
-                {userRole === 'admin' && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPersonaMenuOpen(false);
-                      setRbacMatrixOpen(true);
-                    }}
-                    className="w-full py-1.5 px-2 bg-indigo-50 dark:bg-indigo-950/30 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 text-indigo-700 dark:text-indigo-300 rounded-lg text-xs font-bold transition flex items-center justify-center gap-1.5 border border-indigo-200 dark:border-indigo-800/40 cursor-pointer"
-                  >
-                    <ShieldCheck className="w-3.5 h-3.5 text-indigo-500" />
-                    <span>Inspect RBAC Matrix</span>
-                  </button>
-                )}
-
                 <div className="flex gap-2">
                   <NavLink
                     to="/profile"
@@ -431,12 +402,6 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
 
       </div>
-
-      {/* Global RBAC Permissions Matrix Modal */}
-      <RolePermissionsMatrixModal
-        isOpen={rbacMatrixOpen}
-        onClose={() => setRbacMatrixOpen(false)}
-      />
     </header>
   );
 };

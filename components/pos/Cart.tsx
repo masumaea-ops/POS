@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import type { CartItem, Customer } from '../../types';
 import { 
-    Trash2, Plus, X, User, Tag, Truck, Search, 
-    AlertTriangle, ShoppingCart 
+    Trash2, Plus, Minus, X, User, Tag, Truck, Search, 
+    AlertCircle, ShoppingCart, Percent, Clock, CreditCard,
+    ShieldAlert, CheckCircle2, ChevronDown
 } from 'lucide-react';
 import PaymentModal from './PaymentModal';
 import DiscountModal from './DiscountModal';
@@ -19,6 +20,10 @@ interface CartProps {
     customersList: Customer[];
     onChangeCustomer: (nextCustomer: Customer) => void;
     onShowQuickAddCustomer: () => void;
+    onHoldTicket?: (note?: string) => void;
+    heldTicketsCount?: number;
+    onOpenHeldTickets?: () => void;
+    onNotify?: (message: string, isError?: boolean) => void;
 }
 
 const Cart: React.FC<CartProps> = ({ 
@@ -29,14 +34,25 @@ const Cart: React.FC<CartProps> = ({
     customer,
     customersList = [],
     onChangeCustomer,
-    onShowQuickAddCustomer
+    onShowQuickAddCustomer,
+    onHoldTicket,
+    heldTicketsCount = 0,
+    onOpenHeldTickets,
+    onNotify
 }) => {
     const { settings, formatPrice } = useSystemSettings();
     const { hasPermission, userRole } = useAuth();
     const canCreateOrder = hasPermission('pos', 'create');
+    
     const [isPaymentModalOpen, setPaymentModalOpen] = useState(false);
     const [isDiscountModalOpen, setDiscountModalOpen] = useState(false);
     const [isApprovalModalOpen, setApprovalModalOpen] = useState(false);
+    const [approvalReason, setApprovalReason] = useState<string>('');
+    const [approvalAction, setApprovalAction] = useState<'discount' | 'credit'>('discount');
+
+    // Hold Ticket with Note Dialog
+    const [isHoldDialogOpen, setIsHoldDialogOpen] = useState(false);
+    const [holdNote, setHoldNote] = useState('');
     
     const [discount, setDiscount] = useState(0); // as a percentage
     const [pendingDiscountValue, setPendingDiscountValue] = useState<number | null>(null);
@@ -66,23 +82,36 @@ const Cart: React.FC<CartProps> = ({
     const isCreditCustomer = customer.type === 'Credit';
     const hasCreditLimitExceeded = isCreditCustomer && (outstandingBalance + total > creditLimit);
 
+    const notify = (msg: string, isError = false) => {
+        if (onNotify) {
+            onNotify(msg, isError);
+        }
+    };
+
     const handleApplyDiscountClick = (newDiscount: number) => {
-        // Discounts greater than 15% require secure manager passcode approval
+        // Discounts greater than 15% require supervisor passcode approval
         if (newDiscount > 15 && !discountApproved) {
             setPendingDiscountValue(newDiscount);
+            setApprovalAction('discount');
+            setApprovalReason(`Discounts of ${newDiscount}% require supervisor authorization before applying.`);
             setApprovalModalOpen(true);
         } else {
             setDiscount(newDiscount);
             setDiscountModalOpen(false);
-            setDiscountApproved(false); // Reset back to default
+            setDiscountApproved(false);
+            notify(`Applied ${newDiscount}% cart discount.`);
         }
     };
 
     const handleManagerApproved = () => {
-        if (pendingDiscountValue !== null) {
+        if (approvalAction === 'discount' && pendingDiscountValue !== null) {
             setDiscount(pendingDiscountValue);
             setDiscountApproved(true);
             setPendingDiscountValue(null);
+            notify(`Supervisor approved ${pendingDiscountValue}% discount.`);
+        } else if (approvalAction === 'credit') {
+            notify("Supervisor approved credit limit override.", false);
+            setPaymentModalOpen(true);
         }
         setApprovalModalOpen(false);
         setDiscountModalOpen(false);
@@ -93,10 +122,22 @@ const Cart: React.FC<CartProps> = ({
         setDiscount(0);
         setDiscountApproved(false);
         setPaymentModalOpen(false);
+        notify("Sale completed successfully and fiscal invoice recorded.");
+    };
+
+    const handleHoldTicketConfirm = () => {
+        if (onHoldTicket) {
+            onHoldTicket(holdNote.trim() || undefined);
+        } else {
+            onClearCart();
+            notify("Cart ticket suspended and saved to drafts.");
+        }
+        setHoldNote('');
+        setIsHoldDialogOpen(false);
     };
 
     return (
-        <div className="flex-1 w-full flex flex-col overflow-hidden bg-white dark:bg-gray-800 min-h-0">
+        <div className="flex-1 w-full flex flex-col overflow-hidden bg-white dark:bg-slate-850 min-h-0 border-l border-slate-200/80 dark:border-slate-800">
             {isDropdownOpen && (
                 <div 
                     className="fixed inset-0 z-10" 
@@ -105,62 +146,107 @@ const Cart: React.FC<CartProps> = ({
             )}
 
             <div className="p-4 flex-1 flex flex-col relative overflow-hidden min-h-0">
-                <div className="flex justify-between items-center pb-3 border-b border-surface-2 dark:border-gray-700">
-                    <h2 className="text-xl font-bold text-ink dark:text-gray-50">Current Sale</h2>
-                    <button onClick={onClearCart} className="p-2 text-gray-400 hover:text-red-500 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700" title="Empty whole shopping cart">
-                        <Trash2 className="w-5 h-5" />
-                    </button>
+                {/* Header */}
+                <div className="flex justify-between items-center pb-3.5 border-b border-slate-150 dark:border-slate-800 shrink-0">
+                    <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-lg bg-brand-orange/10 dark:bg-brand-orange/20 text-brand-orange flex items-center justify-center">
+                            <ShoppingCart className="w-4 h-4" />
+                        </div>
+                        <div>
+                            <h2 className="text-sm font-bold text-slate-900 dark:text-white">Active Order Cart</h2>
+                            <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                                {cartItems.reduce((acc, i) => acc + i.quantity, 0)} items in checkout queue
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                        {onOpenHeldTickets && (
+                            <button
+                                type="button"
+                                onClick={onOpenHeldTickets}
+                                className={`py-1.5 px-2.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer border ${
+                                    heldTicketsCount > 0
+                                        ? 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-400 border-amber-300 dark:border-amber-800'
+                                        : 'bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border-slate-200 dark:border-slate-700 hover:border-slate-300'
+                                }`}
+                                title="View suspended tickets"
+                            >
+                                <Clock className="w-3.5 h-3.5" />
+                                <span>Held</span>
+                                {heldTicketsCount > 0 && (
+                                    <span className="bg-amber-500 text-slate-950 text-[10px] px-1.5 py-0.2 rounded-full font-black">
+                                        {heldTicketsCount}
+                                    </span>
+                                )}
+                            </button>
+                        )}
+
+                        {cartItems.length > 0 && (
+                            <button 
+                                onClick={onClearCart} 
+                                className="p-1.5 text-slate-400 hover:text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-lg transition-colors cursor-pointer" 
+                                title="Clear shopping cart"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                            </button>
+                        )}
+                    </div>
                 </div>
 
-                {/* IN-CART CUSTOMER SEARCH & QUICK ADD CONSOLE */}
+                {/* CUSTOMER SELECTOR / SUMMARY BAR */}
                 {!isSearchingCustomer ? (
-                    <div className="bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700/80 rounded-xl p-2.5 my-3 flex items-center justify-between gap-3 relative z-20 shrink-0">
+                    <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-750 rounded-xl p-3 my-3 flex items-center justify-between gap-2.5 shrink-0">
                         <div className="flex items-center gap-2.5 min-w-0">
-                            <div className="w-8 h-8 rounded-full bg-brand-orange/10 flex items-center justify-center text-brand-orange shrink-0">
+                            <div className="w-8 h-8 rounded-full bg-brand-orange/10 dark:bg-brand-orange/20 flex items-center justify-center text-brand-orange shrink-0">
                                 <User className="w-4 h-4" />
                             </div>
                             <div className="min-w-0">
-                                <h4 className="font-bold text-slate-900 dark:text-white text-xs truncate">{customer.name}</h4>
-                                <p className="text-[9px] text-slate-400 font-mono truncate">
-                                    {customer.companyName || 'Walk-in Cash Client'} • {customer.tier}
+                                <h4 className="font-bold text-slate-900 dark:text-white text-xs truncate">
+                                    {customer.name}
+                                </h4>
+                                <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate">
+                                    {customer.companyName || 'Cash Sale Client'} • <span className="font-semibold text-brand-orange">{customer.tier}</span>
                                 </p>
                             </div>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
-                            <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider ${
+                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider ${
                                 customer.type === 'Credit' 
-                                  ? 'bg-indigo-150 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400' 
-                                  : 'bg-emerald-150 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-450'
+                                  ? 'bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800' 
+                                  : 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
                             }`}>
                                 {customer.type}
                             </span>
                             <button 
                                 type="button" 
                                 onClick={() => setIsSearchingCustomer(true)}
-                                className="text-[10px] bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-650 text-slate-700 dark:text-slate-300 px-2 py-1 rounded font-extrabold transition-colors uppercase tracking-wider"
+                                className="text-[10px] bg-slate-200/80 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-650 text-slate-700 dark:text-slate-300 px-2 py-1 rounded-md font-bold transition-colors uppercase tracking-wider cursor-pointer"
                             >
                                 Change
                             </button>
                         </div>
                     </div>
                 ) : (
-                    <div className="bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-700/80 rounded-xl p-3 my-3 space-y-2.5 relative z-20 shrink-0">
+                    <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200/80 dark:border-slate-750 rounded-xl p-3 my-3 space-y-2.5 shrink-0 relative z-20">
                         <div className="flex items-center justify-between">
-                            <span className="text-[10px] uppercase font-mono font-bold tracking-wider text-slate-400 dark:text-slate-500">Customer Accounts Lookup</span>
+                            <span className="text-[10px] uppercase font-bold tracking-wider text-slate-500 dark:text-slate-400">
+                                Select Customer Account
+                            </span>
                             <div className="flex items-center gap-1.5">
                                 <button 
                                     type="button" 
                                     onClick={onShowQuickAddCustomer}
-                                    className="text-[10px] bg-brand-orange/15 hover:bg-brand-orange/25 text-brand-orange px-2 py-0.5 rounded font-black uppercase tracking-wider transition-colors flex items-center gap-1"
+                                    className="text-[10px] bg-brand-orange text-white px-2 py-0.5 rounded-md font-bold uppercase tracking-wider transition-colors flex items-center gap-1 cursor-pointer"
                                     title="Register new client instantly"
                                 >
                                     <Plus className="w-3 h-3" />
-                                    <span>Quick Add</span>
+                                    <span>New Client</span>
                                 </button>
                                 <button 
                                     type="button" 
                                     onClick={() => setIsSearchingCustomer(false)}
-                                    className="text-[10px] bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-350 px-2 py-0.5 rounded font-black uppercase tracking-wider transition-colors"
+                                    className="text-[10px] bg-slate-200 hover:bg-slate-300 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 px-2 py-0.5 rounded-md font-bold uppercase tracking-wider transition-colors cursor-pointer"
                                 >
                                     Cancel
                                 </button>
@@ -171,14 +257,14 @@ const Cart: React.FC<CartProps> = ({
                             <Search className="absolute left-2.5 top-2.5 w-3.5 h-3.5 text-slate-400" />
                             <input 
                                 type="text" 
-                                placeholder="Type name, company or phone..."
+                                placeholder="Search by name, company, or phone..."
                                 value={customerSearchQuery}
                                 onChange={(e) => {
                                     setCustomerSearchQuery(e.target.value);
                                     setDropdownOpen(true);
                                 }}
                                 onFocus={() => setDropdownOpen(true)}
-                                className="w-full p-2 pl-8 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-brand-orange"
+                                className="w-full p-2 pl-8 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-100 rounded-lg text-xs font-medium focus:outline-none focus:ring-2 focus:ring-brand-orange"
                             />
                             {customerSearchQuery && (
                                 <button 
@@ -192,7 +278,7 @@ const Cart: React.FC<CartProps> = ({
                             
                             {/* Dropdown list of matching customers */}
                             {isDropdownOpen && (
-                                <div className="absolute left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-750 rounded-lg shadow-xl z-30 max-h-48 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-700">
+                                <div className="absolute left-0 right-0 mt-1 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-30 max-h-52 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-750">
                                     {matchingCustomers.length > 0 ? (
                                         matchingCustomers.map(cust => (
                                             <div 
@@ -203,17 +289,19 @@ const Cart: React.FC<CartProps> = ({
                                                     setDropdownOpen(false);
                                                     setIsSearchingCustomer(false);
                                                 }}
-                                                className="p-2 hover:bg-slate-50 dark:hover:bg-slate-700/50 cursor-pointer text-xs flex justify-between items-center transition-colors"
+                                                className="p-2.5 hover:bg-slate-50 dark:hover:bg-slate-750 cursor-pointer text-xs flex justify-between items-center transition-colors"
                                             >
                                                 <div>
                                                     <span className="font-bold text-slate-900 dark:text-white block">{cust.name}</span>
                                                     {cust.companyName && (
-                                                        <span className="text-[9px] text-slate-450 block">{cust.companyName}</span>
+                                                        <span className="text-[10px] text-slate-400 block">{cust.companyName}</span>
                                                     )}
                                                 </div>
                                                 <div className="text-right">
                                                     <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded block uppercase ${
-                                                        cust.type === 'Credit' ? 'bg-indigo-55 dark:bg-indigo-950/45 text-indigo-600 dark:text-indigo-400' : 'bg-slate-100 dark:bg-slate-755 text-slate-600 dark:text-slate-400'
+                                                        cust.type === 'Credit' 
+                                                            ? 'bg-purple-50 dark:bg-purple-950/50 text-purple-700 dark:text-purple-300' 
+                                                            : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
                                                     }`}>
                                                         {cust.type}
                                                     </span>
@@ -222,103 +310,101 @@ const Cart: React.FC<CartProps> = ({
                                             </div>
                                         ))
                                     ) : (
-                                        <div className="p-3 text-center text-slate-450 text-xs">
-                                            <p>No customers found matching "{customerSearchQuery}"</p>
+                                        <div className="p-4 text-center text-slate-400 text-xs">
+                                            <p>No client records matching "{customerSearchQuery}"</p>
                                             <button 
                                                 type="button" 
                                                 onClick={() => {
                                                     onShowQuickAddCustomer();
                                                     setDropdownOpen(false);
                                                 }}
-                                                className="mt-1.5 px-2.5 py-1 bg-brand-orange text-white text-[10px] font-black uppercase tracking-wider rounded"
+                                                className="mt-2 px-3 py-1.5 bg-brand-orange text-white text-[10px] font-bold uppercase tracking-wider rounded-lg"
                                             >
-                                                Create "{customerSearchQuery}"
+                                                Register New Customer
                                             </button>
                                         </div>
                                     )}
                                 </div>
                             )}
                         </div>
-
-                        {/* Current Selected Customer Info Card */}
-                        <div className="bg-white dark:bg-slate-800/80 p-2.5 rounded-lg border border-slate-150 dark:border-slate-750/50 space-y-2">
-                             <div className="flex items-center justify-between">
-                                  <div className="flex items-center gap-2">
-                                       <User className="w-4 h-4 text-brand-orange" />
-                                       <div>
-                                            <h4 className="font-bold text-slate-900 dark:text-white text-xs">{customer.name}</h4>
-                                            <p className="text-[9px] text-slate-400 font-mono">
-                                                {customer.companyName || 'Walk-in Cash Client'} • {customer.phone || 'No Phone Details'}
-                                            </p>
-                                       </div>
-                                  </div>
-                                  <div className="text-right">
-                                       <span className={`text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider block ${
-                                           customer.type === 'Credit' 
-                                             ? 'bg-indigo-100 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-900/30' 
-                                             : 'bg-emerald-100 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-450 border border-emerald-200 dark:border-emerald-900/30'
-                                       }`}>
-                                           {customer.type} Account
-                                       </span>
-                                       <span className="text-[9px] text-brand-orange font-bold uppercase tracking-widest mt-0.5 block">
-                                           {customer.tier}
-                                       </span>
-                                  </div>
-                             </div>
-
-                             {(customer.kraPin || customer.shippingAddress) && (
-                                  <div className="pt-1.5 border-t border-dashed border-slate-150 dark:border-slate-700 space-y-0.5 text-[9px] text-slate-500 dark:text-slate-400 font-medium">
-                                       {customer.kraPin && (
-                                           <div className="flex items-center gap-1">
-                                               <Tag className="w-3 h-3 text-slate-400" /> 
-                                               <span><span className="font-bold font-mono text-slate-700 dark:text-slate-300">KRA PIN:</span> {customer.kraPin}</span>
-                                           </div>
-                                       )}
-                                       {customer.shippingAddress && (
-                                           <div className="break-words line-clamp-2 flex items-start gap-1" title={customer.shippingAddress}>
-                                               <Truck className="w-3 h-3 text-slate-400 mt-0.5 shrink-0" />
-                                               <span><span className="font-bold text-slate-700 dark:text-slate-300">Ship to:</span> {customer.shippingAddress}</span>
-                                           </div>
-                                       )}
-                                  </div>
-                             )}
-                        </div>
                     </div>
                 )}
                 
+                {/* CART ITEMS LIST */}
                 {cartItems.length === 0 ? (
-                    <div className="flex-1 flex flex-col items-center justify-center text-center">
-                        <div className="w-16 h-16 rounded-full bg-slate-100 dark:bg-gray-700 flex items-center justify-center text-gray-400">
-                           <ShoppingCart className="w-8 h-8 text-slate-400" />
+                    <div className="flex-1 flex flex-col items-center justify-center text-center p-6">
+                        <div className="w-14 h-14 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-400 mb-3">
+                           <ShoppingCart className="w-7 h-7" />
                         </div>
-                        <p className="mt-4 font-semibold text-gray-700 dark:text-gray-200">Your cart is empty</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">Add products to get started</p>
+                        <p className="font-bold text-sm text-slate-800 dark:text-slate-200">Current Sale is Empty</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-xs">
+                            Select products from the catalog or scan barcodes via camera / keyboard wedge.
+                        </p>
                     </div>
                 ) : (
-                    <div className="flex-1 overflow-y-auto min-h-0 -mx-4 px-4 divide-y divide-surface-2 dark:divide-gray-700">
+                    <div className="flex-1 overflow-y-auto min-h-0 -mx-4 px-4 divide-y divide-slate-150 dark:divide-slate-800">
                        {cartItems.map(item => (
-                            <div key={item.id} className="py-4 flex gap-4">
-                                <img src={item.imageUrl} alt={item.name} className="w-16 h-16 object-cover rounded-md" referrerPolicy="no-referrer" />
-                                <div className="flex-1">
-                                    <p className="font-semibold text-sm line-clamp-2 text-slate-800 dark:text-slate-100">{item.name}</p>
-                                    <p className="text-xs text-gray-500 dark:text-gray-400 font-bold">{formatPrice(item.price)}</p>
-                                    <div className="mt-2 flex items-center gap-2">
-                                        <button 
-                                            onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
-                                            className="w-8 h-8 flex items-center justify-center border border-slate-300 dark:border-slate-600 rounded bg-slate-50 dark:bg-slate-800 text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                                        >-</button>
-                                        <span className="w-8 text-center font-bold text-sm text-slate-800 dark:text-slate-200">{item.quantity}</span>
-                                        <button 
-                                            onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
-                                            className="w-8 h-8 flex items-center justify-center border border-slate-300 dark:border-slate-600 rounded bg-slate-50 dark:bg-slate-800 text-sm font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors"
-                                        >+</button>
+                            <div key={item.id} className="py-3 flex gap-3 items-center">
+                                <div className="w-12 h-12 rounded-xl bg-slate-100 dark:bg-slate-800 border border-slate-200/60 dark:border-slate-750 overflow-hidden shrink-0">
+                                    <img 
+                                        src={item.imageUrl} 
+                                        alt={item.name} 
+                                        className="w-full h-full object-cover" 
+                                        referrerPolicy="no-referrer" 
+                                    />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="font-bold text-xs line-clamp-1 text-slate-900 dark:text-white" title={item.name}>
+                                        {item.name}
+                                    </p>
+                                    <div className="flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400 font-mono mt-0.5">
+                                        <span>{item.sku}</span>
+                                        {item.oemCode && (
+                                            <>
+                                                <span>•</span>
+                                                <span className="text-brand-orange">{item.oemCode}</span>
+                                            </>
+                                        )}
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-1.5">
+                                        <div className="flex items-center border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-800 overflow-hidden">
+                                            <button 
+                                                type="button"
+                                                onClick={() => onUpdateQuantity(item.id, item.quantity - 1)}
+                                                className="w-6 h-6 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                                                title="Decrease quantity"
+                                            >
+                                                <Minus className="w-3 h-3" />
+                                            </button>
+                                            <span className="w-7 text-center font-bold text-xs text-slate-800 dark:text-slate-200 font-mono">
+                                                {item.quantity}
+                                            </span>
+                                            <button 
+                                                type="button"
+                                                onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
+                                                className="w-6 h-6 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                                                title="Increase quantity"
+                                            >
+                                                <Plus className="w-3 h-3" />
+                                            </button>
+                                        </div>
+                                        <span className="text-[11px] text-slate-400 font-mono">
+                                            @ {formatPrice(item.price)}
+                                        </span>
                                     </div>
                                 </div>
-                                <div className="flex flex-col items-end justify-between">
-                                     <p className="font-bold text-sm text-slate-900 dark:text-slate-50">{formatPrice(item.price * item.quantity)}</p>
-                                     <button onClick={() => onRemoveItem(item.id)} className="p-1 text-gray-400 hover:text-red-500 transition-colors">
-                                        <X className="w-4 h-4" />
-                                     </button>
+                                <div className="flex flex-col items-end justify-between self-stretch shrink-0 py-0.5">
+                                    <button 
+                                        type="button"
+                                        onClick={() => onRemoveItem(item.id)} 
+                                        className="p-1 text-slate-400 hover:text-rose-500 rounded-md transition-colors cursor-pointer"
+                                        title="Remove item"
+                                    >
+                                        <X className="w-3.5 h-3.5" />
+                                    </button>
+                                    <p className="font-black text-xs font-mono text-slate-900 dark:text-white">
+                                        {formatPrice(item.price * item.quantity)}
+                                    </p>
                                 </div>
                             </div>
                         ))}
@@ -326,88 +412,172 @@ const Cart: React.FC<CartProps> = ({
                 )}
             </div>
 
+            {/* CHECKOUT SUMMARY FOOTER */}
             {cartItems.length > 0 && (
-                <div className="p-4 border-t border-surface-2 dark:border-gray-700 space-y-3 text-sm bg-slate-50 dark:bg-slate-900/40">
-                    {/* Customer Account Summary in Cart */}
+                <div className="p-4 border-t border-slate-150 dark:border-slate-800 space-y-2.5 text-xs bg-slate-50/80 dark:bg-slate-900/60 shrink-0">
+                    {/* B2B Credit Status Bar if customer is on Credit */}
                     {isCreditCustomer && (
-                        <div className="bg-white dark:bg-slate-800 p-2 rounded-lg border border-slate-200 dark:border-slate-700 text-xs">
-                            <span className="font-bold text-slate-500 dark:text-slate-400">B2B Credit Account Status:</span>
-                            <div className="grid grid-cols-2 gap-1 mt-1 text-slate-600 dark:text-slate-300">
-                                <span>Limit Capac: {formatPrice(creditLimit)}</span>
-                                <span>Oust. Debt: {formatPrice(outstandingBalance)}</span>
+                        <div className="bg-white dark:bg-slate-800 p-2.5 rounded-xl border border-slate-200 dark:border-slate-750 text-xs">
+                            <div className="flex items-center justify-between font-semibold text-slate-600 dark:text-slate-300">
+                                <span className="text-[11px] text-slate-500 dark:text-slate-400">Trade Credit Limit:</span>
+                                <span className="font-mono">{formatPrice(creditLimit)}</span>
+                            </div>
+                            <div className="flex items-center justify-between font-semibold text-slate-600 dark:text-slate-300 mt-1">
+                                <span className="text-[11px] text-slate-500 dark:text-slate-400">Current Exposure + Order:</span>
+                                <span className={`font-mono ${hasCreditLimitExceeded ? 'text-rose-600 dark:text-rose-400 font-bold' : ''}`}>
+                                    {formatPrice(outstandingBalance + total)}
+                                </span>
                             </div>
                             <div className="mt-1.5 h-1.5 bg-slate-100 dark:bg-slate-700 rounded-full overflow-hidden">
                                 <div 
-                                    className={`h-full ${hasCreditLimitExceeded ? 'bg-red-500' : 'bg-brand-orange'}`} 
-                                    style={{ width: `${Math.min(100, ((outstandingBalance + total) / creditLimit) * 100)}%` }}
-                                ></div>
+                                    className={`h-full transition-all ${hasCreditLimitExceeded ? 'bg-rose-500' : 'bg-brand-orange'}`} 
+                                    style={{ width: `${Math.min(100, ((outstandingBalance + total) / (creditLimit || 1)) * 100)}%` }}
+                                />
                             </div>
                             {hasCreditLimitExceeded && (
-                                <p className="text-red-600 dark:text-red-400 font-extrabold mt-1 text-[10px] flex items-center gap-1">
-                                    <AlertTriangle className="w-3.5 h-3.5 text-red-500 shrink-0" />
-                                    <span>Credit Limit exceeded by {formatPrice(outstandingBalance + total - creditLimit)}!</span>
-                                </p>
+                                <div className="mt-1.5 text-[11px] text-rose-600 dark:text-rose-400 font-bold flex items-center gap-1">
+                                    <AlertCircle className="w-3.5 h-3.5 shrink-0 text-rose-500" />
+                                    <span>Exceeds credit limit by {formatPrice(outstandingBalance + total - creditLimit)}. Supervisor passcode required.</span>
+                                </div>
                             )}
                         </div>
                     )}
 
-                    <div className="flex justify-between">
-                        <span>Subtotal</span>
-                        <span className="font-semibold">{formatPrice(subtotal)}</span>
-                    </div>
-                     <div className="flex justify-between">
-                        <span>Discount ({discount}%)</span>
-                        <span className="font-semibold text-green-600 dark:text-green-400">- {formatPrice(discountAmount)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                        <span>VAT ({settings.vatRate}%)</span>
-                        <span className="font-semibold">{formatPrice(tax)}</span>
-                    </div>
-                    <div className="flex justify-between text-xl font-bold border-t border-surface-2 dark:border-gray-600 pt-3 mt-3 text-ink dark:text-gray-50">
-                        <span>Total ({settings.currency})</span>
-                        <span>{formatPrice(total)}</span>
+                    <div className="space-y-1.5 pt-1">
+                        <div className="flex justify-between text-slate-600 dark:text-slate-400">
+                            <span>Subtotal (Net)</span>
+                            <span className="font-mono font-medium">{formatPrice(subtotal)}</span>
+                        </div>
+                        {discount > 0 && (
+                            <div className="flex justify-between text-emerald-600 dark:text-emerald-400 font-semibold">
+                                <span>Discount ({discount}%)</span>
+                                <span className="font-mono">- {formatPrice(discountAmount)}</span>
+                            </div>
+                        )}
+                        <div className="flex justify-between text-slate-600 dark:text-slate-400">
+                            <span>VAT ({settings.vatRate}%)</span>
+                            <span className="font-mono font-medium">{formatPrice(tax)}</span>
+                        </div>
+                        <div className="flex justify-between items-baseline text-base font-black border-t border-slate-200 dark:border-slate-750 pt-2 text-slate-900 dark:text-white">
+                            <span>Total Compliant Due</span>
+                            <span className="text-lg font-mono text-brand-orange">{formatPrice(total)}</span>
+                        </div>
                     </div>
 
+                    {/* Quick Operations Row: Discount & Hold Ticket */}
                     <div className="flex gap-2 pt-1">
-                        <button onClick={() => setDiscountModalOpen(true)} className="flex-1 py-2 text-xs font-bold border border-brand-orange text-brand-orange rounded-lg hover:bg-brand-orange/10 transition-colors">
-                            Apply Discount
+                        <button 
+                            type="button"
+                            onClick={() => setDiscountModalOpen(true)} 
+                            className="flex-1 py-2 px-2 text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:border-brand-orange dark:hover:border-brand-orange rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer"
+                        >
+                            <Percent className="w-3.5 h-3.5 text-brand-orange" />
+                            <span>{discount > 0 ? `${discount}% Applied` : 'Discount'}</span>
                         </button>
-                        <button onClick={() => {
-                            alert("Cart Held Successfully! (Draft transaction saved)");
-                            onClearCart();
-                        }} className="flex-1 py-2 text-xs font-bold border border-slate-300 dark:border-slate-600 text-slate-600 dark:text-slate-300 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                            Hold Ticket
+                        <button 
+                            type="button"
+                            onClick={() => setIsHoldDialogOpen(true)}
+                            className="flex-1 py-2 px-2 text-xs font-bold border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:border-slate-300 rounded-xl transition-all flex items-center justify-center gap-1 cursor-pointer"
+                        >
+                            <Clock className="w-3.5 h-3.5 text-slate-400" />
+                            <span>Hold Ticket</span>
                         </button>
                     </div>
 
+                    {/* Primary Checkout Button */}
                     <button 
+                        type="button"
                         onClick={() => {
                             if (!canCreateOrder) {
-                                alert(`🔒 Checkout is disabled in Read-Only inquiry mode for role '${userRole}'.`);
+                                notify(`Checkout is restricted in Read-Only inquiry mode for role '${userRole}'.`, true);
                                 return;
                             }
                             if (hasCreditLimitExceeded) {
-                                alert("WARNING: Credit Limit Exceeded! Requiring manager passcode override to proceed.");
+                                setApprovalAction('credit');
+                                setApprovalReason(`Credit limit exceeded by ${formatPrice(outstandingBalance + total - creditLimit)}. Supervisor approval is required to override credit guard.`);
                                 setApprovalModalOpen(true);
                             } else {
                                 setPaymentModalOpen(true);
                             }
                         }} 
                         disabled={!canCreateOrder}
-                        className={`w-full py-3.5 text-base font-bold text-white rounded-lg transition-all shadow-md ${
+                        className={`w-full py-3 text-sm font-bold text-white rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer ${
                             !canCreateOrder
                             ? 'bg-slate-700 cursor-not-allowed opacity-60 text-slate-400'
                             : hasCreditLimitExceeded 
-                            ? 'bg-red-600 hover:bg-red-700 cursor-pointer animate-pulse' 
-                            : 'bg-brand-orange hover:bg-brand-orange/95 cursor-pointer'
+                            ? 'bg-amber-600 hover:bg-amber-700 text-white' 
+                            : 'bg-brand-orange hover:bg-brand-orange/90 text-white'
                         }`}
                     >
-                        {!canCreateOrder
-                            ? `Checkout Disabled (${userRole} Mode)`
-                            : hasCreditLimitExceeded 
-                            ? "Override Credit Guard & Pay" 
-                            : `Charge ${formatPrice(total)}`}
+                        {!canCreateOrder ? (
+                            <span>Checkout Restricted ({userRole})</span>
+                        ) : hasCreditLimitExceeded ? (
+                            <>
+                                <ShieldAlert className="w-4 h-4" />
+                                <span>Supervisor Override & Pay</span>
+                            </>
+                        ) : (
+                            <>
+                                <CreditCard className="w-4 h-4" />
+                                <span>Charge {formatPrice(total)}</span>
+                            </>
+                        )}
                     </button>
+                </div>
+            )}
+
+            {/* Hold Ticket Modal */}
+            {isHoldDialogOpen && (
+                <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center z-50 p-4 animate-in fade-in duration-150">
+                    <div className="bg-white dark:bg-slate-850 rounded-2xl shadow-2xl w-full max-w-sm p-5 border border-slate-200/80 dark:border-slate-700/80 text-slate-900 dark:text-slate-100 animate-in zoom-in-95 duration-150">
+                        <div className="flex justify-between items-center pb-3 border-b border-slate-100 dark:border-slate-750">
+                            <div className="flex items-center gap-2">
+                                <Clock className="w-4 h-4 text-brand-orange" />
+                                <h3 className="text-sm font-bold text-slate-900 dark:text-white">Suspend Current Ticket</h3>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setIsHoldDialogOpen(false)}
+                                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+                        
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-3 leading-relaxed">
+                            This cart will be held temporarily so you can attend to other counter customers. You can resume it anytime from the Held Tickets panel.
+                        </p>
+
+                        <div className="mt-4">
+                            <label className="text-[11px] font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400 block mb-1.5">
+                                Optional Reference Note
+                            </label>
+                            <input
+                                type="text"
+                                value={holdNote}
+                                onChange={(e) => setHoldNote(e.target.value)}
+                                placeholder="e.g. Waiting for mechanic part verification"
+                                className="w-full text-xs p-2.5 border border-slate-200 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-orange focus:outline-none"
+                            />
+                        </div>
+
+                        <div className="mt-5 flex gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setIsHoldDialogOpen(false)}
+                                className="flex-1 py-2 text-xs font-semibold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-750 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={handleHoldTicketConfirm}
+                                className="flex-1 py-2 text-xs font-bold bg-brand-orange hover:bg-brand-orange/90 text-white rounded-xl shadow-xs transition-all cursor-pointer"
+                            >
+                                Hold Ticket
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
             
@@ -420,26 +590,21 @@ const Cart: React.FC<CartProps> = ({
                 cartItems={cartItems}
             />
             <DiscountModal 
-                isOpen={isDiscountModalOpen}
+                isOpen={isDiscountModalOpen} 
                 onClose={() => setDiscountModalOpen(false)}
                 onApplyDiscount={handleApplyDiscountClick}
+                currentDiscount={discount}
+                subtotal={subtotal}
             />
             <ApprovalModal 
-                isOpen={isApprovalModalOpen}
+                isOpen={isApprovalModalOpen} 
                 onClose={() => setApprovalModalOpen(false)}
-                onApprove={() => {
-                    if (hasCreditLimitExceeded) {
-                        alert("Manager Passcode Approved! Credit guard overridden.");
-                        setApprovalModalOpen(false);
-                        setPaymentModalOpen(true);
-                    } else {
-                        handleManagerApproved();
-                    }
-                }}
+                onApprove={handleManagerApproved}
+                reason={approvalReason}
+                title="Supervisor Security Authorization"
             />
         </div>
     );
 };
 
 export default Cart;
-

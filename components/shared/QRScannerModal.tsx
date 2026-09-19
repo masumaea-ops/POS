@@ -4,7 +4,8 @@ import type { Product, SaleOrder, PurchaseOrder } from '../../types';
 import { 
   X, Camera, Flashlight, RefreshCw, Upload, Search, 
   CheckCircle2, AlertTriangle, FileText, Package, 
-  ShoppingCart, ShieldCheck, Printer, Zap, Sparkles, Layers, SlidersHorizontal, Tag
+  ShoppingCart, ShieldCheck, Printer, Zap, Sparkles, Layers, SlidersHorizontal, Tag,
+  ArrowRight, RotateCw, Check, AlertCircle, XCircle
 } from 'lucide-react';
 import { useSystemSettings } from '../../contexts/SettingsContext';
 import { generateQRCodeDataURL } from '../../utils/qrCodeGenerator';
@@ -782,9 +783,10 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({
                       </div>
                       <button
                         onClick={startCamera}
-                        className="py-1.5 px-4 bg-brand-orange hover:bg-orange-600 text-white font-bold text-xs uppercase rounded-lg shadow transition"
+                        className="py-1.5 px-4 bg-brand-orange hover:bg-orange-600 text-white font-bold text-xs uppercase rounded-lg shadow transition flex items-center justify-center gap-1.5 mx-auto"
                       >
-                        🔄 Reconnect Camera
+                        <RotateCw className="w-3.5 h-3.5" />
+                        <span>Reconnect Camera</span>
                       </button>
                     </div>
                   )}
@@ -958,8 +960,9 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({
                                 <span className="text-[10px] font-mono text-slate-500">{formatPrice(order.total)}</span>
                               </div>
                             </div>
-                            <span className="text-xs text-indigo-600 dark:text-indigo-400 font-bold group-hover:underline">
-                              Verify ➔
+                            <span className="text-xs text-indigo-600 dark:text-indigo-400 font-bold group-hover:underline flex items-center gap-1">
+                              <span>Verify</span>
+                              <ArrowRight className="w-3 h-3" />
                             </span>
                           </div>
                         );
@@ -1006,8 +1009,9 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({
                             <span className="text-[9px] uppercase font-bold text-slate-400 block font-mono">
                               {p.stock > 0 ? `${p.stock} in stock` : 'Out of Stock'}
                             </span>
-                            <span className="text-xs font-bold text-brand-orange group-hover:translate-x-1 transition-transform inline-block mt-1">
-                              Scan ➔
+                            <span className="text-xs font-bold text-brand-orange group-hover:translate-x-1 transition-transform inline-flex items-center gap-1 mt-1">
+                              <span>Scan</span>
+                              <ArrowRight className="w-3 h-3" />
                             </span>
                           </div>
                         </div>
@@ -1118,8 +1122,9 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({
               {/* EVENT FEED SCROLLER */}
               <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1">
                 {scanLogs.length === 0 ? (
-                  <div className="p-8 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl text-slate-400 font-mono text-xs">
-                    📸 Waiting for camera or barcode data...
+                  <div className="p-8 text-center border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl text-slate-400 font-mono text-xs flex flex-col items-center justify-center gap-1.5">
+                    <Camera className="w-5 h-5 text-slate-400" />
+                    <span>Waiting for camera or barcode data...</span>
                   </div>
                 ) : (
                   scanLogs.map((log) => (
@@ -1154,8 +1159,14 @@ export const QRScannerModal: React.FC<QRScannerModalProps> = ({
                         </p>
                       </div>
 
-                      <span className="text-base font-black">
-                        {log.status === 'SUCCESS' ? '✓' : log.status === 'OUT_OF_STOCK' ? '!' : '✗'}
+                      <span className="shrink-0">
+                        {log.status === 'SUCCESS' ? (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-500" />
+                        ) : log.status === 'OUT_OF_STOCK' ? (
+                          <AlertTriangle className="w-4 h-4 text-amber-500" />
+                        ) : (
+                          <XCircle className="w-4 h-4 text-rose-500" />
+                        )}
                       </span>
                     </div>
                   ))
